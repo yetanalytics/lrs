@@ -14,4 +14,13 @@
 (def get-activity-partial-spec
   (s/fspec :args (s/cat :params
                         :xapi.activities.GET.request/params)
-           :ret ::xs/activity))
+           :ret (s/nilable ::xs/activity)))
+
+;; Errors
+(defn throw-invalid-params [params]
+  (throw (ex-info "Invalid Activity Params"
+                  {:type ::invalid-params
+                   :params params
+                   :schema-error (s/explain-data
+                                  :xapi.activities.GET.request/params
+                                  params)})))
