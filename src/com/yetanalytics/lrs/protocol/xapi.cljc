@@ -17,4 +17,4 @@
          ::agents/agent-info-resource-instance
          ::agents-profile/agent-profile-resource-instance
          ::statements/statements-resource-instance
-         ::auth/lrs-auth-instance))
+         ))
