@@ -1,4 +1,4 @@
-(ns com.yetanalytics.lrs.routes.agents
+(ns com.yetanalytics.lrs.pedestal.routes.agents
   (:require [com.yetanalytics.lrs.protocol.xapi.agents :as agent-proto]))
 
 (def handle-get

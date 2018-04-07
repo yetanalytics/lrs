@@ -1,4 +1,4 @@
-(ns com.yetanalytics.lrs.routes.activities
+(ns com.yetanalytics.lrs.pedestal.routes.activities
   (:require [com.yetanalytics.lrs.protocol.xapi.activities :as activities-proto]))
 
 (def handle-get

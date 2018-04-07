@@ -1,4 +1,4 @@
-(ns com.yetanalytics.lrs.routes.statements
+(ns com.yetanalytics.lrs.pedestal.routes.statements
   (:require [com.yetanalytics.lrs.protocol.xapi.statements :as statements-proto]))
 
 (defn error-response

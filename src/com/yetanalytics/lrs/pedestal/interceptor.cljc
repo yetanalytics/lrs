@@ -1,4 +1,4 @@
-(ns com.yetanalytics.lrs.interceptor.cljc
+(ns com.yetanalytics.lrs.pedestal.interceptor.cljc
   "xAPI Route Interceptors"
   (:require [clojure.string :as cstr])
   (:import [java.security MessageDigest]
