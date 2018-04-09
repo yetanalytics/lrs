@@ -6,40 +6,19 @@
   [exi]
   (let [exd (ex-data exi)]
     (case (:type exd)
-      ::statements-proto/invalid-params
-      {:status 400
-       :body
-       {:error
-        {:message (.getMessage exi)
-         :params (:params exi)}}}
-      ::statements-proto/invalid-statements
-      {:status 400
-       :body
-       {:error
-        {:message (.getMessage exi)
-         :invalid-statements
-         (:invalid-statements exd)}}}
-      ::statements-proto/invalid-attachments
-      {:status 400
-       :body
-       {:error
-        {:message (.getMessage exi)}}}
-      ::statements-proto/conflicting-statements
+      ::statements-proto/statement-conflict
       {:status 409
        :body
        {:error
-        {:message (.getMessage exi)
-         :conflicting-statements
-         (:conflicting-statements exd)
-         :extant-statements
-         (:extant-statements exd)}}}
-      ::statements-proto/invalid-voiding-statements
+        (merge {:message (.getMessage exi)}
+               (select-keys exd [:statement
+                                 :extant-statement]))}}
+      ::statements-proto/invalid-voiding-statement
       {:status 400
        :body
        {:error
-        {:message (.getMessage exi)
-         :invalid-voiding-statements
-         (:invalid-voiding-statements exd)}}}
+        (merge {:message (.getMessage exi)}
+               (select-keys exd [:statement]))}}
       (throw exi))))
 
 (def handle-put
@@ -48,16 +27,24 @@
    (fn [ctx]
      (assoc ctx :response
             (let [params (get-in ctx [:request :params])]
-              (if-let [s-id (get params "statementId")]
+              (if-let [s-id (get params :statementId)]
                 (let [lrs (get ctx :com.yetanalytics/lrs)
-                      statement (get-in ctx [:request :body])
+                      statement (get-in ctx [:request :json-params])
                       attachments (get ctx :xapi/attachments [])]
-                  (try (statements-proto/store-statements
-                        lrs [(assoc statement "id" s-id)]
-                        attachments)
-                       {:status 204}
-                       (catch clojure.lang.ExceptionInfo exi
-                         (error-response exi))))
+                  (if (or (nil? (get statement "id"))
+                          (= s-id (get statement "id")))
+                    (try (statements-proto/store-statements
+                          lrs [(assoc statement "id" s-id)]
+                          attachments)
+                         {:status 204}
+                         (catch clojure.lang.ExceptionInfo exi
+                           (error-response exi)))
+                    {:status 400
+                     :body
+                     {:error
+                      {:message "statementId param does not match Statement ID"
+                       :statement-id-param s-id
+                       :statement-id (get statement "id")}}}))
                 {:status 400
                  :body
                  {:error
@@ -70,14 +57,14 @@
    (fn [ctx]
      (assoc ctx :response
             (let [lrs (get ctx :com.yetanalytics/lrs)
-                  statements (get-in ctx [:request :body] [])
+                  statement-data (get-in ctx [:request :json-params] [])
                   attachments (get ctx :xapi/attachments [])]
               (try
                 {:status 200
                  :body (statements-proto/store-statements
-                        lrs (if (map? statements)
-                              [statements]
-                              statements)
+                        lrs (if (map? statement-data)
+                              [statement-data]
+                              statement-data)
                         attachments)}
                 (catch clojure.lang.ExceptionInfo exi
                   (error-response exi))))))})

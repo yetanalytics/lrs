@@ -1,6 +1,14 @@
-(ns com.yetanalytics.lrs.pedestal.interceptor.cljc
+(ns com.yetanalytics.lrs.pedestal.interceptor
   "xAPI Route Interceptors"
-  (:require [clojure.string :as cstr])
+  (:require [clojure.string :as cstr]
+            [io.pedestal.http :as http]
+            [io.pedestal.interceptor.chain :as chain]
+            [io.pedestal.http.cors :as cors]
+            [io.pedestal.http.body-params :as body-params]
+            [io.pedestal.http.params :refer [keyword-params
+                                             keyword-body-params
+                                             ]]
+            [io.pedestal.http.route :as route])
   (:import [java.security MessageDigest]
            [java.io File]))
 
@@ -23,11 +31,13 @@
                      "1.0.2"
                      "1.0.3"} version-header)
                 ctx
-                (assoc ctx :response
+                (assoc (chain/terminate ctx)
+                       :response
                        {:status 400
                         :body
                         {:error {:message "X-Experience-API-Version header invalid!"}}}))
-              (assoc ctx :response
+              (assoc (chain/terminate ctx)
+                     :response
                      {:status 400
                       :body
                       {:error {:message "X-Experience-API-Version header required!"}}})))})
@@ -54,14 +64,11 @@
    "Content-Length" "If-Match" "If-None-Match" "Accept-Language"
    "Accept" "Accept-Encoding"])
 
-(defn xapi-alternate-request-headers-interceptor
-  "Interceptor factory that takes a form-parser fn and handles xapi alternate
-   request syntax"
-  [form-parser]
+(def xapi-alternate-request-headers-interceptor
   {:name ::xapi-alternate-request-headers
    :enter (fn [{:keys [request] :as ctx}]
             (if (some-> request :params :method)
-              (let [request (form-parser request)
+              (let [request (body-params/form-parser request)
                     keyword-or-string-headers (into valid-alt-request-headers
                                                     (map keyword
                                                          valid-alt-request-headers))
@@ -107,10 +114,11 @@
                 (catch clojure.lang.ExceptionInfo exi
                   (let [exd (ex-data exi)]
                     (if (= (:type exd) ::invalid-accept-language-header)
-                      (assoc ctx :response {:status 400
-                                            :body
-                                            {:message (.getMessage exi)
-                                             :header accept-language}})
+                      (assoc (chain/terminate ctx)
+                             :response {:status 400
+                                        :body
+                                        {:message (.getMessage exi)
+                                         :header accept-language}})
                       (throw exi)))))
               ctx))})
 
@@ -146,16 +154,19 @@
 (defn- quote-etag [etag]
   (str "\"" etag "\""))
 
+(defn etag-leave
+  [{:keys [request response] :as ctx}]
+  (let [if-none-match (get-in request [:headers "if-none-match"])
+        etag (get-in response [:headers "etag"]
+                     (calculate-etag (:body response)))]
+    (if (= etag if-none-match)
+      (assoc ctx :response
+             {:status 304 :body "" :headers {"ETag" (quote-etag etag)}})
+      (update-in ctx [:response :headers] merge {"ETag" (quote-etag etag)}))))
+
 (def etag-interceptor
   {:name ::etag
-   :leave (fn [{:keys [request response] :as ctx}]
-            (let [if-none-match (get-in request [:headers "if-none-match"])
-                  etag (get-in response [:headers "etag"]
-                               (calculate-etag (:body response)))]
-              (if (= etag if-none-match)
-                (assoc ctx :response
-                       {:status 304 :body "" :headers {"etag" (quote-etag etag)}})
-                (assoc-in ctx [:response :headers] {"etag" (quote-etag etag)}))))})
+   :leave etag-leave})
 
 ;; Combo
 (def require-and-set-xapi-version-interceptor
@@ -165,3 +176,32 @@
    {:name ::require-and-set-xapi-version}))
 
 ;; TODO: Port the rest of the interceptors
+
+;; Combined interceptors
+(def common-interceptors [(cors/allow-origin identity)
+                          x-forwarded-for-interceptor
+                          http/json-body
+                          etag-interceptor
+
+                          ;; TODO: multiparts, etc
+                          ;; i/multipart-mixed
+
+
+                          (body-params/body-params
+                           (body-params/default-parser-map :json-options {:key-fn identity})
+                           #_(select-keys (body-params/default-parser-map) [#"^application/x-www-form-urlencoded"]))
+                          ;; route/query-params
+                          ;; xapi-alternate-request-headers-interceptor
+                          ;; keyword-params
+                          ;; keyword-body-params
+
+                          #_(i/authentication auth/backend auth/cantilever-backend)
+                          #_(i/access-rules {:rules auth/rules
+                                             :on-error auth/error-response})
+
+                          set-xapi-version-interceptor
+
+                          ])
+
+(def xapi-protected-interceptors
+  [require-xapi-version-interceptor])

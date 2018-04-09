@@ -2,26 +2,18 @@
   (:require [io.pedestal.http :as http]
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
-            [ring.util.response :as ring-resp]))
+            [ring.util.response :as ring-resp]
+            [mem-lrs.impl.xapi :refer [new-lrs]]
+            [com.yetanalytics.lrs.pedestal.routes :refer [build]]))
 
-(defn about-page
-  [request]
-  (ring-resp/response (format "Clojure %s - served from %s"
-                              (clojure-version)
-                              (route/url-for ::about-page))))
+(def lrs (delay (new-lrs {})))
 
-(defn home-page
-  [request]
-  (ring-resp/response "Hello World!"))
-
-;; Defines "/" and "/about" routes with their associated :get handlers.
-;; The interceptors defined after the verb map (e.g., {:get home-page}
-;; apply to / and its children (/about).
-(def common-interceptors [(body-params/body-params) http/html-body])
+(defn new-routes []
+  (build {:lrs @lrs}))
 
 ;; Tabular routes
-(def routes #{["/" :get (conj common-interceptors `home-page)]
-              ["/about" :get (conj common-interceptors `about-page)]})
+(def routes
+  (new-routes))
 
 ;; Map-based routes
 ;(def routes `{"/" {:interceptors [(body-params/body-params) http/html-body]

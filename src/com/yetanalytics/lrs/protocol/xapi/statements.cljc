@@ -39,32 +39,14 @@
                  :nil
                  nil?)))
 
-(defn throw-invalid-params [params params-spec]
-  (throw (ex-info "Invalid Pa rams"
-                  {:type ::invalid-params
-                   :params params
-                   :schema-error (s/explain-data params-spec
-                                                 params)})))
+(defn throw-statement-conflict [conflicting-statement
+                                extant-statement]
+  (throw (ex-info "Statement Conflict"
+                  {:type ::statement-conflict
+                   :statement conflicting-statement
+                   :extant-statement extant-statement})))
 
-(defn throw-invalid-statements [invalid-statements]
-  (throw (ex-info "Invalid Statements"
-                  {:type ::invalid-statements
-                   :invalid-statements invalid-statements
-                   :schema-error (s/explain-data ::xs/statements
-                                                 invalid-statements)})))
-
-(defn throw-invalid-attachments []
-  (throw (ex-info "Invalid Attachments"
-                  {:type ::invalid-attachments})))
-
-(defn throw-conflicting-statements [conflicting-statements
-                                    extant-statements]
-  (throw (ex-info "Conflicting Statements"
-                  {:type ::conflicting-statements
-                   :conflicting-statements conflicting-statements
-                   :extant-statements extant-statements})))
-
-(defn throw-invalid-voiding-statements [invalid-voiding-statements]
-  (throw (ex-info "Invalid Voiding Statements"
-                  {:type ::invalid-voiding-statements
-                   :invalid-voiding-statements invalid-voiding-statements})))
+(defn throw-invalid-voiding-statement [invalid-voiding-statement]
+  (throw (ex-info "Invalid Voiding Statement"
+                  {:type ::invalid-voiding-statement
+                   :statement invalid-voiding-statement})))
