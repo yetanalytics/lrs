@@ -8,7 +8,8 @@
             [io.pedestal.http.params :refer [keyword-params
                                              keyword-body-params
                                              ]]
-            [io.pedestal.http.route :as route])
+            [io.pedestal.http.route :as route]
+            [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed])
   (:import [java.security MessageDigest]
            [java.io File]))
 
@@ -188,7 +189,11 @@
 
 
                           (body-params/body-params
-                           (body-params/default-parser-map :json-options {:key-fn identity})
+                           (merge
+                            {#"^multipart/mixed"
+                             multipart-mixed/parse-multiparts}
+                            (body-params/default-parser-map
+                             :json-options {:key-fn identity}))
                            #_(select-keys (body-params/default-parser-map) [#"^application/x-www-form-urlencoded"]))
                           ;; route/query-params
                           ;; xapi-alternate-request-headers-interceptor
