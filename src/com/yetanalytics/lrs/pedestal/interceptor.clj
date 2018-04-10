@@ -189,12 +189,8 @@
 
 
                           (body-params/body-params
-                           (merge
-                            {#"^multipart/mixed"
-                             multipart-mixed/parse-multiparts}
-                            (body-params/default-parser-map
-                             :json-options {:key-fn identity}))
-                           #_(select-keys (body-params/default-parser-map) [#"^application/x-www-form-urlencoded"]))
+                           (body-params/default-parser-map
+                            :json-options {:key-fn identity}))
                           ;; route/query-params
                           ;; xapi-alternate-request-headers-interceptor
                           ;; keyword-params

@@ -1,9 +1,10 @@
 (ns com.yetanalytics.lrs.pedestal.http.multipart-mixed
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [clojure.spec.alpha :as s])
   (:import
-   [javax.servlet MultipartConfigElement]
-   [javax.servlet.http Part]
-   [org.eclipse.jetty.util MultiPartInputStreamParser]
+   ;; [javax.servlet MultipartConfigElement]
+   ;; [javax.servlet.http Part]
+   ;; [org.eclipse.jetty.util MultiPartInputStreamParser]
 
    [org.apache.commons.mail ByteArrayDataSource]
    [org.apache.commons.fileupload.util LimitedInputStream]
@@ -64,7 +65,7 @@
                          :count count}))))
     (:body request)))
 
-(defn- parse-request
+(defn parse-request
   "Parse a mutlipart/mixed request"
   [request & [limit]]
   (let [multipart (MimeMultipart. (ByteArrayDataSource.

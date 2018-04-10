@@ -38,11 +38,13 @@
       ["/xapi/statements" :put (conj protected-interceptors
                                      (xapi-i/params-interceptor
                                       :xapi.statements.PUT.request/params)
+                                     statements-i/parse-multiparts
                                      statements-i/validate-request-statements
                                      statements-i/set-consistent-through
                                      statements/handle-put)
        ]
       ["/xapi/statements" :post (conj protected-interceptors
+                                      statements-i/parse-multiparts
                                       statements-i/validate-request-statements
                                       statements-i/set-consistent-through
                                       statements/handle-post)]
