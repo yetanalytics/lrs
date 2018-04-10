@@ -26,45 +26,41 @@
    :enter
    (fn [ctx]
      (assoc ctx :response
-            (let [params (get-in ctx [:request :params])]
-              (if-let [s-id (get params :statementId)]
-                (let [lrs (get ctx :com.yetanalytics/lrs)
-                      statement (get-in ctx [:request :json-params])
-                      attachments (get ctx :xapi/attachments [])]
-                  (if (or (nil? (get statement "id"))
-                          (= s-id (get statement "id")))
-                    (try (statements-proto/store-statements
-                          lrs [(assoc statement "id" s-id)]
-                          attachments)
-                         {:status 204}
-                         (catch clojure.lang.ExceptionInfo exi
-                           (error-response exi)))
-                    {:status 400
-                     :body
-                     {:error
-                      {:message "statementId param does not match Statement ID"
-                       :statement-id-param s-id
-                       :statement-id (get statement "id")}}}))
+            (let [{params :xapi.statements.PUT.request/params
+                   statement :xapi-schema.spec/statement
+                   attachments :xapi.statements/attachments} (:xapi ctx)
+                  s-id (:statementId params)
+                  lrs (get ctx :com.yetanalytics/lrs)]
+              (if (or (nil? (get statement "id"))
+                      (= s-id (get statement "id")))
+                (try (statements-proto/store-statements
+                      lrs [(assoc statement "id" s-id)]
+                      attachments)
+                     {:status 204}
+                     (catch clojure.lang.ExceptionInfo exi
+                       (error-response exi)))
                 {:status 400
                  :body
                  {:error
-                  {:message "statementId param required!"
-                   :params params}}}))))})
+                  {:message "statementId param does not match Statement ID"
+                   :statement-id-param s-id
+                   :statement-id (get statement "id")}}}))))})
 
 (def handle-post
   {:name ::handle-post
    :enter
    (fn [ctx]
      (assoc ctx :response
-            (let [lrs (get ctx :com.yetanalytics/lrs)
-                  statement-data (get-in ctx [:request :json-params] [])
-                  attachments (get ctx :xapi/attachments [])]
+            (let [{?statements :xapi-schema.spec/statements
+                   ?statement :xapi-schema.spec/statement
+                   attachments :xapi.statements/attachments} (:xapi ctx)
+                  lrs (get ctx :com.yetanalytics/lrs)
+                  statements (or ?statements [?statement])]
               (try
                 {:status 200
                  :body (statements-proto/store-statements
-                        lrs (if (map? statement-data)
-                              [statement-data]
-                              statement-data)
+                        lrs
+                        statements
                         attachments)}
                 (catch clojure.lang.ExceptionInfo exi
                   (error-response exi))))))})
@@ -79,7 +75,7 @@
    (fn [ctx]
      (assoc ctx :response
             (let [lrs (get ctx :com.yetanalytics/lrs)
-                  params (get-in ctx [:request :params] {})
+                  params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
                   ltags (get ctx :xapi/ltags [])]
               (try
                 (if-let [result (statements-proto/get-statements

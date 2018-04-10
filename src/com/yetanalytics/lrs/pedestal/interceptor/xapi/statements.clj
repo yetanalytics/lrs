@@ -114,9 +114,11 @@
             ;; (println "multis" (-> ctx :request :multiparts))
             (let [^String content-type (get-in ctx [:request :content-type])]
               (if-let [statement-data (get-in ctx [:request :json-params])]
-                (if (s/valid? single-or-multiple-statement-spec
-                              statement-data)
-                  ctx
+                (condp s/valid? statement-data
+                  ::xs/statement
+                  (assoc-in ctx [:xapi ::xs/statement] statement-data)
+                  ::xs/statements
+                  (assoc-in ctx [:xapi ::xs/statements] statement-data)
                   (assoc (chain/terminate ctx)
                          :response
                          {:status 400

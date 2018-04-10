@@ -34,7 +34,7 @@
                                   :params
                                   (coerce-params param-coercers))]
                    (if (s/valid? spec-kw params)
-                     (assoc-in ctx [:request :params] params)
+                     (assoc-in ctx [:xapi spec-kw] params)
                      (assoc (chain/terminate ctx)
                             :response
                             {:status 400
