@@ -1,13 +1,17 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements
   (:require
    [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart]
+   [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment :as attachment]
    [io.pedestal.interceptor.chain :as chain]
    [clojure.spec.alpha :as s]
    [xapi-schema.spec :as xs]
    [cheshire.core :as json]
    [clojure.java.io :as io]
-   [clojure.walk :as w])
+   [clojure.walk :as w]
+   [io.pedestal.log :as log])
   (:import [java.time Instant]))
+
+;; The general flow for these is 1. parse 2. validate 3. place in context
 
 ;; Multiparts
 (s/def :multipart/content-type
@@ -45,9 +49,16 @@
                    :statement-part/headers]))
 
 (s/def ::xapi-multiparts
-  (s/cat
-   :statement-part ::statement-part
-   :multiparts (s/* ::multipart)))
+  (s/and
+   (s/cat
+    :statement-part ::statement-part
+    :multiparts (s/* ::multipart))
+   (fn [[_ & rest-mps]]
+     (if (seq rest-mps)
+       (apply distinct?
+              (map #(get-in % [:headers "X-Experience-API-Hash"])
+                   rest-mps))
+       true))))
 
 (s/def ::ctype-boundary
   #(re-matches
@@ -57,7 +68,8 @@
 ;; TODO: figure out how to give back good errors to user here
 ;; TODO: figure out if we can short-circuit spec stuff
 (def parse-multiparts
-  "Parses and validates xapi statement multiparts"
+  "Parses and validates xapi statement multiparts.
+  Puts statements in :json-params and multiparts (if any) in :multiparts."
   {:name ::parse-multiparts
    :enter (fn [{:keys [request] :as ctx}]
             (let [content-type (:content-type request)]
@@ -67,7 +79,10 @@
                          (if-let [error (s/explain-data ::xapi-multiparts parts-seq)]
                            (assoc (chain/terminate ctx)
                                   :response
-                                  {:status 400})
+                                  {:status 400
+                                   :body
+                                   {:error
+                                    {:message "Invalid Multipart Request"}}})
                            (-> ctx
                                (assoc-in [:request :json-params]
                                          (with-open [rdr (io/reader (-> parts-seq
@@ -75,26 +90,35 @@
                                                                         :input-stream))]
                                            (json/parse-stream rdr)))
                                (assoc-in [:request :multiparts]
-                                         (into [] parts-seq)))))
+                                         (into [] (rest parts-seq))))))
                        (catch clojure.lang.ExceptionInfo exi
                          (let [exd (ex-data exi)]
                            (case (:type exd)
                              ::multipart/incomplete-multipart
                              (assoc (chain/terminate ctx)
                                     :response
-                                    {:status 400})
+                                    {:status 400
+                                     :body
+                                     {:error
+                                      {:message "Incomplete Multipart Request"}}})
                              ::multipart/too-much-content
                              (assoc (chain/terminate ctx)
                                     :response
-                                    {:status 413})
+                                    {:status 413
+                                     :body
+                                     {:error
+                                      {:message "Too much content"}}})
                              (throw exi))))
                        (catch com.fasterxml.jackson.core.JsonParseException _
                          (assoc (chain/terminate ctx)
                                 :response
-                                {:status 400})))
+                                {:status 400
+                                 :body {:error {:message "Invalid Statement JSON in multipart"}}})))
                   (assoc (chain/terminate ctx)
                          :response
-                         {:status 400}))
+                         {:status 400
+                          :body {:error {:message "Invalid Multipart Boundary"
+                                         :content-type content-type}}}))
                 ctx)))})
 
 
@@ -108,24 +132,51 @@
 
 ;; TODO: Wire up attachment + sig validation here
 (def validate-request-statements
-  "Validate statement JSON and return a 400 if it is not valid"
+  "Validate statement JSON structure and return a 400 if it is missing or
+  not valid. Puts statement data under the spec it satisfies in context :xapi"
   {:name ::validate-request-statements
    :enter (fn [ctx]
-            ;; (println "multis" (-> ctx :request :multiparts))
-            (let [^String content-type (get-in ctx [:request :content-type])]
+            (let [multiparts (get-in ctx [:request :multiparts] [])]
               (if-let [statement-data (get-in ctx [:request :json-params])]
-                (condp s/valid? statement-data
-                  ::xs/statement
-                  (assoc-in ctx [:xapi ::xs/statement] statement-data)
-                  ::xs/statements
-                  (assoc-in ctx [:xapi ::xs/statements] statement-data)
-                  (assoc (chain/terminate ctx)
-                         :response
-                         {:status 400
-                          :body {:error {:message "Invalid Statement Data"
-                                         :statement-data statement-data
-                                         :spec-error (s/explain-str single-or-multiple-statement-spec
-                                                                    statement-data)}}}))
+                (try (condp s/valid? statement-data
+                       ::xs/statement
+                       (let [[_ valid-multiparts] (attachment/validate-statements-multiparts
+                                                   [statement-data] multiparts)]
+                         (update ctx
+                                 :xapi
+                                 assoc
+                                 ::xs/statement statement-data
+                                 :xapi.statements/attachments
+                                 (attachment/save-attachments
+                                  valid-multiparts)))
+                       ::xs/statements
+                       (let [[_ valid-multiparts] (attachment/validate-statements-multiparts
+                                                   statement-data multiparts)]
+                         (update ctx
+                                 :xapi
+                                 assoc
+                                 ::xs/statements statement-data
+                                 :xapi.statements/attachments
+                                 (attachment/save-attachments
+                                  valid-multiparts)))
+                       (assoc (chain/terminate ctx)
+                              :response
+                              {:status 400
+                               :body {:error {:message "Invalid Statement Data"
+                                              :statement-data statement-data
+                                              :spec-error (s/explain-str single-or-multiple-statement-spec
+                                                                         statement-data)}}}))
+                     (catch clojure.lang.ExceptionInfo exi
+                       (assoc (chain/terminate ctx)
+                              :response
+                              (let [exd (ex-data exi)]
+                                (log/debug :msg "Statement Validation Exception" :exd exd)
+                                {:status (if (= ::attachment/attachment-save-failure (:type exd))
+                                           500
+                                           400)
+                                 :body
+                                 {:error {:message (.getMessage exi)}}})))
+                     (finally (attachment/close-multiparts! multiparts)))
                 (assoc (chain/terminate ctx)
                        :response
                        {:status 400

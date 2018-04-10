@@ -32,8 +32,15 @@
                                      statements-i/set-consistent-through
                                      statements/handle-get)
        ]
-      #_["/xapi/statements" :head (into xapi-protected-interceptors ;; TODO: see if pedestal handles head
-                                      )
+      ["/xapi/statements" :head (conj protected-interceptors
+                                      (xapi-i/params-interceptor
+                                       :xapi.statements.GET.request/params
+                                       {:limit (fn ^Long [^String limit-str]
+                                                 (Long/parseLong limit-str))
+                                        :page (fn ^Long [^String page-str]
+                                                (Long/parseLong page-str))})
+                                      statements-i/set-consistent-through
+                                      statements/handle-get)
        :route-name :nave.xapi.statements/head]
       ["/xapi/statements" :put (conj protected-interceptors
                                      (xapi-i/params-interceptor
