@@ -14,7 +14,19 @@
   (let [global-interceptors (conj i/common-interceptors
                                   (i/lrs-interceptor lrs))
         protected-interceptors (into global-interceptors
-                                     i/xapi-protected-interceptors)]
+                                     i/xapi-protected-interceptors)
+        statements-get-params-coercers
+        {:limit (fn ^Long [^String limit-str]
+                  (Long/parseLong limit-str))
+         :page (fn ^Long [^String page-str]
+                 (Long/parseLong page-str))
+         :attachments (fn ^Boolean [^String s]
+                        (Boolean/parseBoolean s))
+         :related_activities (fn ^Boolean [^String s]
+                               (Boolean/parseBoolean s))
+         :related_agents (fn ^Boolean [^String s]
+                           (Boolean/parseBoolean s))
+         }]
     #{;; xapi
       ["/xapi/about" :get (conj global-interceptors
                                 about/handle-get)]
@@ -25,20 +37,14 @@
       ["/xapi/statements" :get (conj protected-interceptors
                                      (xapi-i/params-interceptor
                                       :xapi.statements.GET.request/params
-                                      {:limit (fn ^Long [^String limit-str]
-                                                (Long/parseLong limit-str))
-                                       :page (fn ^Long [^String page-str]
-                                               (Long/parseLong page-str))})
+                                      statements-get-params-coercers)
                                      statements-i/set-consistent-through
                                      statements/handle-get)
        ]
       ["/xapi/statements" :head (conj protected-interceptors
                                       (xapi-i/params-interceptor
                                        :xapi.statements.GET.request/params
-                                       {:limit (fn ^Long [^String limit-str]
-                                                 (Long/parseLong limit-str))
-                                        :page (fn ^Long [^String page-str]
-                                                (Long/parseLong page-str))})
+                                       statements-get-params-coercers)
                                       statements-i/set-consistent-through
                                       statements/handle-get)
        :route-name :nave.xapi.statements/head]
@@ -61,7 +67,8 @@
       }))
 
 (comment
-
+  (map Boolean/parseBoolean ["true"])
+  (boolean "false")
   (io.pedestal.http.route/expand-routes (build {:lrs {}}))
 
   )
