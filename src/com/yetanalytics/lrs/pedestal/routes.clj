@@ -5,7 +5,9 @@
    [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi-i]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as statements-i]
    [com.yetanalytics.lrs.pedestal.routes.about :as about]
-   [com.yetanalytics.lrs.pedestal.routes.statements :as statements]))
+   [com.yetanalytics.lrs.pedestal.routes.statements :as statements]
+   [com.yetanalytics.lrs.pedestal.routes.agents :as agents]
+   [com.yetanalytics.lrs.pedestal.routes.activities :as activities]))
 
 (defn method-not-allowed [_]
   {:status 405})
@@ -14,23 +16,11 @@
   (let [global-interceptors (conj i/common-interceptors
                                   (i/lrs-interceptor lrs))
         protected-interceptors (into global-interceptors
-                                     i/xapi-protected-interceptors)
-        statements-get-params-coercers
-        {:limit (fn ^Long [^String limit-str]
-                  (Long/parseLong limit-str))
-         :page (fn ^Long [^String page-str]
-                 (Long/parseLong page-str))
-         :attachments (fn ^Boolean [^String s]
-                        (Boolean/parseBoolean s))
-         :related_activities (fn ^Boolean [^String s]
-                               (Boolean/parseBoolean s))
-         :related_agents (fn ^Boolean [^String s]
-                           (Boolean/parseBoolean s))
-         }]
+                                     i/xapi-protected-interceptors)]
     #{;; xapi
       ["/xapi/about" :get (conj global-interceptors
                                 about/handle-get)]
-      #_["/xapi/about" :any method-not-allowed
+      ["/xapi/about" :any method-not-allowed
        :route-name :com.yetanalytics.lrs.xapi.about/any]
 
       ;; xapi statements
@@ -38,8 +28,7 @@
                                      (xapi-i/params-interceptor
                                       :xapi.statements.GET.request/params)
                                      statements-i/set-consistent-through
-                                     statements/handle-get)
-       ]
+                                     statements/handle-get)]
       ["/xapi/statements" :head (conj protected-interceptors
                                       (xapi-i/params-interceptor
                                        :xapi.statements.GET.request/params)
@@ -61,6 +50,18 @@
                                       statements/handle-post)]
       ["/xapi/statements" :any method-not-allowed
        :route-name :com.yetanalytics.lrs.xapi.statements/any]
+      ["/xapi/agents" :get (conj protected-interceptors
+                                 (xapi-i/params-interceptor
+                                  :xapi.agents.GET.request/params)
+                                 agents/handle-get)]
+      ["/xapi/agents" :any method-not-allowed
+       :route-name :com.yetanalytics.lrs.xapi.agents/any]
+      ["/xapi/activities" :get (conj protected-interceptors
+                                     (xapi-i/params-interceptor
+                                      :xapi.activities.GET.request/params)
+                                     activities/handle-get)]
+      ["/xapi/activities" :any method-not-allowed
+       :route-name :com.yetanalytics.lrs.xapi.activities/any]
 
       }))
 

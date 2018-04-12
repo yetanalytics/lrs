@@ -3,6 +3,7 @@
   (:require [com.yetanalytics.lrs.protocol.xapi.about :as about]
             [com.yetanalytics.lrs.protocol.xapi.statements :as statements]
             [com.yetanalytics.lrs.protocol.xapi.agents :as agents]
+            [com.yetanalytics.lrs.protocol.xapi.activities :as activities]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as sgen]
             [xapi-schema.spec :as xs]
@@ -585,9 +586,17 @@
                                  (update params "page" (fnil inc 0)))))))))
       agents/AgentInfoResource
       (get-person [_ params]
-        (or (get-in @state [:state/agents
-                            (find-ifi (json/read-str (:agent params)))]
-                    (person)))))))
+        (let [ifi-lookup (find-ifi (:agent params))]
+          ;; TODO: extract this fn
+          (get-in @state
+                  [:state/agents
+                   ifi-lookup]
+                  (person (:agent params)))))
+      activities/ActivityInfoResource
+      (get-activity [_ params]
+        (get-in @state
+                [:state/activities
+                 (:activityId params)])))))
 
 (s/def ::xapi-path-prefix
   string?)
