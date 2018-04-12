@@ -142,9 +142,11 @@
                  ::xs/interaction-component
                  (update node "description" canonize-lmap ltags)
                  :activity/definition
-                 (-> node
-                     (update "name" canonize-lmap ltags)
-                     (update "description" canonize-lmap ltags))
+                 (cond-> node
+                   (get node "name")
+                   (update "name" canonize-lmap ltags)
+                   (get node "description")
+                   (update "description" canonize-lmap ltags))
                  ::xs/verb
                  (update node "display" canonize-lmap ltags)
                  ::xs/attachment
@@ -154,18 +156,23 @@
 
 (s/fdef format-canonical
         :args (s/cat :statement-data
-                     (s/alt :single-statement ::xs/lrs-statement
-                            :multiple-statements ::xs/lrs-statements)
+                     (s/alt :single-statement
+                            ::xs/lrs-statement
+                            :multiple-statements
+                            (s/coll-of ::xs/lrs-statement))
                      :ltags
                      (s/coll-of ::xs/language-tag))
         :ret (s/or :single-statement ::xs/lrs-statement
-                   :multiple-statements ::xs/lrs-statements))
+                   :multiple-statements (s/coll-of ::xs/lrs-statement)))
 
 (defn format-statement-ids [s]
   (-> s
       (update "actor" select-keys ["objectType" "mbox" "mbox_sha1sum" "account" "openid" "member"])
       (update "verb" select-keys ["id"])
-      (update "object" select-keys ["objectType" "id"])))
+      (update "object" select-keys ["objectType"
+                                    "id" "mbox" "mbox_sha1sum" "account" "openid" "member"
+                                    "actor" "verb" "object" "context" "result" "timestamp"])
+      ))
 
 (s/fdef format-statement-ids
         :args (s/cat :s ::xs/lrs-statement)
@@ -176,7 +183,7 @@
 
 (s/fdef format-ids
         :args (s/cat :ss ::xs/lrs-statements)
-        :ret ::xs/lrs-statements)
+        :ret (s/coll-of ::xs/lrs-statement))
 
 (defn collect-context-activities [ca-map]
   (for [[_ ca-v] ca-map

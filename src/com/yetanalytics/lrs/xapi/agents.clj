@@ -25,7 +25,7 @@
 
 (s/fdef find-ifi
         :args (s/cat :actor ::xs/actor)
-        :ret ::ifi-lookup)
+        :ret (s/nilable ::ifi-lookup))
 
 (defn ifi-match? [a1 a2]
   (or (some (fn [[a1m a2m]]
