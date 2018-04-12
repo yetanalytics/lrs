@@ -36,15 +36,13 @@
       ;; xapi statements
       ["/xapi/statements" :get (conj protected-interceptors
                                      (xapi-i/params-interceptor
-                                      :xapi.statements.GET.request/params
-                                      statements-get-params-coercers)
+                                      :xapi.statements.GET.request/params)
                                      statements-i/set-consistent-through
                                      statements/handle-get)
        ]
       ["/xapi/statements" :head (conj protected-interceptors
                                       (xapi-i/params-interceptor
-                                       :xapi.statements.GET.request/params
-                                       statements-get-params-coercers)
+                                       :xapi.statements.GET.request/params)
                                       statements-i/set-consistent-through
                                       statements/handle-get)
        :route-name :nave.xapi.statements/head]

@@ -530,7 +530,11 @@
               (= "ids" format-type)
               format-statement-ids))
           ;; otherwise, this is a paged sequential query
-          (let [page-size (cond
+          (let [page (when page
+                       (if (string? page)
+                         (Long/parseLong ^String page)
+                         page))
+                page-size (cond
                             (= limit 0)
                             statements-result-max
                             (< 0 limit statements-result-max)
