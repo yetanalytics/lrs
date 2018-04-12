@@ -4,6 +4,8 @@
             [com.yetanalytics.lrs.xapi.statements :as ss]
             [com.yetanalytics.lrs.xapi.agents :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment
+             :as att]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as sgen]
             [xapi-schema.spec :as xs]
@@ -24,6 +26,24 @@
 (s/def :state/voided-statements
   (s/map-of :statement/id
             ::xs/lrs-statement))
+
+(s/def :state/attachments
+  ;; track attachments
+  (s/map-of :attachment/sha2
+            ::att/attachment))
+
+(defn store-attachments
+  [atts-map attachments]
+  (reduce
+   (fn [m {:keys [xapi-hash] :as att}]
+     (assoc m xapi-hash att))
+   atts-map
+   attachments))
+
+(s/fdef store-attachments
+        :args (s/cat :atts-map :state/attachments
+                     :attachments ::att/attachments)
+        :ret :state/attachments)
 
 (s/def :state/activities
   (s/map-of ::xs/iri
@@ -74,14 +94,18 @@
 
 (s/def ::state
   (s/keys :req [:state/statements
-                :state/voided-statements]))
+                :state/voided-statements
+                :state/activities
+                :state/agents
+                :state/attachments]))
 
 (defn empty-state []
   {:state/statements
    (ss/statements-priority-map)
    :state/voided-statements {}
    :state/activities {}
-   :state/agents {}})
+   :state/agents {}
+   :state/attachments {}})
 
 (s/fdef empty-state
         :args (s/cat)
@@ -89,7 +113,8 @@
 
 
 (defn transact-statements [lrs-state
-                           new-statements]
+                           new-statements
+                           attachments]
   (reduce
    (fn [state statement]
      (-> (let [s-id (get statement "id")]
@@ -118,13 +143,18 @@
                  (ss/statement-related-activities statement))
          (update :state/agents
                  store-agents
-                 (ss/statement-agents statement true true))))
+                 (ss/statement-agents statement true true))
+         (update :state/attachments
+                 store-attachments
+                 attachments)
+         ))
    lrs-state
    new-statements))
 
 (s/fdef transact-statements
         :args (s/cat :lrs-state ::state
-                     :statements ::xs/lrs-statements)
+                     :statements ::xs/lrs-statements
+                     :attachments ::att/attachments)
         :ret ::state)
 
 (defn new-lrs [{:keys [xapi-path-prefix
@@ -148,7 +178,7 @@
       (store-statements [_ statements attachments]
         (let [prepared-statements (map ss/prepare-statement
                                        statements)]
-          (swap! state transact-statements prepared-statements)
+          (swap! state transact-statements prepared-statements attachments)
           (into []
                 (map #(get % "id")
                      prepared-statements))))

@@ -1,6 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment
   "Provide validation and temp storage for statement attachments."
   (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as sgen]
             [xapi-schema.spec :as xs]
             [clojure.java.io :as io]
             [cheshire.core :as json]
@@ -18,19 +19,37 @@
 (set! *warn-on-reflection* true)
 
 ;; Specify valid attachments to be returned
-(s/def :attachment/xapi-hash string?)
-(s/def :attachment/content-type string?)
-(s/def :attachment/content-length (complement neg-int?))
-(s/def :attachment/tempfile #(instance? File %))
+(s/def ::xapi-hash :attachment/sha2)
+(s/def ::content-type :attachment/contentType)
+(s/def ::content-length (complement neg-int?))
+(s/def ::tempfile #(instance? File %))
 
 (s/def ::attachment
-  (s/keys :req-un [:attachment/xapi-hash
-                   :attachment/content-type
-                   :attachment/content-length
-                   :attachment/tempfile]))
+  (s/with-gen (s/keys :req-un [::xapi-hash
+                               ::content-type
+                               ::content-length
+                               ::tempfile])
+    (fn []
+      (sgen/fmap
+       (fn [[sha2 ctype ^bytes bs]]
+         (let [length (count bs)
+               tempfile (doto (File/createTempFile
+                               "xapi_attachment_" sha2)
+                          .deleteOnExit)]
+           (with-open [os (io/output-stream tempfile)]
+             (.write os bs))
+           {:xapi-hash sha2
+            :content-type ctype
+            :content-length length
+            :tempfile tempfile}))
+       (sgen/tuple
+        (s/gen :attachment/sha2)
+        (s/gen :attachment/contentType)
+        (sgen/bytes))))))
 
 (s/def :xapi.statements/attachments
-  (s/coll-of ::attachment))
+  (s/coll-of ::attachment :gen-max 10))
+
 
 (defn close-multiparts!
   "Close all input streams in a sequence of multiparts"
