@@ -158,8 +158,11 @@
 (defn etag-leave
   [{:keys [request response] :as ctx}]
   (let [if-none-match (get-in request [:headers "if-none-match"])
-        etag (get-in response [:headers "etag"]
-                     (calculate-etag (:body response)))]
+        etag (or
+              (get-in response [:headers "etag"])
+              (some-> response :body meta :etag)
+              (calculate-etag (:body response)))
+        ]
     (if (= etag if-none-match)
       (assoc ctx :response
              {:status 304 :body "" :headers {"ETag" (quote-etag etag)}})

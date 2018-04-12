@@ -1,5 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.routes.activities
-  (:require [com.yetanalytics.lrs.protocol.xapi.activities :as activities-proto]))
+  (:require [com.yetanalytics.lrs.protocol :as p]))
 
 (def handle-get
   {:name ::handle-get
@@ -8,6 +8,6 @@
                   {params :xapi.activities.GET.request/params} (:xapi ctx)]
               (assoc ctx
                      :response
-                     (if-let [activity (activities-proto/get-activity lrs params)]
+                     (if-let [activity (p/get-activity lrs params)]
                        {:status 200 :body activity}
                        {:status 404}))))})

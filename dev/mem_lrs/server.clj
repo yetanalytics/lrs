@@ -56,7 +56,9 @@
 
 (comment
   (def s (run-dev))
+(server/stop s)
+(def s nil)
+(+ 1 1)
 
-  (server/stop s)
-
+s
   )

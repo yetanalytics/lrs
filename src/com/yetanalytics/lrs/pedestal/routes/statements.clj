@@ -1,19 +1,19 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements
-  (:require [com.yetanalytics.lrs.protocol.xapi.statements :as statements-proto]))
+  (:require [com.yetanalytics.lrs.protocol :as p]))
 
 (defn error-response
   "Define error responses for statement resource errors"
   [exi]
   (let [exd (ex-data exi)]
     (case (:type exd)
-      ::statements-proto/statement-conflict
+      ::p/statement-conflict
       {:status 409
        :body
        {:error
         (merge {:message (.getMessage exi)}
                (select-keys exd [:statement
                                  :extant-statement]))}}
-      ::statements-proto/invalid-voiding-statement
+      ::p/invalid-voiding-statement
       {:status 400
        :body
        {:error
@@ -33,7 +33,7 @@
                   lrs (get ctx :com.yetanalytics/lrs)]
               (if (or (nil? (get statement "id"))
                       (= s-id (get statement "id")))
-                (try (statements-proto/store-statements
+                (try (p/store-statements
                       lrs [(assoc statement "id" s-id)]
                       attachments)
                      {:status 204}
@@ -58,7 +58,7 @@
                   statements (or ?statements [?statement])]
               (try
                 {:status 200
-                 :body (statements-proto/store-statements
+                 :body (p/store-statements
                         lrs
                         statements
                         attachments)}
@@ -78,7 +78,7 @@
                   params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
                   ltags (get ctx :xapi/ltags [])]
               (try
-                (if-let [result (statements-proto/get-statements
+                (if-let [result (p/get-statements
                                  lrs
                                  params
                                  ltags)]
