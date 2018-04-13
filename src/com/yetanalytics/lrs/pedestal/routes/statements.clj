@@ -84,7 +84,9 @@
                                  params
                                  ltags)]
                   {:status 200
-                   :body result}
+                   :body ((some-fn :statement-result
+                                   :statement)
+                          result)}
                   {:status 404})
                 (catch clojure.lang.ExceptionInfo exi
                   (error-response exi))))))})

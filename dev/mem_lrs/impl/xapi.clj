@@ -211,16 +211,19 @@
                               (get-in @state [:state/statements statementId])
                               voidedStatementId
                               (get-in @state [:state/voided-statements voidedStatementId]))]
-            (cond-> result
-              (= "canonical" format-type)
-              (ss/format-canonical ltags)
-              (= "ids" format-type)
-              ss/format-statement-ids))
+            {:statement
+             (cond-> result
+               (= "canonical" format-type)
+               (ss/format-canonical ltags)
+               (= "ids" format-type)
+               ss/format-statement-ids)
+             :attachments []})
           ;; otherwise, this is a paged sequential query
-          (let [page (when page
+          (let [page (or
                        (if (string? page)
                          (Long/parseLong ^String page)
-                         page))
+                         page)
+                       0)
                 page-size (cond
                             (= limit 0)
                             statements-result-max
@@ -258,18 +261,22 @@
                 this-page (try (nth paged page)
                                (catch java.lang.IndexOutOfBoundsException e
                                  (list)))
-                more? (seq (drop (inc page) paged))]
-            (cond-> {"statements" (into []
-                                        (cond-> this-page
-                                          (= "canonical" format-type)
-                                          (ss/format-canonical ltags)
-                                          (= "ids" format-type)
-                                          ss/format-ids))}
-              more? (assoc "more"
-                           (str xapi-path-prefix
-                                "/xapi/statements?"
-                                (codec/form-encode
-                                 (update params "page" (fnil inc 0)))))))))
+                more? (seq (drop (inc page) paged))
+                statement-result (cond-> {"statements"
+                                          (into []
+                                                (cond-> this-page
+                                                  (= "canonical" format-type)
+                                                  (ss/format-canonical ltags)
+                                                  (= "ids" format-type)
+                                                  ss/format-ids))}
+                                   more? (assoc "more"
+                                                (str xapi-path-prefix
+                                                     "/xapi/statements?"
+                                                     (codec/form-encode
+                                                      (assoc params :page (inc page))))))]
+            {:statement-result statement-result
+             ;; TODO: attachments
+             :attachments []})))
       p/AgentInfoResource
       (-get-person [_ params]
         (let [ifi-lookup (ag/find-ifi (:agent params))]
