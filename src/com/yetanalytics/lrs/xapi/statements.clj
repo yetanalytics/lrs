@@ -265,3 +265,22 @@
 
 (defn voiding-statement? [s]
   (some-> s (get-in ["verb" "id"]) (= "http://adlnet.gov/expapi/verbs/voided")))
+
+(defn all-attachment-hashes
+  "For each statement, get any attachment hashes"
+  [statements]
+  (distinct
+   (keep
+    #(get % "sha2")
+    (mapcat
+     (fn [{:strs [attachments
+                  object]
+           :as statement}]
+       (concat attachments
+               (get object "attachments")))
+     statements))))
+
+(s/fdef all-attachment-hashes
+        :args (s/cat :statements
+                     (s/coll-of ::xs/statement))
+        :ret (s/coll-of :attachment/sha2))
