@@ -2,15 +2,10 @@
   (:require
    [com.yetanalytics.lrs.xapi.agents :as ag]
    [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as sgen]
-            [xapi-schema.spec :as xs]
-            [xapi-schema.spec.resources :as xsr]
-            [clojure.data.priority-map :as pm]
-            [clojure.data.json :as json]
-            [clojure.walk :as w]
-            [clojure.java.io :as io]
-            [clojure.string :as cstr]
-            [ring.util.codec :as codec])
+   [clojure.spec.gen.alpha :as sgen]
+   [xapi-schema.spec :as xs]
+   [clojure.data.priority-map :as pm]
+   [clojure.walk :as w])
   (:import [java.time Instant]
            [clojure.data.priority_map PersistentPriorityMap]))
 

@@ -73,8 +73,11 @@
   [lrs params ltags]
   (p/-get-statements lrs params ltags))
 
+(s/def :xapi.statements.GET.response/attachment
+  map?)
+
 (s/def :xapi.statements.GET.response/attachments
-  (s/coll-of map?))
+  (s/coll-of :xapi.statements.GET.response/attachment))
 
 (s/fdef get-statements
         :args (s/cat :lrs ::p/statements-resource-instance
