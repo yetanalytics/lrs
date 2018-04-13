@@ -1,5 +1,6 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements
-  (:require [com.yetanalytics.lrs.protocol :as p]))
+  (:require [com.yetanalytics.lrs :as lrs]
+            [com.yetanalytics.lrs.protocol :as p]))
 
 (defn error-response
   "Define error responses for statement resource errors"
@@ -33,7 +34,7 @@
                   lrs (get ctx :com.yetanalytics/lrs)]
               (if (or (nil? (get statement "id"))
                       (= s-id (get statement "id")))
-                (try (p/store-statements
+                (try (lrs/store-statements
                       lrs [(assoc statement "id" s-id)]
                       attachments)
                      {:status 204}
@@ -58,7 +59,7 @@
                   statements (or ?statements [?statement])]
               (try
                 {:status 200
-                 :body (p/store-statements
+                 :body (lrs/store-statements
                         lrs
                         statements
                         attachments)}
@@ -78,7 +79,7 @@
                   params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
                   ltags (get ctx :xapi/ltags [])]
               (try
-                (if-let [result (p/get-statements
+                (if-let [result (lrs/get-statements
                                  lrs
                                  params
                                  ltags)]

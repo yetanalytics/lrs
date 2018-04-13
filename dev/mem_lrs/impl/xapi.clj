@@ -169,20 +169,20 @@
 
     (reify
       p/AboutResource
-      (get-about [_]
+      (-get-about [_]
         {:version ["1.0.0",
                    "1.0.1",
                    "1.0.2",
                    "1.0.3"]})
       p/StatementsResource
-      (store-statements [_ statements attachments]
+      (-store-statements [_ statements attachments]
         (let [prepared-statements (map ss/prepare-statement
                                        statements)]
           (swap! state transact-statements prepared-statements attachments)
           (into []
                 (map #(get % "id")
                      prepared-statements))))
-      (get-statements [_ {:keys [statementId
+      (-get-statements [_ {:keys [statementId
                                  voidedStatementId
                                  verb
                                  activity
@@ -271,7 +271,7 @@
                                 (codec/form-encode
                                  (update params "page" (fnil inc 0)))))))))
       p/AgentInfoResource
-      (get-person [_ params]
+      (-get-person [_ params]
         (let [ifi-lookup (ag/find-ifi (:agent params))]
           ;; TODO: extract this fn
           (get-in @state
@@ -279,7 +279,7 @@
                    ifi-lookup]
                   (ag/person (:agent params)))))
       p/ActivityInfoResource
-      (get-activity [_ params]
+      (-get-activity [_ params]
         (get-in @state
                 [:state/activities
                  (:activityId params)])))))
