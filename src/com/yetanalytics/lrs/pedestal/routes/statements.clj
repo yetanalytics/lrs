@@ -1,6 +1,8 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements
   (:require [com.yetanalytics.lrs :as lrs]
-            [com.yetanalytics.lrs.protocol :as p]))
+            [com.yetanalytics.lrs.protocol :as p]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
+             :as att-resp]))
 
 (defn error-response
   "Define error responses for statement resource errors"
@@ -77,16 +79,27 @@
      (assoc ctx :response
             (let [lrs (get ctx :com.yetanalytics/lrs)
                   params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
-                  ltags (get ctx :xapi/ltags [])]
+                  ltags (get ctx :xapi/ltags [])
+                  attachments-query? (:attachments params)]
               (try
-                (if-let [result (lrs/get-statements
-                                 lrs
-                                 params
-                                 ltags)]
-                  {:status 200
-                   :body ((some-fn :statement-result
-                                   :statement)
-                          result)}
+                (if-let [{:keys [statement-result
+                                 statement
+                                 attachments]}
+                         (lrs/get-statements
+                          lrs
+                          params
+                          ltags)]
+                  (let [s-data (or statement-result
+                                   statement)]
+                    (if (and attachments-query?
+                             (seq attachments))
+                      {:status 200
+                       :headers {"Content-Type" att-resp/content-type}
+                       :body (att-resp/build-multipart
+                              s-data
+                              attachments)}
+                      {:status 200
+                       :body s-data}))
                   {:status 404})
                 (catch clojure.lang.ExceptionInfo exi
                   (error-response exi))))))})

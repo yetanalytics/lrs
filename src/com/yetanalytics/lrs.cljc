@@ -3,6 +3,7 @@
             [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
             [xapi-schema.spec.resources :as xsr]
+            [com.yetanalytics.lrs.xapi.statements :as ss]
             ))
 
 (s/def :com.yetanalytics/lrs
@@ -73,12 +74,6 @@
   [lrs params ltags]
   (p/-get-statements lrs params ltags))
 
-(s/def :xapi.statements.GET.response/attachment
-  map?)
-
-(s/def :xapi.statements.GET.response/attachments
-  (s/coll-of :xapi.statements.GET.response/attachment))
-
 (s/fdef get-statements
         :args (s/cat :lrs ::p/statements-resource-instance
                      :params :xapi.statements.GET.request/params
@@ -88,6 +83,6 @@
                :req-un [(or
                          :xapi.statements.GET.response/statement-result
                          ::xs/statement)
-                        :xapi.statements.GET.response/attachments])))
+                        ::ss/attachments])))
 
 ;; TODO: auth

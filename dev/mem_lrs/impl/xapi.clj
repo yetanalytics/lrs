@@ -4,8 +4,6 @@
             [com.yetanalytics.lrs.xapi.statements :as ss]
             [com.yetanalytics.lrs.xapi.agents :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
-            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment
-             :as att]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as sgen]
             [xapi-schema.spec :as xs]
@@ -30,19 +28,19 @@
 (s/def :state/attachments
   ;; track attachments
   (s/map-of :attachment/sha2
-            ::att/attachment))
+            ::ss/attachment))
 
 (defn store-attachments
   [atts-map attachments]
   (reduce
-   (fn [m {:keys [xapi-hash] :as att}]
-     (assoc m xapi-hash att))
+   (fn [m {:keys [sha2] :as att}]
+     (assoc m sha2 att))
    atts-map
    attachments))
 
 (s/fdef store-attachments
         :args (s/cat :atts-map :state/attachments
-                     :attachments ::att/attachments)
+                     :attachments ::ss/attachments)
         :ret :state/attachments)
 
 (s/def :state/activities
@@ -154,7 +152,7 @@
 (s/fdef transact-statements
         :args (s/cat :lrs-state ::state
                      :statements ::xs/lrs-statements
-                     :attachments ::att/attachments)
+                     :attachments ::ss/attachments)
         :ret ::state)
 
 (defn new-lrs [{:keys [xapi-path-prefix
@@ -183,100 +181,107 @@
                 (map #(get % "id")
                      prepared-statements))))
       (-get-statements [_ {:keys [statementId
-                                 voidedStatementId
-                                 verb
-                                 activity
-                                 registration
-                                 related_activities
-                                 related_agents
-                                 since
-                                 until
-                                 limit
-                                 attachments
-                                 ascending
-                                 page]
-                          format-type :format
-                          agent-json :agent
-                          :as params
-                          :or {related_activities false
-                               related_agents false
-                               limit 0
-                               attachments false
-                               ascending false
-                               page 0
-                               format-type "exact"}} ltags]
-        (if (or statementId voidedStatementId)
-          (when-let [result (cond
-                              statementId
-                              (get-in @state [:state/statements statementId])
-                              voidedStatementId
-                              (get-in @state [:state/voided-statements voidedStatementId]))]
-            {:statement
-             (cond-> result
-               (= "canonical" format-type)
-               (ss/format-canonical ltags)
-               (= "ids" format-type)
-               ss/format-statement-ids)
-             :attachments []})
-          ;; otherwise, this is a paged sequential query
-          (let [page (or
-                       (if (string? page)
-                         (Long/parseLong ^String page)
-                         page)
-                       0)
-                page-size (cond
-                            (= limit 0)
-                            statements-result-max
-                            (< 0 limit statements-result-max)
-                            limit
-                            :else statements-result-max)
-                results-base (cond->> (vals (:state/statements @state))
-                               until (drop-while #(= -1 (compare until (get % "stored"))))
-                               since (take-while #(> 0 (compare since (get % "stored"))))
-                               ascending reverse
-                               ;; simple filters
-                               verb (filter #(= verb (get-in % ["verb" "id"])))
-                               registration (filter #(= registration
-                                                        (get-in % ["context" "registration"])))
-                               ;; complex filters
-                               activity (filter
-                                         (if related_activities
-                                           ;; complex activity-filter
-                                           (fn [s]
-                                             (some (partial = activity)
-                                                   (ss/statement-related-activity-ids s)))
-                                           ;; simple activity filter
-                                           #(= activity (get-in % ["object" "id"]))))
-                               agent-json (filter
-                                           (let [agent-query (json/read-str agent-json)
-                                                 agents-fn (if related_agents
-                                                             #(ss/statement-agents % true)
-                                                             #(ss/statement-agents % false))]
+                                  voidedStatementId
+                                  verb
+                                  activity
+                                  registration
+                                  related_activities
+                                  related_agents
+                                  since
+                                  until
+                                  limit
+                                  attachments
+                                  ascending
+                                  page]
+                           format-type :format
+                           agent-json :agent
+                           :as params
+                           :or {related_activities false
+                                related_agents false
+                                limit 0
+                                attachments false
+                                ascending false
+                                page 0
+                                format-type "exact"}} ltags]
+        (let [state' @state]
+          (if (or statementId voidedStatementId)
+            (when-let [result (cond
+                                statementId
+                                (get-in state' [:state/statements statementId])
+                                voidedStatementId
+                                (get-in state' [:state/voided-statements voidedStatementId]))]
+              {:statement
+               (cond-> result
+                 (= "canonical" format-type)
+                 (ss/format-canonical ltags)
+                 (= "ids" format-type)
+                 ss/format-statement-ids)
+               :attachments (into []
+                                  (when result
+                                    (keep (:state/attachments state')
+                                          (ss/all-attachment-hashes [result]))))})
+            ;; otherwise, this is a paged sequential query
+            (let [page (or
+                        (if (string? page)
+                          (Long/parseLong ^String page)
+                          page)
+                        0)
+                  page-size (cond
+                              (= limit 0)
+                              statements-result-max
+                              (< 0 limit statements-result-max)
+                              limit
+                              :else statements-result-max)
+                  results-base (cond->> (vals (:state/statements state'))
+                                 until (drop-while #(= -1 (compare until (get % "stored"))))
+                                 since (take-while #(> 0 (compare since (get % "stored"))))
+                                 ascending reverse
+                                 ;; simple filters
+                                 verb (filter #(= verb (get-in % ["verb" "id"])))
+                                 registration (filter #(= registration
+                                                          (get-in % ["context" "registration"])))
+                                 ;; complex filters
+                                 activity (filter
+                                           (if related_activities
+                                             ;; complex activity-filter
                                              (fn [s]
-                                               (some (partial ag/ifi-match? agent-query)
-                                                     (agents-fn s)))))
-                               #_(and limit
-                                    (not= limit 0)) #_(take limit))
-                paged (partition-all page-size results-base)
-                this-page (try (nth paged page)
-                               (catch java.lang.IndexOutOfBoundsException e
-                                 (list)))
-                more? (seq (drop (inc page) paged))
-                statement-result (cond-> {"statements"
-                                          (into []
-                                                (cond-> this-page
-                                                  (= "canonical" format-type)
-                                                  (ss/format-canonical ltags)
-                                                  (= "ids" format-type)
-                                                  ss/format-ids))}
-                                   more? (assoc "more"
-                                                (str xapi-path-prefix
-                                                     "/xapi/statements?"
-                                                     (codec/form-encode
-                                                      (assoc params :page (inc page))))))]
-            {:statement-result statement-result
-             ;; TODO: attachments
-             :attachments []})))
+                                               (some (partial = activity)
+                                                     (ss/statement-related-activity-ids s)))
+                                             ;; simple activity filter
+                                             #(= activity (get-in % ["object" "id"]))))
+                                 agent-json (filter
+                                             (let [agent-query (json/read-str agent-json)
+                                                   agents-fn (if related_agents
+                                                               #(ss/statement-agents % true)
+                                                               #(ss/statement-agents % false))]
+                                               (fn [s]
+                                                 (some (partial ag/ifi-match? agent-query)
+                                                       (agents-fn s)))))
+                                 #_(and limit
+                                        (not= limit 0)) #_(take limit))
+                  paged (partition-all page-size results-base)
+                  this-page (try (nth paged page)
+                                 (catch java.lang.IndexOutOfBoundsException e
+                                   (list)))
+                  more? (seq (drop (inc page) paged))
+                  statement-result (cond-> {"statements"
+                                            (into []
+                                                  (cond-> this-page
+                                                    (= "canonical" format-type)
+                                                    (ss/format-canonical ltags)
+                                                    (= "ids" format-type)
+                                                    ss/format-ids))}
+                                     more? (assoc "more"
+                                                  (str xapi-path-prefix
+                                                       "/xapi/statements?"
+                                                       (codec/form-encode
+                                                        (assoc params :page (inc page))))))]
+              {:statement-result statement-result
+               :attachments (into []
+                                  (when attachments
+                                    (keep
+                                     (:state/attachments state')
+                                     (ss/all-attachment-hashes this-page))))}))))
       p/AgentInfoResource
       (-get-person [_ params]
         (let [ifi-lookup (ag/find-ifi (:agent params))]

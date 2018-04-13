@@ -5,9 +5,13 @@
    [clojure.spec.gen.alpha :as sgen]
    [xapi-schema.spec :as xs]
    [clojure.data.priority-map :as pm]
-   [clojure.walk :as w])
+   [clojure.walk :as w]
+   [clojure.java.io :as io]
+   [digest :as digest])
   (:import [java.time Instant]
-           [clojure.data.priority_map PersistentPriorityMap]))
+           [clojure.data.priority_map PersistentPriorityMap]
+           [java.io File]
+           ))
 
 (set! *warn-on-reflection* true)
 
@@ -279,3 +283,30 @@
         :args (s/cat :statements
                      (s/coll-of ::xs/statement))
         :ret (s/coll-of :attachment/sha2))
+
+;; A representation of a stored attachment
+;; TODO: generalize
+(s/def :attachment/content
+  (s/with-gen #(satisfies? clojure.java.io/IOFactory
+                           %)
+    sgen/bytes))
+
+(s/def ::attachment
+  (s/with-gen (s/keys :req-un [:attachment/content
+                               :attachment/contentType
+                               :attachment/sha2
+                               :attachment/length])
+    (fn []
+      (sgen/fmap
+       (fn [[^bytes content
+             content-type]]
+         {:content content
+          :contentType content-type
+          :length (count content)
+          :sha2 (digest/sha-256 content)})
+       (sgen/tuple
+        (s/gen :attachment/content)
+        (s/gen :attachment/contentType))))))
+
+(s/def ::attachments
+  (s/coll-of ::attachment))

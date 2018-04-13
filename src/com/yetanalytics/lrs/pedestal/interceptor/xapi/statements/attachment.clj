@@ -6,7 +6,8 @@
             [clojure.java.io :as io]
             [cheshire.core :as json]
             [clojure.string :as cs]
-            [io.pedestal.log :as log])
+            [io.pedestal.log :as log]
+            [com.yetanalytics.lrs.xapi.statements :as ss])
   (:import [java.io
             File
             InputStream
@@ -17,35 +18,6 @@
 
 
 (set! *warn-on-reflection* true)
-
-;; Specify valid attachments to be returned
-(s/def ::xapi-hash :attachment/sha2)
-(s/def ::content-type :attachment/contentType)
-(s/def ::content-length (complement neg-int?))
-(s/def ::tempfile #(instance? File %))
-
-(s/def ::attachment
-  (s/with-gen (s/keys :req-un [::xapi-hash
-                               ::content-type
-                               ::content-length
-                               ::tempfile])
-    (fn []
-      (sgen/fmap
-       (fn [[sha2 ctype ^bytes bs]]
-         (let [length (count bs)
-               tempfile (doto (File/createTempFile
-                               "xapi_attachment_" sha2)
-                          .deleteOnExit)]
-           (with-open [os (io/output-stream tempfile)]
-             (.write os bs))
-           {:xapi-hash sha2
-            :content-type ctype
-            :content-length length
-            :tempfile tempfile}))
-       (sgen/tuple
-        (s/gen :attachment/sha2)
-        (s/gen :attachment/contentType)
-        (sgen/bytes))))))
 
 (s/def :xapi.statements/attachments
   (s/coll-of ::attachment :gen-max 10))
@@ -64,9 +36,9 @@
            ^InputStream input-stream
            headers]}
    & [^File tempdir]]
-  (let [xapi-hash (get headers "X-Experience-API-Hash")
+  (let [sha2 (get headers "X-Experience-API-Hash")
         prefix "xapi_attachment_"
-        suffix (str "_" xapi-hash)
+        suffix (str "_" sha2)
         tempfile (doto (if tempdir
                         (File/createTempFile prefix suffix tempdir)
                         (File/createTempFile prefix suffix))
@@ -77,10 +49,10 @@
            (throw (ex-info "Attachment Tempfile Save Failed!"
                            {:type ::attachment-save-failure}
                            ioe))))
-    {:xapi-hash xapi-hash
-     :content-type content-type
-     :content-length (.length tempfile)
-     :tempfile tempfile}))
+    {:sha2 sha2
+     :contentType content-type
+     :length (.length tempfile)
+     :content tempfile}))
 
 (defn save-attachments
   "Save a list of multiparts and return attachments"
@@ -102,8 +74,8 @@
 (defn delete-attachments!
   "Delete all tempfiles for a sequence of attachments"
   [attachments]
-  (doseq [{:keys [^File tempfile]} attachments]
-    (.delete tempfile)))
+  (doseq [{:keys [^File content]} attachments]
+    (.delete content)))
 
 ;; Signature validation
 (defn decode-sig-json [^String part kw-keys?]

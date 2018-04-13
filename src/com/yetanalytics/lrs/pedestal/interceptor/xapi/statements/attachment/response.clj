@@ -17,8 +17,12 @@
 (def boundary
   "105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0")
 
+(def content-type
+  (format "multipart/mixed; boundary=%s"
+          boundary))
+
 (defn write-attachments [^PrintWriter out attachment-objects]
-  (doseq [{:keys [input-stream content-type sha2] :as attachment-object} attachment-objects]
+  (doseq [{:keys [content contentType sha2] :as attachment-object} attachment-objects]
     ;; encapsulation boundary
     (.print out clrf)
     (.print out "--")
@@ -32,7 +36,7 @@
     (.print out (str "X-Experience-API-Hash:" sha2))
     (.print out clrf)
     (.print out clrf)
-    (io/copy input-stream out)))
+    (io/copy content out)))
 
 (defn build-multipart ^PipedOutputStream [s-data attachment-objects]
   (let [pipe-in (PipedInputStream.)

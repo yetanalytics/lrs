@@ -2,6 +2,7 @@
   (:require
    [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment :as attachment]
+   [com.yetanalytics.lrs.xapi.statements]
    [io.pedestal.interceptor.chain :as chain]
    [clojure.spec.alpha :as s]
    [xapi-schema.spec :as xs]
