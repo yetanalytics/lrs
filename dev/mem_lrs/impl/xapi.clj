@@ -4,6 +4,7 @@
             [com.yetanalytics.lrs.xapi.statements :as ss]
             [com.yetanalytics.lrs.xapi.agents :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
+            [com.yetanalytics.lrs.xapi.document :as doc]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as sgen]
             [xapi-schema.spec :as xs]
@@ -90,12 +91,197 @@
                      :agent (s/coll-of ::xs/agent))
         :ret :state/agents)
 
+(def state-tuple-re-spec
+  (s/cat :activity-id
+         :activity/id
+         :agent
+         ::xs/agent
+         :registration
+         (s/? :context/registration)))
+
+(s/def ::state-tuple
+  (s/with-gen state-tuple-re-spec
+    #(sgen/fmap
+      (partial into [])
+      (s/gen state-tuple-re-spec))))
+
+
+(s/def :state/documents
+  (s/map-of (s/or :state-tuple
+                  ::state-tuple
+                  :activity
+                  :activity/id
+                  :agent
+                  ::xs/agent)
+            ::doc/documents-priority-map))
+
+(defn- document-keys [params document]
+  (let [[param-type ps] (s/conform ::p/document-singular-params params)]
+    (case param-type
+      :state-params
+      (let [{:keys [activityId
+                    agent
+                    stateId]
+             ?reg :registration} ps
+            ]
+        {:context-key (cond-> [activityId agent]
+                        ?reg (conj ?reg))
+         :document-key stateId
+         :document (cond-> (assoc document
+                                  :id stateId)
+                     ?reg
+                     (assoc :registration ?reg))})
+      :activity-profile-params
+      (let [{:keys [activityId
+                    profileId]} ps]
+        {:context-key
+         activityId
+         :document-key
+         profileId
+         :document
+         (assoc document
+                :id profileId)})
+      :agent-profile-params
+      (let [{:keys [agent
+                    profileId]} ps]
+        {:context-key agent
+         :document-key profileId
+         :document (assoc document
+                          :id profileId)}))))
+
+(defn- param-keys [params]
+  (let [[param-type ps] (s/conform ::p/document-singular-params params)]
+    (case param-type
+      :state-params
+      (let [{:keys [activityId
+                    agent
+                    stateId]
+             ?reg :registration} ps
+            ]
+        {:context-key (cond-> [activityId agent]
+                        ?reg (conj ?reg))
+         :document-key stateId})
+      :activity-profile-params
+      (let [{:keys [activityId
+                    profileId]} ps]
+        {:context-key
+         activityId
+         :document-key
+         profileId})
+      :agent-profile-params
+      (let [{:keys [agent
+                    profileId]} ps]
+        {:context-key agent
+         :document-key profileId}))))
+
+(defn- param-keys-query [params]
+  (let [[param-type ps] (s/conform ::p/get-document-ids-params params)]
+    (cond-> (case param-type
+              :state-params
+              (let [{:keys [activityId
+                            agent
+                            ]
+                     ?reg :registration} ps
+                    ]
+                {:context-key (cond-> [activityId agent]
+                                ?reg (conj ?reg))
+                 })
+              :activity-profile-params
+              (let [{:keys [activityId
+                            ]} ps]
+                {:context-key
+                 activityId
+                 })
+              :agent-profile-params
+              (let [{:keys [agent
+                            ]} ps]
+                {:context-key agent}))
+      (:since params) (assoc :since (:since params)))))
+
+(defn transact-document
+  [documents params document merge?]
+  (let [{:keys [context-key
+                document-key
+                document]} (document-keys
+                            params document)]
+    (update (if merge?
+              (update-in documents [context-key document-key] doc/merge-or-replace document)
+              (assoc-in documents [context-key document-key] document))
+            context-key
+            #(conj (doc/documents-priority-map) %))))
+
+(s/fdef transact-document
+        :args (s/cat :documents :state/documents
+                     :params ::p/set-document-params
+                     :document :com.yetanalytics.lrs.xapi/document
+                     :merge (s/nilable boolean?))
+        :ret :state/documents)
+
+(defn get-document
+  [state params]
+  (let [{:keys [context-key
+                document-key]} (param-keys params)]
+    (get-in state [:state/documents
+                   context-key
+                   document-key])))
+
+(s/fdef get-document
+        :args (s/cat :documents :state/documents
+                     :params ::p/get-document-params)
+        :ret :state/documents)
+
+(defn get-document-ids
+  [state params]
+  (let [{:keys [context-key]
+         ?since :since} (param-keys-query params)]
+    (mapv :id
+         (cond->> (get-in state [:state/documents context-key])
+           ?since (drop-while (fn [{:keys [updated]}]
+                                (< updated ?since)))))))
+
+(s/fdef get-document
+        :args (s/cat :state ::state
+                     :params ::p/get-document-ids-params)
+        :ret (s/coll-of ::doc/id))
+
+(defn delete-document
+  [documents params]
+  (let [{:keys [context-key
+                document-key]}
+        (param-keys
+         params)]
+    (if (get-in documents [context-key
+                           document-key])
+      (update-in documents context-key dissoc document-key)
+      documents)))
+
+(s/fdef delete-document
+        :args (s/cat :documents :state/documents
+                     :params ::p/delete-document-params)
+        :ret :state/documents)
+
+(defn delete-documents
+  [documents {:keys [agent
+                     activityId
+                     registration]}]
+  (dissoc documents
+             (cond-> [activityId
+                      agent]
+               registration
+               (conj registration))))
+
+(s/fdef delete-documents
+        :args (s/cat :documents :state/documents
+                     :params :xapi.activities.state.DELETE.request.multiple/params)
+        :ret :state/documents)
+
 (s/def ::state
   (s/keys :req [:state/statements
                 :state/voided-statements
                 :state/activities
                 :state/agents
-                :state/attachments]))
+                :state/attachments
+                :state/documents]))
 
 (defn empty-state []
   {:state/statements
@@ -103,7 +289,8 @@
    :state/voided-statements {}
    :state/activities {}
    :state/agents {}
-   :state/attachments {}})
+   :state/attachments {}
+   :state/documents {}})
 
 (s/fdef empty-state
         :args (s/cat)
@@ -163,7 +350,8 @@
                     :validator (fn [s]
                                  (or (s/valid? ::state s)
                                      (s/explain ::state s)
-                                     (clojure.pprint/pprint s))))]
+                                     (clojure.pprint/pprint (:state/documents s))
+                                     #_(clojure.pprint/pprint s))))]
 
     (reify
       p/AboutResource
@@ -282,6 +470,18 @@
                                     (keep
                                      (:state/attachments state')
                                      (ss/all-attachment-hashes this-page))))}))))
+      p/DocumentResource
+      (-set-document [_ params document merge?]
+        (swap! state update :state/documents transact-document params document merge?)
+        )
+      (-get-document [_ params]
+        (get-document @state params))
+      (-get-document-ids [_ params]
+        (get-document-ids @state params))
+      (-delete-document [_ params]
+        (swap! state update :state/documents delete-document params))
+      (-delete-documents [_ params]
+        (swap! state update :state/documents delete-documents params))
       p/AgentInfoResource
       (-get-person [_ params]
         (let [ifi-lookup (ag/find-ifi (:agent params))]
@@ -340,6 +540,14 @@
 
   (def long-s (with-open [rdr (io/reader "dev-resources/statements/long.json")]
                 (json/read rdr)))
-
+  (let [state (sgen/generate (s/gen ::state))
+        doc (sgen/generate (s/gen :com.yetanalytics.lrs.xapi/document))]
+    #_(get-in (update state :state/documents transact-document {:profileId (str (java.util.UUID/randomUUID))
+                                                              :activityId "https://foo.bar/baz"}
+                    doc true) [:state/documents "https://foo.bar/baz"])
+    (s/explain ::doc/documents-priority-map
+              (get-in (update state :state/documents transact-document {:profileId (str (java.util.UUID/randomUUID))
+                                                                    :activityId "https://foo.bar/baz"}
+                              doc true) [:state/documents "https://foo.bar/baz"])))
 
   )

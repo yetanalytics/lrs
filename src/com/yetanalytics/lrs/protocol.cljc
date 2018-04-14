@@ -16,6 +16,64 @@
 (s/def ::about-resource-instance
   #(satisfies? AboutResource %))
 
+;; Document APIs
+
+(defprotocol DocumentResource
+  "Protocol for storing/retrieving documents.
+   See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#23-state-resource"
+  (-set-document [this params document merge?]
+    "Store a document, merges.")
+  (-get-document [this params]
+    "Get a single document.")
+  (-get-document-ids [this params]
+    "Get multiple document ids.")
+  (-delete-document [this params]
+    "Delete a single document.")
+  (-delete-documents [this params]
+    "Delete multiple documents."))
+;; TODO: all the ones called from routes should be non-conforming
+;; unless desired/needed
+(s/def ::document-resource-instance
+  #(satisfies? DocumentResource %))
+
+(s/def ::document-singular-params
+  (s/or :state-params
+        :xapi.activities.state.*.request.singular/params
+        :activity-profile-params
+        :xapi.activities.profile.*.request.singular/params
+        :agent-profile-params
+        :xapi.agents.profile.*.request.singular/params))
+
+(s/def ::set-document-params
+  (s/nonconforming ::document-singular-params))
+
+(s/def ::get-document-params
+  (s/nonconforming ::document-singular-params))
+
+(s/def ::get-document-ids-params
+  (s/or :state-params
+        :xapi.activities.state.GET.request.multiple/params
+        :activity-profile-params
+        :xapi.activities.profile.GET.request.multiple/params
+        :agent-profile-params
+        :xapi.agents.profile.GET.request.multiple/params))
+
+(s/def ::get-document-any-params
+  (s/or
+   :ids (s/nonconforming ::get-document-ids-params)
+   :single ::get-document-params))
+
+(s/def ::delete-document-params
+  ::document-singular-params)
+
+(s/def ::delete-documents-params
+  :xapi.activities.state.DELETE.request.multiple/params)
+
+
+(s/def ::delete-document-any-params
+  (s/or
+   :ids ::delete-documents-params
+   :single ::delete-document-params))
 ;; Activities
 ;; /xapi/activities
 (defprotocol ActivityInfoResource
@@ -31,9 +89,9 @@
 (defprotocol ActivityProfileResource
   "Protocol for storing/retrieving activity profile documents.
    See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#27-activity-profile-resource"
-  (-put-activity-profile [this params document content-type]
+  (-set-activity-profile [this params document]
     "Store an activity profile document, overwrites.")
-  (-post-activity-profile [this params document content-type]
+  (-update-activity-profile [this params document]
     "Store an activity profile document, merges.")
   (-get-activity-profile [this params]
     "Get an activity profile document")
@@ -50,9 +108,9 @@
 (defprotocol ActivityStateResource
   "Protocol for storing/retrieving activity state documents.
    See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#23-state-resource"
-  (-put-state [this params document content-type]
+  (-set-state [this params document]
     "Store a state document, overwrites.")
-  (-post-state [this params document content-type]
+  (-update-state [this params document]
     "Store a state document, merges.")
   (-get-state [this params]
     "Get a single state document.")
@@ -82,9 +140,9 @@
 (defprotocol AgentProfileResource
   "Protocol for storing/retrieving agent profile documents.
    See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#26-agent-profile-resource"
-  (-put-agent-profile [this params document content-type]
+  (-set-agent-profile [this params document]
     "Store an agent profile document, overwrites.")
-  (-post-agent-profile [this params document content-type]
+  (-update-agent-profile [this params document]
     "Store an agent profile document, merges.")
   (-get-agent-profile [this params]
     "Get an agent profile document")

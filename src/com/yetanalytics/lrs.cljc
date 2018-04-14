@@ -4,6 +4,7 @@
             [xapi-schema.spec :as xs]
             [xapi-schema.spec.resources :as xsr]
             [com.yetanalytics.lrs.xapi.statements :as ss]
+            [com.yetanalytics.lrs.xapi.document :as doc]
             ))
 
 (s/def :com.yetanalytics/lrs
@@ -27,6 +28,67 @@
         :args (s/cat :lrs ::p/about-resource-instance)
         :ret :xapi.about.GET.response/body)
 
+;; Documents
+(defn set-document
+  [lrs params document merge?]
+  (p/-set-document lrs params document merge?))
+
+(s/fdef
+ set-document
+ :args
+ (s/cat
+  :lrs ::p/document-resource-instance
+  :params ::p/set-document-params)
+ :ret nil?)
+
+(defn get-document
+  [lrs params]
+  (p/-get-document lrs params))
+
+(s/fdef
+ get-document
+ :args
+ (s/cat
+  :lrs ::p/document-resource-instance
+  :params ::p/get-document-params)
+ :ret (s/nilable
+       :com.yetanalytics.lrs.xapi/document))
+
+(defn get-document-ids
+  [lrs params]
+  (p/-get-document-ids lrs params))
+
+(s/fdef
+ get-document-ids
+ :args
+ (s/cat
+  :lrs ::p/document-resource-instance
+  :params ::p/get-document-ids-params)
+ :ret (s/coll-of ::doc/id))
+
+(defn delete-document
+  [lrs params]
+  (p/-delete-document lrs params))
+
+
+(s/fdef
+ delete-document
+ :args (s/cat
+        :lrs ::p/document-resource-instance
+        :params ::p/delete-document-params)
+ :ret nil?)
+
+(defn delete-documents
+  [lrs params]
+  (p/-delete-documents lrs params))
+
+(s/fdef
+ delete-documents
+ :args (s/cat
+        :lrs ::p/document-resource-instance
+        :params ::p/delete-documents-params)
+ :ret nil?)
+
 ;; Activities
 ;; /xapi/activities
 (defn get-activity
@@ -37,10 +99,7 @@
 (s/fdef get-activity
         :args (s/cat :lrs ::p/activity-info-resource-instance
                      :params :xapi.activities.GET.request/params)
-        :ret ::xs/activity)
-
-;; TODO: /xapi/activities/profile
-;; TODO: /xapi/activities/state
+        :ret (s/nilable ::xs/activity))
 
 ;; Agents
 ;; /xapi/agents

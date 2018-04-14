@@ -60,5 +60,5 @@
 (def s nil)
 (+ 1 1)
 
-s
+(route/expand-routes (service/new-routes))
   )
