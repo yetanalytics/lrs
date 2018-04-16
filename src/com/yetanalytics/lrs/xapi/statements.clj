@@ -122,7 +122,7 @@
 (defn canonize-lmap [lmap ltags]
   (conj {}
         (or (some (fn [ltag]
-              (find lmap ltag))
+                    (find lmap ltag))
             ltags)
             (first lmap))))
 
@@ -171,7 +171,11 @@
       (update "object" select-keys ["objectType"
                                     "id" "mbox" "mbox_sha1sum" "account" "openid" "member"
                                     "actor" "verb" "object" "context" "result" "timestamp"])
-      ))
+      (cond->
+          (= "SubStatement" (get-in s ["object" "objectType"]))
+        (update "object" format-statement-ids)
+        (= "Activity" (get-in s ["object" "objectType"]))
+        (update "object" dissoc "objectType"))))
 
 (s/fdef format-statement-ids
         :args (s/cat :s ::xs/lrs-statement)

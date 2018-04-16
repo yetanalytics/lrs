@@ -2,6 +2,7 @@
   "xAPI Route Interceptors"
   (:require [clojure.string :as cstr]
             [io.pedestal.http :as http]
+            [io.pedestal.http.route :as route]
             [io.pedestal.interceptor.chain :as chain]
             [io.pedestal.http.cors :as cors]
             [io.pedestal.http.body-params :as body-params]
@@ -9,9 +10,16 @@
                                              keyword-body-params
                                              ]]
             [io.pedestal.http.route :as route]
+            [io.pedestal.interceptor :as i]
+            [io.pedestal.http.ring-middlewares :as middlewares]
+            [io.pedestal.http.csrf :as csrf]
+            [io.pedestal.http.secure-headers :as sec-headers]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
             [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed])
   (:import [java.security MessageDigest]
-           [java.io File]))
+           [java.io File]
+           [org.eclipse.jetty.server HttpInputOverHTTP HttpInput]
+           ))
 
 ;; Enter
 (defn lrs-interceptor
@@ -61,11 +69,14 @@
               ctx))})
 
 (def valid-alt-request-headers
-  ["Authorization" "X-Experience-API-Version" "Content-Type"
-   "Content-Length" "If-Match" "If-None-Match" "Accept-Language"
-   "Accept" "Accept-Encoding"])
+  [:Authorization :X-Experience-API-Version :Content-Type
+   :Content-Length :If-Match :If-None-Match
+   ;; :Accept-Language
+   ;; :Accept
+   ;; :Accept-Encoding
+   ])
 
-(def xapi-alternate-request-headers-interceptor
+(def xapi-alternate-request-interceptor
   {:name ::xapi-alternate-request-headers
    :enter (fn [{:keys [request] :as ctx}]
             (if (some-> request :params :method)
@@ -181,11 +192,101 @@
 
 ;; TODO: Port the rest of the interceptors
 
+
+(def xapi-method-param
+  {:name ::xapi-method-param
+   :enter (fn [ctx]
+            (if-let [method (get-in ctx [:request :query-params :method])]
+              (-> ctx
+                  (assoc-in [:request :query-params :method]
+                            (cstr/lower-case method))
+                  (assoc-in [:request :original-request-method]
+                            (get-in ctx [:request :request-method])))
+              ctx))})
+
 ;; Combined interceptors
-(def common-interceptors [(cors/allow-origin identity)
+
+(defn xapi-default-interceptors
+  "Like io.pedestal.http/default-interceptors, but includes support for xapi alt
+   request syntax, etc."
+  [service-map]
+  (let [{interceptors ::http/interceptors
+         request-logger ::http/request-logger
+         routes ::http/routes
+         router ::http/router
+         file-path ::http/file-path
+         resource-path ::http/resource-path
+         method-param-name ::http/method-param-name
+         allowed-origins ::http/allowed-origins
+         not-found-interceptor ::http/not-found-interceptor
+         ext-mime-types ::http/mime-types
+         enable-session ::http/enable-session
+         enable-csrf ::http/enable-csrf
+         secure-headers ::http/secure-headers
+         :or {file-path nil
+              request-logger http/log-request
+              router :map-tree
+              resource-path nil
+              not-found-interceptor http/not-found
+              method-param-name :_method
+              ext-mime-types {}
+              enable-session nil
+              enable-csrf nil
+              secure-headers {}}} service-map
+        processed-routes (cond
+                           (satisfies? route/ExpandableRoutes routes) (route/expand-routes routes)
+                           (fn? routes) routes
+                           (nil? routes) nil
+                           (and (seq? routes) (every? map? routes)) routes
+                           :else (throw (ex-info "Routes specified in the service map don't fulfill the contract.
+                                                 They must be a seq of full-route maps or satisfy the ExpandableRoutes protocol"
+                                                 {:routes routes})))]
+    (if-not interceptors
+      (assoc service-map ::http/interceptors
+             (cond-> []
+               (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
+               (some? allowed-origins) (conj (cors/allow-origin allowed-origins))
+               (some? not-found-interceptor) (conj (io.pedestal.interceptor/interceptor not-found-interceptor))
+               (or enable-session enable-csrf) (conj (middlewares/session (or enable-session {})))
+               (some? enable-csrf) (into [(body-params/body-params (:body-params enable-csrf (body-params/default-parser-map)))
+                                          (csrf/anti-forgery enable-csrf)])
+               true (conj (middlewares/content-type {:mime-types ext-mime-types}))
+               true (conj route/query-params)
+               true (conj xapi-method-param)
+               true (conj (route/method-param :method))
+               (some? secure-headers) (conj (sec-headers/secure-headers secure-headers))
+               ;; TODO: If all platforms support async/NIO responses, we can bring this back
+               ;(not (nil? resource-path)) (conj (middlewares/fast-resource resource-path))
+               (some? resource-path) (conj (middlewares/resource resource-path))
+               (some? file-path) (conj (middlewares/file file-path))
+               true (conj (route/router processed-routes router))))
+      service-map)))
+
+
+(defn jetty-consume-all-and-close!
+  [^HttpInput hi]
+  (when (instance? HttpInput hi)
+    (doto hi
+      .consumeAll
+      .close)
+    hi))
+
+;; TODO: remove this if fixed upstream
+(def ensure-jetty-consumed
+  "When using Jetty on certain systems, certain requests will leave
+  data in the body (input-stream). This causes certain clients to hang.
+  This interceptor looks for a failing response, and consumes the rest of the
+  stream."
+  {:name ::ensure-jetty-consumed
+   :leave (fn [ctx]
+            (when (some-> ctx :response :status (>= 400))
+              (some-> ctx :request :body jetty-consume-all-and-close!))
+            ctx)})
+
+(def common-interceptors [ensure-jetty-consumed
                           x-forwarded-for-interceptor
                           http/json-body
-                          etag-interceptor
+                          ;; etag-interceptor
 
                           ;; TODO: multiparts, etc
                           ;; i/multipart-mixed
@@ -193,7 +294,13 @@
 
                           (body-params/body-params
                            (body-params/default-parser-map
-                            :json-options {:key-fn identity}))
+                            :json-options {:key-fn str}))
+
+                          xapi/alternate-request-syntax-interceptor
+                          #_{:name ::foo
+                           :enter (fn [ctx] (clojure.pprint/pprint (:request ctx))
+                                    ctx)}
+                          etag-interceptor
                           ;; route/query-params
                           ;; xapi-alternate-request-headers-interceptor
                           ;; keyword-params
@@ -204,7 +311,7 @@
                                              :on-error auth/error-response})
 
                           set-xapi-version-interceptor
-
+                          xapi-ltags-interceptor
                           ])
 
 (def xapi-protected-interceptors

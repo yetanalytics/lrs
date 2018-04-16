@@ -32,17 +32,17 @@
 
      [path :get (conj interceptors
                       (xapi-i/params-interceptor
-                       ::p/get-document-any-params)
+                       ::p/get-document-all-params)
                       documents/handle-get)
       :route-name (keyword route-name-ns "get")]
      [path :head (conj interceptors
                        (xapi-i/params-interceptor
-                        ::p/get-document-any-params)
+                        ::p/get-document-all-params)
                        documents/handle-get)
       :route-name (keyword route-name-ns "head")]
      [path :delete (conj interceptors
                          (xapi-i/params-interceptor
-                          ::p/delete-document-any-params)
+                          ::p/delete-document-all-params)
                          documents/handle-delete)
       :route-name (keyword route-name-ns "delete")]
      [path :any method-not-allowed

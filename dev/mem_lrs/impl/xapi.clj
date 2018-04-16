@@ -115,88 +115,71 @@
                   ::xs/agent)
             ::doc/documents-priority-map))
 
-(defn- document-keys [params document]
-  (let [[param-type ps] (s/conform ::p/document-singular-params params)]
-    (case param-type
-      :state-params
-      (let [{:keys [activityId
-                    agent
-                    stateId]
-             ?reg :registration} ps
-            ]
-        {:context-key (cond-> [activityId agent]
-                        ?reg (conj ?reg))
-         :document-key stateId
-         :document (cond-> (assoc document
-                                  :id stateId)
-                     ?reg
-                     (assoc :registration ?reg))})
-      :activity-profile-params
-      (let [{:keys [activityId
-                    profileId]} ps]
-        {:context-key
-         activityId
-         :document-key
-         profileId
-         :document
-         (assoc document
-                :id profileId)})
-      :agent-profile-params
-      (let [{:keys [agent
-                    profileId]} ps]
-        {:context-key agent
-         :document-key profileId
-         :document (assoc document
-                          :id profileId)}))))
+(defn- document-keys [{:keys [activityId
+                              agent
+                              stateId
+                              profileId
+                              registration]} document]
+  (cond
+    stateId
+    {:context-key (cond-> [activityId agent]
+                    registration (conj registration))
+     :document-key stateId
+     :document (cond-> (assoc document
+                              :id stateId)
+                 registration
+                 (assoc :registration registration))}
+    (and profileId
+         agent)
+    {:context-key agent
+     :document-key profileId
+     :document (assoc document
+                      :id profileId)}
+    (and profileId
+         activityId)
+    {:context-key activityId
+     :document-key profileId
+     :document (assoc document
+                      :id profileId)}))
 
-(defn- param-keys [params]
-  (let [[param-type ps] (s/conform ::p/document-singular-params params)]
-    (case param-type
-      :state-params
-      (let [{:keys [activityId
-                    agent
-                    stateId]
-             ?reg :registration} ps
-            ]
-        {:context-key (cond-> [activityId agent]
-                        ?reg (conj ?reg))
-         :document-key stateId})
-      :activity-profile-params
-      (let [{:keys [activityId
-                    profileId]} ps]
-        {:context-key
-         activityId
-         :document-key
-         profileId})
-      :agent-profile-params
-      (let [{:keys [agent
-                    profileId]} ps]
-        {:context-key agent
-         :document-key profileId}))))
+(defn- param-keys [{:keys [activityId
+                           agent
+                           stateId
+                           profileId
+                           registration]}]
+  (cond
+    stateId
+    {:context-key (cond-> [activityId agent]
+                    registration (conj registration))
+     :document-key stateId}
+    (and profileId
+         agent)
+    {:context-key agent
+     :document-key profileId}
+    (and profileId
+         activityId)
+    {:context-key activityId
+     :document-key profileId}))
 
-(defn- param-keys-query [params]
-  (let [[param-type ps] (s/conform ::p/get-document-ids-params params)]
-    (cond-> (case param-type
-              :state-params
-              (let [{:keys [activityId
-                            agent
-                            ]
-                     ?reg :registration} ps
-                    ]
-                {:context-key (cond-> [activityId agent]
-                                ?reg (conj ?reg))
-                 })
-              :activity-profile-params
-              (let [{:keys [activityId
-                            ]} ps]
-                {:context-key
-                 activityId
-                 })
-              :agent-profile-params
-              (let [{:keys [agent
-                            ]} ps]
-                {:context-key agent}))
-      (:since params) (assoc :since (:since params)))))
+(defn- param-keys-query [{:keys [activityId
+                                 agent
+                                 stateId
+                                 profileId
+                                 registration
+                                 since] :as params}]
+  (cond
+    stateId
+    {:context-key (cond-> [activityId agent]
+                    registration (conj registration))
+     :query (select-keys params [:since])}
+    (and profileId
+         agent)
+    {:context-key agent
+     :query (select-keys params [:since])}
+    (and profileId
+         activityId)
+    {:context-key activityId
+     :query (select-keys params [:since])}))
 
 (defn transact-document
   [documents params document merge?]
@@ -380,9 +363,9 @@
                                   limit
                                   attachments
                                   ascending
-                                  page]
+                                  page
+                                  agent]
                            format-type :format
-                           agent-json :agent
                            :as params
                            :or {related_activities false
                                 related_agents false
@@ -437,14 +420,13 @@
                                                      (ss/statement-related-activity-ids s)))
                                              ;; simple activity filter
                                              #(= activity (get-in % ["object" "id"]))))
-                                 agent-json (filter
-                                             (let [agent-query (json/read-str agent-json)
-                                                   agents-fn (if related_agents
-                                                               #(ss/statement-agents % true)
-                                                               #(ss/statement-agents % false))]
-                                               (fn [s]
-                                                 (some (partial ag/ifi-match? agent-query)
-                                                       (agents-fn s)))))
+                                 agent (filter
+                                        (let [agents-fn (if related_agents
+                                                          #(ss/statement-agents % true)
+                                                          #(ss/statement-agents % false))]
+                                          (fn [s]
+                                            (some (partial ag/ifi-match? agent)
+                                                  (agents-fn s)))))
                                  #_(and limit
                                         (not= limit 0)) #_(take limit))
                   paged (partition-all page-size results-base)
@@ -463,7 +445,9 @@
                                                   (str xapi-path-prefix
                                                        "/xapi/statements?"
                                                        (codec/form-encode
-                                                        (assoc params :page (inc page))))))]
+                                                        (cond-> (assoc params :page (inc page))
+                                                          ;; Re-encode the agent if present
+                                                          agent (assoc :agent (json/write-str agent)))))))]
               {:statement-result statement-result
                :attachments (into []
                                   (when attachments

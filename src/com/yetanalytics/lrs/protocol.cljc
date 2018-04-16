@@ -36,44 +36,53 @@
 (s/def ::document-resource-instance
   #(satisfies? DocumentResource %))
 
-(s/def ::document-singular-params
-  (s/or :state-params
-        :xapi.activities.state.*.request.singular/params
-        :activity-profile-params
-        :xapi.activities.profile.*.request.singular/params
-        :agent-profile-params
-        :xapi.agents.profile.*.request.singular/params))
-
 (s/def ::set-document-params
-  (s/nonconforming ::document-singular-params))
+  (s/or :state
+        :xapi.document.state/id-params
+        :agent-profile
+        :xapi.document.agent-profile/id-params
+        :activity-profile
+        :xapi.document.activity-profile/id-params))
 
 (s/def ::get-document-params
-  (s/nonconforming ::document-singular-params))
+  (s/or :state
+        :xapi.document.state/id-params
+        :agent-profile
+        :xapi.document.agent-profile/id-params
+        :activity-profile
+        :xapi.document.activity-profile/id-params))
 
 (s/def ::get-document-ids-params
-  (s/or :state-params
-        :xapi.activities.state.GET.request.multiple/params
-        :activity-profile-params
-        :xapi.activities.profile.GET.request.multiple/params
-        :agent-profile-params
-        :xapi.agents.profile.GET.request.multiple/params))
+  (s/or :state
+        :xapi.document.state/query-params
+        :agent-profile
+        :xapi.document.agent-profile/query-params
+        :activity-profile
+        :xapi.document.activity-profile/query-params))
 
-(s/def ::get-document-any-params
-  (s/or
-   :ids (s/nonconforming ::get-document-ids-params)
-   :single ::get-document-params))
+(s/def ::get-document-all-params
+  (s/or :single
+        ::get-document-params
+        :multiple
+        ::get-document-ids-params))
 
 (s/def ::delete-document-params
-  ::document-singular-params)
+  (s/or :state
+        :xapi.document.state/id-params
+        :agent-profile
+        :xapi.document.agent-profile/id-params
+        :activity-profile
+        :xapi.document.activity-profile/id-params))
 
 (s/def ::delete-documents-params
-  :xapi.activities.state.DELETE.request.multiple/params)
+  (s/or :state :xapi.document.state/context-params))
 
+(s/def ::delete-document-all-params
+  (s/or :single
+        ::get-document-params
+        :multiple
+        ::delete-documents-params))
 
-(s/def ::delete-document-any-params
-  (s/or
-   :ids ::delete-documents-params
-   :single ::delete-document-params))
 ;; Activities
 ;; /xapi/activities
 (defprotocol ActivityInfoResource

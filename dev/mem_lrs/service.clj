@@ -36,6 +36,7 @@
               ;; default interceptors will be ignored.
               ;; ::http/interceptors []
               ::http/routes routes
+              ;; ::http/method-param-name :method
 
               ;; Uncomment next line to enable CORS support, add
               ;; string(s) specifying scheme, host and port for
@@ -43,7 +44,7 @@
               ;;
               ;; "http://localhost:8080"
               ;;
-              ;;::http/allowed-origins ["scheme://host:port"]
+              ;; ::http/allowed-origins ["scheme://host:port"]
 
               ;; Tune the Secure Headers
               ;; and specifically the Content Security Policy appropriate to your service/application

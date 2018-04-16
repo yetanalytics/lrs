@@ -12,7 +12,7 @@
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (let [{params ::p/set-document-params} xapi
+            (let [{[doc-type params] ::p/set-document-params} xapi
                   {:keys [body content-type content-length]} request]
               (lrs/set-document
                lrs params
@@ -27,7 +27,7 @@
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (let [{params ::p/set-document-params} xapi
+            (let [{[doc-type params] ::p/set-document-params} xapi
                   {:keys [body content-type content-length]} request]
               (lrs/set-document
                lrs params
@@ -42,13 +42,15 @@
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (let [{{single-params :single
-                    ids-params :ids}
-                   ::p/get-document-any-params} xapi
+            (let [{[card [doc-type params]]
+                   ::p/get-document-all-params} xapi
                   ]
-              (if-let [result (if ids-params
-                                (lrs/get-document-ids lrs ids-params)
-                                (lrs/get-document lrs single-params))]
+              (if-let [result
+                       (case card
+                         :single
+                         (lrs/get-document lrs params)
+                         :multiple
+                         (lrs/get-document-ids lrs params))]
                 (assoc ctx :response {:status 200
                                       :body result})
                 (assoc ctx :response {:status 404}))))})
@@ -58,11 +60,11 @@
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (let [{{single-params :single
-                    ids-params :ids}
+            (let [{{[card [doc-type params]]
+                    ::p/delete-document-all-params}
                    ::p/delete-document-any-params} xapi
                   ]
-              (if ids-params
-                (lrs/delete-documents lrs ids-params)
-                (lrs/delete-document lrs single-params))
+              (case card
+                :single (lrs/delete-document lrs params)
+                :multiple (lrs/delete-documents lrs params))
               (assoc ctx :response {:status 204})))})
