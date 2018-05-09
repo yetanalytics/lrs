@@ -96,26 +96,42 @@
     (s/conform spec-kw x)))
 
 
-(defn invalid-extra-params? [^String path-info
-                             request-method
-                             params]
+(defn invalid-extra-params [^String path-info
+                            request-method
+                            params]
   (cond
     (.endsWith path-info "/xapi/statements")
     (case request-method
       :get (let [{:keys [statementId
                          voidedStatementId]} params]
-             (or (when statementId
+             (cond statementId
                    (not-empty (dissoc params
                                       :statementId
                                       :format
-                                      :attachments)))
-                 (when voidedStatementId
+                                      :attachments))
+                   voidedStatementId
                    (not-empty (dissoc params
                                       :voidedStatementId
                                       :format
-                                      :attachments)))))
-      false)
-    :else false))
+                                      :attachments))
+                   :else
+                   (not-empty (dissoc params
+                                      :agent
+                                      :verb
+                                      :activity
+                                      :registration
+                                      :related_activities
+                                      :related_agents
+                                      :since
+                                      :until
+                                      :limit
+                                      :format
+                                      :attachments
+                                      :ascending
+                                      ;; TODO: handle param-based MORE implementations
+                                      :page))))
+      nil)
+    :else nil))
 
 (defn params-interceptor
   "Interceptor factory, given a spec keyword, it validates params against it.
@@ -123,17 +139,18 @@
   [spec-kw]
   {:name (let [[k-ns k-name] ((juxt namespace name) spec-kw)]
            (keyword k-ns (str k-name "-interceptor")))
-   :enter (fn [ctx]
-            (let [raw-params (get-in ctx [:request :params] {})
-                  params (conform-cheshire spec-kw raw-params)]
+   :enter (fn [{:keys [request] :as ctx}]
+            (let [raw-params (:params request {})
+                  params (conform-cheshire spec-kw raw-params)
+                  {:keys [path-info request-method]} request]
               (if-not (or (= ::s/invalid params)
-                          (invalid-extra-params? (get-in ctx [:request :path-info])
-                                                 (get-in ctx [:request :request-method])
-                                                 params))
+                          (invalid-extra-params path-info
+                                                request-method
+                                                params))
                 (assoc-in ctx [:xapi spec-kw] params)
                 (assoc (chain/terminate ctx)
                        :response
                        {:status 400
                         :body {:error
                                {:message "Invalid Params"
-                                :spec-error (s/explain-str spec-kw raw-params)}}}))))})
+                                :params raw-params}}}))))})
