@@ -237,7 +237,7 @@
            ?since (drop-while (fn [{:keys [updated]}]
                                 (< updated ?since)))))))
 
-(s/fdef get-document
+(s/fdef get-document-ids
         :args (s/cat :state ::state
                      :params ::p/get-document-ids-params)
         :ret (s/coll-of ::doc/id))
