@@ -187,5 +187,5 @@
 (def set-consistent-through
   {:name ::set-consistent-through
    :leave (fn [ctx]
-            (assoc-in ctx [:response :headers "X-Experience-Api-Consistent-Through"]
+            (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
                       (str (Instant/now))))})
