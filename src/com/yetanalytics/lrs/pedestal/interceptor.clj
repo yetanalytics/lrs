@@ -314,5 +314,23 @@
                           xapi-ltags-interceptor
                           ])
 
+(def doc-interceptors-base
+  [ensure-jetty-consumed
+   x-forwarded-for-interceptor
+   xapi/alternate-request-syntax-interceptor
+   etag-interceptor
+   ;; route/query-params
+   ;; xapi-alternate-request-headers-interceptor
+   ;; keyword-params
+   ;; keyword-body-params
+
+   #_(i/authentication auth/backend auth/cantilever-backend)
+   #_(i/access-rules {:rules auth/rules
+                      :on-error auth/error-response})
+
+   set-xapi-version-interceptor
+   xapi-ltags-interceptor
+   ])
+
 (def xapi-protected-interceptors
   [require-xapi-version-interceptor])

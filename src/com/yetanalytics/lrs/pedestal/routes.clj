@@ -52,7 +52,10 @@
   (let [global-interceptors (conj i/common-interceptors
                                   (i/lrs-interceptor lrs))
         protected-interceptors (into global-interceptors
-                                     i/xapi-protected-interceptors)]
+                                     i/xapi-protected-interceptors)
+        document-interceptors (into (conj i/doc-interceptors-base
+                                          (i/lrs-interceptor lrs))
+                                    i/xapi-protected-interceptors)]
     (into #{;; xapi
             ["/xapi/about" :get (conj global-interceptors
                                       about/handle-get)]
@@ -111,13 +114,13 @@
             ["/xapi/activities" :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.activities/any]}
           (concat
-           (document-routes protected-interceptors
+           (document-routes document-interceptors
                             "activities/state"
                             "com.yetanalytics.lrs.xapi.activities.state")
-           (document-routes protected-interceptors
+           (document-routes document-interceptors
                             "activities/profile"
                             "com.yetanalytics.lrs.xapi.activities.profile")
-           (document-routes protected-interceptors
+           (document-routes document-interceptors
                             "agents/profile"
                             "com.yetanalytics.lrs.xapi.agents.profile")))))
 
