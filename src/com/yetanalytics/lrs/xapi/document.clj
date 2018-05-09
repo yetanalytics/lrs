@@ -127,11 +127,11 @@
    document)
   ([old-doc new-doc]
    (assoc
-    (if (and old-doc
-             (every?
-              #(.startsWith ^String % "application/json")
-              (map :content-type [old-doc
-                                  new-doc])))
+    (cond (and old-doc
+               (every?
+                #(.startsWith ^String % "application/json")
+                (map :content-type [old-doc
+                                    new-doc])))
       (let [old-json (*read-json-contents*
                       (:contents old-doc))
             new-json (*read-json-contents*
@@ -142,9 +142,18 @@
             (assoc new-doc
                    :content-length (count merged-bytes)
                    :contents
-                   (merge old-json new-json)))
+                   merged-bytes))
           new-doc))
-      new-doc)
+      (and old-doc
+           (not (every?
+                 #(.startsWith ^String % "application/json")
+                 (map :content-type [old-doc
+                                     new-doc]))))
+      (throw (ex-info "Attempt to merge documents of different content types"
+                      {:type ::invalid-merge
+                       :old-doc old-doc
+                       :new-doc new-doc}))
+      :else new-doc)
     :updated (str (Instant/now)))))
 
 (s/fdef merge-or-replace
