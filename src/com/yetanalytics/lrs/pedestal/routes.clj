@@ -61,28 +61,28 @@
 
             ;; xapi statements
             ["/xapi/statements" :get (conj protected-interceptors
+                                           statements-i/set-consistent-through
                                            (xapi-i/params-interceptor
                                             :xapi.statements.GET.request/params)
-                                           statements-i/set-consistent-through
                                            statements/handle-get)]
             ["/xapi/statements" :head (conj protected-interceptors
+                                            statements-i/set-consistent-through
                                             (xapi-i/params-interceptor
                                              :xapi.statements.GET.request/params)
-                                            statements-i/set-consistent-through
                                             statements/handle-get)
              :route-name :com.yetanalytics.lrs.xapi.statements/head]
             ["/xapi/statements" :put (conj protected-interceptors
+                                           statements-i/set-consistent-through
                                            (xapi-i/params-interceptor
                                             :xapi.statements.PUT.request/params)
                                            statements-i/parse-multiparts
                                            statements-i/validate-request-statements
-                                           statements-i/set-consistent-through
                                            statements/handle-put)
              ]
             ["/xapi/statements" :post (conj protected-interceptors
+                                            statements-i/set-consistent-through
                                             statements-i/parse-multiparts
                                             statements-i/validate-request-statements
-                                            statements-i/set-consistent-through
                                             statements/handle-post)]
             ["/xapi/statements" :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.statements/any]
