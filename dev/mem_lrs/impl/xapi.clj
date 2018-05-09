@@ -31,6 +31,21 @@
   (s/map-of :attachment/sha2
             ::ss/attachment))
 
+(s/def :state/refs
+  ;; Map of referring statement ids to target ids
+  (s/map-of :statement/id
+            :statement/id))
+
+(defn store-ref
+  "Store a statement reference relation"
+  [refs-map ref-id target-id]
+  (assoc refs-map ref-id target-id))
+
+(s/fdef store-ref
+        :args (s/cat
+               :ref-id :statement/id
+               :target-id :statement/id))
+
 (defn store-attachments
   [atts-map attachments]
   (reduce
@@ -261,6 +276,7 @@
 (s/def ::state
   (s/keys :req [:state/statements
                 :state/voided-statements
+                :state/refs
                 :state/activities
                 :state/agents
                 :state/attachments
@@ -270,6 +286,7 @@
   {:state/statements
    (ss/statements-priority-map)
    :state/voided-statements {}
+   :state/refs {}
    :state/activities {}
    :state/agents {}
    :state/attachments {}
@@ -285,27 +302,29 @@
                            attachments]
   (reduce
    (fn [state statement]
-     (-> (let [s-id (get statement "id")]
-           (if-let [extant (get-in state [:state/statements s-id])]
-             (if (ss/statements-equal? extant statement)
-               state ;; No change to LRS
-               (p/throw-statement-conflict statement extant))
-             (if (ss/voiding-statement? statement)
-               (if-let [void-target-id (and (= "StatementRef" (get-in statement
-                                                                      ["object"
-                                                                       "objectType"]))
-                                            (get-in statement ["object" "id"]))]
-                 (if-let [extant-target (get-in state [:state/statements void-target-id])]
-                   (if (ss/voiding-statement? extant-target)
-                     ;; can't void a voiding statement
-                     (p/throw-invalid-voiding-statement statement)
-                     (-> state
-                         (assoc-in [:state/statements s-id] statement)
-                         (update :state/statements dissoc void-target-id)
-                         (assoc-in [:state/voided-statements void-target-id] extant-target)))
-                   (assoc-in state [:state/statements s-id] statement))
-                 (p/throw-invalid-voiding-statement statement))
-               (assoc-in state [:state/statements s-id] statement))))
+     (-> (let [s-id (get statement "id")
+               ?ref-target-id (ss/statement-ref-id statement)]
+           (cond-> (if-let [extant (get-in state [:state/statements s-id])]
+                     (if (ss/statements-equal? extant statement)
+                       state ;; No change to LRS
+                       (p/throw-statement-conflict statement extant))
+                     (if (ss/voiding-statement? statement)
+                       (if-let [void-target-id (and (= "StatementRef" (get-in statement
+                                                                              ["object"
+                                                                               "objectType"]))
+                                                    (get-in statement ["object" "id"]))]
+                         (if-let [extant-target (get-in state [:state/statements void-target-id])]
+                           (if (ss/voiding-statement? extant-target)
+                             ;; can't void a voiding statement
+                             (p/throw-invalid-voiding-statement statement)
+                             (-> state
+                                 (assoc-in [:state/statements s-id] statement)
+                                 (update :state/statements dissoc void-target-id)
+                                 (assoc-in [:state/voided-statements void-target-id] extant-target)))
+                           (assoc-in state [:state/statements s-id] statement))
+                         (p/throw-invalid-voiding-statement statement))
+                       (assoc-in state [:state/statements s-id] statement)))
+             ?ref-target-id (update :state/refs store-ref s-id ?ref-target-id)))
          (update :state/activities
                  store-activities
                  (ss/statement-related-activities statement))
@@ -403,32 +422,48 @@
                               (< 0 limit statements-result-max)
                               limit
                               :else statements-result-max)
-                  results-base (cond->> (vals (:state/statements state'))
-                                 until (drop-while #(= -1 (compare until (get % "stored"))))
-                                 since (take-while #(> 0 (compare since (get % "stored"))))
-                                 ascending reverse
-                                 ;; simple filters
-                                 verb (filter #(= verb (get-in % ["verb" "id"])))
-                                 registration (filter #(= registration
-                                                          (get-in % ["context" "registration"])))
-                                 ;; complex filters
-                                 activity (filter
-                                           (if related_activities
-                                             ;; complex activity-filter
-                                             (fn [s]
-                                               (some (partial = activity)
-                                                     (ss/statement-related-activity-ids s)))
-                                             ;; simple activity filter
-                                             #(= activity (get-in % ["object" "id"]))))
-                                 agent (filter
-                                        (let [agents-fn (if related_agents
-                                                          #(ss/statement-agents % true)
-                                                          #(ss/statement-agents % false))]
-                                          (fn [s]
-                                            (some (partial ag/ifi-match? agent)
-                                                  (agents-fn s)))))
-                                 #_(and limit
-                                        (not= limit 0)) #_(take limit))
+                  results-base
+                  (cond->> (vals (:state/statements state'))
+                    since (drop-while #(< -1 (compare since (get % "stored"))))
+                    until (take-while #(< -1 (compare until (get % "stored"))))
+                    ascending reverse
+                    ;; simple filters
+                    verb (filter #(or
+                                   ;; direct
+                                   (= verb (get-in % ["verb" "id"]))
+                                   ;; via reference
+                                   (and (ss/statement-ref? %)
+                                        (let [ref-id (get % "id")
+                                              target-id (ss/statement-ref-id %)]
+                                          ;; non-void statement
+                                          (= verb (get-in state' [:state/statements
+                                                                  target-id
+                                                                  "verb"
+                                                                  "id"]))
+                                          (= verb (get-in state' [:state/voided-statements
+                                                                  target-id
+                                                                  "verb"
+                                                                  "id"]))))))
+                    registration (filter #(= registration
+                                             (get-in % ["context" "registration"])))
+                    ;; complex filters
+                    activity (filter
+                              (if related_activities
+                                ;; complex activity-filter
+                                (fn [s]
+                                  (some (partial = activity)
+                                        (ss/statement-related-activity-ids s)))
+                                ;; simple activity filter
+                                #(= activity (get-in % ["object" "id"]))))
+                    agent (filter
+                           (let [agents-fn (if related_agents
+                                             #(ss/statement-agents % true)
+                                             #(ss/statement-agents % false))]
+                             (fn [s]
+                               (some (partial ag/ifi-match? agent)
+                                     (agents-fn s)))))
+                    #_(and limit
+                           (not= limit 0)) #_(take limit))
                   paged (partition-all page-size results-base)
                   this-page (try (nth paged page)
                                  (catch java.lang.IndexOutOfBoundsException e
