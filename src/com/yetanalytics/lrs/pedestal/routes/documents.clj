@@ -50,8 +50,10 @@
                    (assoc ctx :response {:status 204})
                    (catch clojure.lang.ExceptionInfo exi
                      (let [exd (ex-data exi)]
-                       (case (:type exd)
-                         :com.yetanalytics.lrs.xapi.document/invalid-merge
+                       (if (#{:com.yetanalytics.lrs.xapi.document/json-read-error
+                              :com.yetanalytics.lrs.xapi.document/json-not-object-error
+                              :com.yetanalytics.lrs.xapi.document/invalid-merge}
+                            (:type exd))
                          (assoc ctx :response {:status 400})
                          (throw exi)))))))})
 
@@ -91,9 +93,9 @@
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (if-let [params (find-some xapi
-                                       :xapi.activities.profile.DELETE.request/params
-                                       :xapi.agents.profile.DELETE.request/params)]
+            (if-let [[params-spec params] (find-some xapi
+                                                     :xapi.activities.profile.DELETE.request/params
+                                                     :xapi.agents.profile.DELETE.request/params)]
               (lrs/delete-document lrs params)
               (let [[params-type params] (:xapi.activities.state.DELETE.request/params xapi)]
                 (case params-type

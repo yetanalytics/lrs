@@ -15,6 +15,9 @@
 
 (set! *warn-on-reflection* true)
 
+(defn updated-stamp []
+  (str (Instant/now)))
+
 (s/def ::content-type
   string-ascii-not-empty)
 
@@ -106,10 +109,24 @@
                           :document :com.yetanalytics.lrs.xapi/document))
         :ret ::documents-priority-map)
 
+(defn throw-read-json-error []
+  (throw (ex-info "Cannot read JSON"
+                  {:type ::json-read-error})))
+
+(defn throw-json-not-object-error [json-result]
+  (throw (ex-info "JSON is not an object"
+                  {:type ::json-not-object-error
+                   :json json-result})))
+
 (def ^:dynamic *read-json-contents*
   (fn [contents]
-    (with-open [rdr (io/reader contents)]
-      (json/parse-stream rdr))))
+    (let [[result ?more] (try (with-open [rdr (io/reader contents)]
+                                 (doall (json/parsed-seq rdr)))
+                               (catch com.fasterxml.jackson.core.JsonParseException jpe
+                                 (throw-read-json-error)))]
+      (if (and (map? result) (nil? ?more))
+        result
+        (throw-json-not-object-error result)))))
 
 (def ^:dynamic *write-json-contents*
   (fn
@@ -123,38 +140,49 @@
        out))))
 
 (defn merge-or-replace
-  ([document]
-   document)
+  ([{:keys [contents
+            content-type] :as document}]
+   (assoc (if (and content-type
+                   (.startsWith ^String content-type "application/json"))
+            ;; JSON documents must be de/reseriealized
+            (let [json (*read-json-contents* contents)
+                  reserialized-bytes (*write-json-contents* json)]
+              (assoc document
+                     :content-length (count reserialized-bytes)
+                     :contents reserialized-bytes))
+            document)
+          :updated
+          (updated-stamp)))
   ([old-doc new-doc]
-   (assoc
-    (cond (and old-doc
-               (every?
-                #(.startsWith ^String % "application/json")
-                (map :content-type [old-doc
-                                    new-doc])))
-      (let [old-json (*read-json-contents*
-                      (:contents old-doc))
-            new-json (*read-json-contents*
-                      (:contents new-doc))]
-        (if (every? map? [old-json new-json])
-          (let [merged-bytes (*write-json-contents*
-                              (merge old-json new-json))]
-            (assoc new-doc
-                   :content-length (count merged-bytes)
-                   :contents
-                   merged-bytes))
-          new-doc))
-      (and old-doc
-           (not (every?
-                 #(.startsWith ^String % "application/json")
-                 (map :content-type [old-doc
-                                     new-doc]))))
-      (throw (ex-info "Attempt to merge documents of different content types"
-                      {:type ::invalid-merge
-                       :old-doc old-doc
-                       :new-doc new-doc}))
-      :else new-doc)
-    :updated (str (Instant/now)))))
+   (if old-doc
+     (assoc
+      (cond
+        (every?
+         #(.startsWith ^String % "application/json")
+         (map :content-type [old-doc
+                             new-doc]))
+        (let [old-json (*read-json-contents*
+                        (:contents old-doc))
+              new-json (*read-json-contents*
+                        (:contents new-doc))]
+          (if (every? map? [old-json new-json])
+            (let [merged-bytes (*write-json-contents*
+                                (merge old-json new-json))]
+              (assoc new-doc
+                     :content-length (count merged-bytes)
+                     :contents
+                     merged-bytes))
+            new-doc))
+        (not (every?
+              #(.startsWith ^String % "application/json")
+              (map :content-type [old-doc
+                                  new-doc])))
+        (throw (ex-info "Attempt to merge documents of different content types"
+                        {:type ::invalid-merge
+                         :old-doc old-doc
+                         :new-doc new-doc})))
+      :updated (updated-stamp))
+     (merge-or-replace new-doc))))
 
 (s/fdef merge-or-replace
         :args (s/cat :doc-1 :com.yetanalytics.lrs.xapi/document
@@ -163,7 +191,8 @@
 
 
 (comment
-
+  (*read-json-contents*
+   (.getBytes "{\"activityId\":\"http://www.example.com/activityId/hashset\",\"agent\":{\"objectType\":\"Agent\",\"account\":{\"homePage\":\"http://www.example.com/agentId/1\",\"name\":\"Rick James\"}},\"stateId\":\"555b41ce-33b0-4562-8fa8-2f3cd4b4e68b\"}{" "UTF-8"))
 
   (sgen/generate (s/gen ::documents-priority-map))
   )

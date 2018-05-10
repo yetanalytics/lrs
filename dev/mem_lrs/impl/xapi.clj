@@ -187,12 +187,10 @@
     {:context-key (cond-> [activityId agent]
                     registration (conj registration))
      :query (select-keys params [:since])}
-    (and profileId
-         agent)
+    agent
     {:context-key agent
      :query (select-keys params [:since])}
-    (and profileId
-         activityId)
+    activityId
     {:context-key activityId
      :query (select-keys params [:since])}))
 
@@ -204,7 +202,10 @@
                             params document)]
     (update (if merge?
               (update-in documents [context-key document-key] doc/merge-or-replace document)
-              (assoc-in documents [context-key document-key] document))
+              (assoc-in documents [context-key document-key] (assoc
+                                                              document
+                                                              :updated
+                                                              (doc/updated-stamp))))
             context-key
             #(conj (doc/documents-priority-map) %))))
 
@@ -249,13 +250,7 @@
                 document-key]}
         (param-keys
          params)]
-    (if (get-in documents [context-key
-                           document-key])
-      (let [docs-after (update documents context-key dissoc document-key)]
-        (if (nil? (get docs-after context-key))
-          (dissoc docs-after context-key)
-          docs-after))
-      documents)))
+    (update documents context-key (fnil dissoc {}) document-key)))
 
 (s/fdef delete-document
         :args (s/cat :documents :state/documents
@@ -265,7 +260,7 @@
 (defn delete-documents
   [documents params]
   (let [{:keys [context-key]}
-        (param-keys
+        (param-keys-query
          params)]
     (dissoc documents context-key)))
 
