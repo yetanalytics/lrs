@@ -81,11 +81,10 @@
                                  :body (ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
            (assoc ctx :response {:status 404}))
          :query
-         (if-let [result (lrs/get-document-ids lrs params)]
-           (assoc ctx :response {:status 200
-                                 :body result})
-           (assoc ctx :response {:status 200
-                                 :body []})))))})
+         (assoc ctx :response {:headers {"Content-Type" "application/json"}
+                               :status 200
+                               :body (json/generate-string
+                                      (into [] (lrs/get-document-ids lrs params)))}))))})
 
 (def handle-delete
   {:name ::handle-delete
