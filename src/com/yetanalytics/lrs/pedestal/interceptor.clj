@@ -19,6 +19,7 @@
   (:import [java.security MessageDigest]
            [java.io File]
            [org.eclipse.jetty.server HttpInputOverHTTP HttpInput]
+           [java.nio ByteBuffer]
            ))
 
 ;; Enter
@@ -156,8 +157,20 @@
 (defmethod calculate-etag String [s]
   (sha-1 s))
 
+(defmethod calculate-etag (Class/forName "[B") [^bytes bs]
+  (apply str
+         (map
+          #(.substring
+            (Integer/toString
+             (+ (bit-and % 0xff) 0x100) 16) 1)
+          (.digest (MessageDigest/getInstance "SHA-1")
+                   bs))))
+
 (defmethod calculate-etag File [^File f]
   (sha-1 (str (.lastModified f) "-" (.length f))))
+
+(defmethod calculate-etag ByteBuffer [^ByteBuffer bb]
+  (calculate-etag (.array bb)))
 
 (defmethod calculate-etag :default [x]
   (sha-1 (str (hash x))))
