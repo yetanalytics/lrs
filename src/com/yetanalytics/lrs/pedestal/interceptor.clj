@@ -196,15 +196,6 @@
   {:name ::etag
    :leave etag-leave})
 
-(def require-etag-interceptor
-  {:name ::require-etag
-   :enter (fn [{:keys [request] :as ctx}]
-            (let [{:strs [if-match if-none-match]} (:headers request)]
-              (if (or if-match if-none-match)
-                ctx
-                (assoc (chain/terminate ctx) :response
-                       {:status 400}))))})
-
 ;; Combo
 (def require-and-set-xapi-version-interceptor
   (merge

@@ -29,34 +29,30 @@
            (if (= method :any)
              method-not-allowed
              (conj (into interceptors
-                         (cond-> [(xapi-i/params-interceptor
-                                   (case resource-tuple
-                                     ["activities" "state"]
-                                     (case method
-                                       :put    :xapi.activities.state.PUT.request/params
-                                       :post   :xapi.activities.state.POST.request/params
-                                       :get    :xapi.activities.state.GET.request/params
-                                       :head   :xapi.activities.state.GET.request/params
-                                       :delete :xapi.activities.state.DELETE.request/params)
-                                     ["activities" "profile"]
-                                     (case method
-                                       :put    :xapi.activities.profile.PUT.request/params
-                                       :post   :xapi.activities.profile.POST.request/params
-                                       :get    :xapi.activities.profile.GET.request/params
-                                       :head   :xapi.activities.profile.GET.request/params
-                                       :delete :xapi.activities.profile.DELETE.request/params)
-                                     ["agents"     "profile"]
-                                     (case method
-                                       :put    :xapi.agents.profile.PUT.request/params
-                                       :post   :xapi.agents.profile.POST.request/params
-                                       :get    :xapi.agents.profile.GET.request/params
-                                       :head   :xapi.agents.profile.GET.request/params
-                                       :delete :xapi.agents.profile.DELETE.request/params)))
-                                  ]
-                           ;; For profile put, require etags
-                           (and (= doc-type "profile")
-                                (= method :put))
-                           (conj i/require-etag-interceptor)))
+                         [(xapi-i/params-interceptor
+                           (case resource-tuple
+                             ["activities" "state"]
+                             (case method
+                               :put    :xapi.activities.state.PUT.request/params
+                               :post   :xapi.activities.state.POST.request/params
+                               :get    :xapi.activities.state.GET.request/params
+                               :head   :xapi.activities.state.GET.request/params
+                               :delete :xapi.activities.state.DELETE.request/params)
+                             ["activities" "profile"]
+                             (case method
+                               :put    :xapi.activities.profile.PUT.request/params
+                               :post   :xapi.activities.profile.POST.request/params
+                               :get    :xapi.activities.profile.GET.request/params
+                               :head   :xapi.activities.profile.GET.request/params
+                               :delete :xapi.activities.profile.DELETE.request/params)
+                             ["agents"     "profile"]
+                             (case method
+                               :put    :xapi.agents.profile.PUT.request/params
+                               :post   :xapi.agents.profile.POST.request/params
+                               :get    :xapi.agents.profile.GET.request/params
+                               :head   :xapi.agents.profile.GET.request/params
+                               :delete :xapi.agents.profile.DELETE.request/params)))
+                          ])
                    (case method
                      :put documents/handle-put
                      :post documents/handle-post
