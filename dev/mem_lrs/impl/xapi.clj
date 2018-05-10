@@ -183,7 +183,7 @@
                                  registration
                                  since] :as params}]
   (cond
-    stateId
+    (and activityId agent)
     {:context-key (cond-> [activityId agent]
                     registration (conj registration))
      :query (select-keys params [:since])}
@@ -230,12 +230,13 @@
 
 (defn get-document-ids
   [state params]
-  (let [{:keys [context-key]
-         ?since :since} (param-keys-query params)]
+  (let [{context-key :context-key
+         {?since :since} :query} (param-keys-query params)]
     (mapv :id
-         (cond->> (get-in state [:state/documents context-key])
+          (cond->> (some-> (get-in state [:state/documents context-key])
+                           vals)
            ?since (drop-while (fn [{:keys [updated]}]
-                                (< updated ?since)))))))
+                                (< -1 (compare ?since updated))))))))
 
 (s/fdef get-document-ids
         :args (s/cat :state ::state
@@ -250,7 +251,10 @@
          params)]
     (if (get-in documents [context-key
                            document-key])
-      (update-in documents context-key dissoc document-key)
+      (let [docs-after (update documents context-key dissoc document-key)]
+        (if (nil? (get docs-after context-key))
+          (dissoc docs-after context-key)
+          docs-after))
       documents)))
 
 (s/fdef delete-document
@@ -259,18 +263,15 @@
         :ret :state/documents)
 
 (defn delete-documents
-  [documents {:keys [agent
-                     activityId
-                     registration]}]
-  (dissoc documents
-             (cond-> [activityId
-                      agent]
-               registration
-               (conj registration))))
+  [documents params]
+  (let [{:keys [context-key]}
+        (param-keys
+         params)]
+    (dissoc documents context-key)))
 
 (s/fdef delete-documents
         :args (s/cat :documents :state/documents
-                     :params :xapi.activities.state.DELETE.request.multiple/params)
+                     :params :xapi.document.state/context-params)
         :ret :state/documents)
 
 (s/def ::state
@@ -352,7 +353,7 @@
                     :validator (fn [s]
                                  (or (s/valid? ::state s)
                                      (s/explain ::state s)
-                                     (clojure.pprint/pprint (:state/documents s))
+                                     #_(clojure.pprint/pprint (:state/documents s))
                                      #_(clojure.pprint/pprint s))))]
 
     (reify

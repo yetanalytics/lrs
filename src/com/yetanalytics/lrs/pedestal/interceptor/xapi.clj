@@ -131,6 +131,21 @@
                                       ;; TODO: handle param-based MORE implementations
                                       :page))))
       nil)
+    #_(.endsWith path-info "/xapi/activities/state")
+    #_(case request-method
+      :get (let [{:keys [stateId
+                         agent
+                         activityId
+                         registration]} params]
+             (cond stateId
+                   (not-empty (dissoc params
+                                      :stateId
+                                      :agent
+                                      :activityId
+                                      :registration))
+                   :else nil
+                   ))
+      nil)
     :else nil))
 
 (defn params-interceptor
@@ -152,5 +167,5 @@
                        :response
                        {:status 400
                         :body {:error
-                               {:message "Invalid Params"
+                               {:message (format "Invalid Params for path: %s" path-info)
                                 :params raw-params}}}))))})

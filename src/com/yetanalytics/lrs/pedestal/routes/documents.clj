@@ -6,6 +6,11 @@
   (:import [com.google.common.io ByteStreams]
            [java.io InputStream ByteArrayOutputStream]
            [java.nio ByteBuffer]))
+
+(defn find-some [m & kws]
+  (some (partial find m)
+        kws))
+
 ;; TODO: Handle io correctly
 
 (def handle-put
@@ -13,7 +18,10 @@
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (let [{[doc-type params] ::p/set-document-params} xapi
+            (let [[params-spec params] (find-some xapi
+                                                  :xapi.activities.state.PUT.request/params
+                                                  :xapi.activities.profile.PUT.request/params
+                                                  :xapi.agents.profile.PUT.request/params)
                   {:keys [body content-type content-length]} request]
               (lrs/set-document
                lrs params
@@ -28,7 +36,10 @@
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (let [{[doc-type params] ::p/set-document-params} xapi
+            (let [[params-spec params] (find-some xapi
+                                                  :xapi.activities.state.POST.request/params
+                                                  :xapi.activities.profile.POST.request/params
+                                                  :xapi.agents.profile.POST.request/params)
                   {:keys [body content-type content-length]} request]
               (try (lrs/set-document
                     lrs params
@@ -46,43 +57,47 @@
 
 (def handle-get
   {:name ::handle-get
-   :enter (fn [{:keys [xapi
-                       request
-                       com.yetanalytics/lrs] :as ctx}]
-            (let [{[card [doc-type params]]
-                   ::p/get-document-all-params} xapi
-                  ]
-              (case card
-                :single
-                (if-let [{:keys [content-type
-                                 content-length
-                                 contents
-                                 id
-                                 updated] :as result} (lrs/get-document lrs params)]
-                  (assoc ctx :response {:status 200
-                                        :headers {"Content-Type" content-type
-                                                  "Content-Length" (str content-length)
-                                                  "Last-Modified" updated}
-                                        :body (ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)
-                                        #_(if (.startsWith ^String content-type "application/json")
-                                            (json/generate-string contents)
-                                            (String. ^bytes contents "UTF-8"))})
-                  (assoc ctx :response {:status 404}))
-                :multiple
-                (if-let [result (lrs/get-document-ids lrs params)]
-                  (assoc ctx :response {:status 200
-                                        :body result})
-                  (assoc ctx :response {:status 200
-                                        :body []})))))})
+   :enter
+   (fn [{:keys [xapi
+                request
+                com.yetanalytics/lrs] :as ctx}]
+     (let [[params-spec [params-type params]]
+           (find-some xapi
+                      :xapi.activities.state.GET.request/params
+                      :xapi.activities.profile.GET.request/params
+                      :xapi.agents.profile.GET.request/params)]
+
+       (case params-type
+         :id
+         (if-let [{:keys [content-type
+                          content-length
+                          contents
+                          id
+                          updated] :as result} (lrs/get-document lrs params)]
+           (assoc ctx :response {:status 200
+                                 :headers {"Content-Type" content-type
+                                           "Content-Length" (str content-length)
+                                           "Last-Modified" updated}
+                                 :body (ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
+           (assoc ctx :response {:status 404}))
+         :query
+         (if-let [result (lrs/get-document-ids lrs params)]
+           (assoc ctx :response {:status 200
+                                 :body result})
+           (assoc ctx :response {:status 200
+                                 :body []})))))})
 
 (def handle-delete
   {:name ::handle-delete
    :enter (fn [{:keys [xapi
                        request
                        com.yetanalytics/lrs] :as ctx}]
-            (let [{[card [doc-type params]]
-                   ::p/delete-document-all-params} xapi]
-              (case card
-                :single (lrs/delete-document lrs params)
-                :multiple (lrs/delete-documents lrs params))
-              (assoc ctx :response {:status 204})))})
+            (if-let [params (find-some xapi
+                                       :xapi.activities.profile.DELETE.request/params
+                                       :xapi.agents.profile.DELETE.request/params)]
+              (lrs/delete-document lrs params)
+              (let [[params-type params] (:xapi.activities.state.DELETE.request/params xapi)]
+                (case params-type
+                  :id (lrs/delete-document lrs params)
+                  :context (lrs/delete-documents lrs params))))
+            (assoc ctx :response {:status 204}))})
