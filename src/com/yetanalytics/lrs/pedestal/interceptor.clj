@@ -15,7 +15,8 @@
             [io.pedestal.http.csrf :as csrf]
             [io.pedestal.http.secure-headers :as sec-headers]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
-            [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed])
+            [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed]
+            [io.pedestal.log :as log])
   (:import [java.security MessageDigest]
            [java.io File]
            [org.eclipse.jetty.server HttpInputOverHTTP HttpInput]
@@ -217,6 +218,24 @@
                             (get-in ctx [:request :request-method])))
               ctx))})
 
+;; Time Requests
+
+(def request-timer
+  {:name ::request-timer
+   :enter (fn [ctx]
+            (assoc ctx ::request-enter-ms (System/currentTimeMillis)))
+   :leave (fn [ctx]
+            (let [request-ms (- (System/currentTimeMillis)
+                                (::request-enter-ms ctx))
+                  {:keys [path-info request-method]} (:request ctx)]
+              (log/histogram "lrs request-ms all"
+                             request-ms)
+              (log/histogram (format "lrs request-ms %s %s"
+                                     path-info
+                                     request-method)
+                             request-ms)
+              ctx))})
+
 ;; Combined interceptors
 
 (defn xapi-default-interceptors
@@ -256,7 +275,7 @@
                                                  {:routes routes})))]
     (if-not interceptors
       (assoc service-map ::http/interceptors
-             (cond-> []
+             (cond-> [request-timer]
                (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
                (some? allowed-origins) (conj (cors/allow-origin allowed-origins))
                (some? not-found-interceptor) (conj (io.pedestal.interceptor/interceptor not-found-interceptor))
