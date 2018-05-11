@@ -1,4 +1,4 @@
-(ns mem-lrs.impl.xapi
+(ns com.yetanalytics.lrs.impl.memory
   "A naive LRS implementation in memory"
   (:require [com.yetanalytics.lrs.protocol :as p]
             [com.yetanalytics.lrs.xapi.statements :as ss]

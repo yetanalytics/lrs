@@ -3,7 +3,7 @@
   (:require [io.pedestal.http :as server]
             [io.pedestal.http.route :as route]
             [mem-lrs.service :as service]
-            [mem-lrs.impl.xapi :as lrs-impl :refer [new-lrs]]
+            [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]))
 
 ;; This is an adapted service map, that can be started and stopped

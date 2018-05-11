@@ -3,7 +3,7 @@
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
             [ring.util.response :as ring-resp]
-            [mem-lrs.impl.xapi :refer [new-lrs]]
+            [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
             [com.yetanalytics.lrs.pedestal.routes :refer [build]]))
 
 (defn new-routes [lrs]
