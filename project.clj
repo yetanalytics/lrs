@@ -12,7 +12,7 @@
                  [commons-fileupload/commons-fileupload "1.3.3"]]
   :profiles {:dev
              {:source-paths ["src" "dev"]
-              :clean-targets ^{:protect false} ["lrs-conformance-test-suite"]
+              :clean-targets ^{:protect false} ["lrs-conformance-test-suite" "node_modules"]
               :main mem-lrs.server
               :repl-options {:init-ns user}
               :dependencies [[org.clojure/test.check "0.10.0-alpha2"]

@@ -58,26 +58,41 @@
 
 ;; Run the lrs-conformance-test-suite
 
+(defn report-sh-result
+  "Print a generic sh output."
+  [{:keys [exit out err]}]
+  (when-let [o (not-empty out)]
+    (.write ^java.io.PrintWriter *out* o)
+    (flush))
+  (when-let [e (not-empty err)]
+    (.write ^java.io.PrintWriter *err* e)
+    (flush)))
+
 (defn ensure-test-suite
   "Ensure that the test suite exists and is runnable."
   []
   ;; Attempt Clone
   (log/info :msg "Ensuring LRS Tests...")
-  (let [{clone-exit :exit} (sh "git" "clone" "https://github.com/adlnet/lrs-conformance-test-suite.git")]
+  (let [{clone-exit :exit :as clone-result} (sh "git" "clone" "https://github.com/adlnet/lrs-conformance-test-suite.git")]
+    (report-sh-result clone-result)
     ;; Whatever we do, let's pull master
-    (sh "git" "pull" "origin" "master"
-        :dir "lrs-conformance-test-suite")
+    (log/info :msg "Getting latest master...")
+    (report-sh-result
+     (sh "git" "pull" "origin" "master"
+         :dir "lrs-conformance-test-suite"))
     ;; if it's a new clone, we need to install
     (or (when (= clone-exit 0)
-          (log/info :msg "Cloned tests from master")
-          (let [{install-exit :exit} (sh
-                                      ;; Install node via nvm
-                                      "bash" "script/ensure_nvm.bash"
-                                      "&&"
-                                      ;; Install the tests
-                                      "npm" "install" :dir "lrs-conformance-test-suite")]
+          (log/info :msg "Cloned tests from master!")
+          (log/info :msg "Ensuring nvm and Installing tests...")
+          (let [{install-exit :exit :as node-result}
+                (sh
+                 ;; Install NVM
+                 "bash" "script/with_node.bash"
+                 ;; Install the tests
+                 "npm" "install" "--prefix" "lrs-conformance-test-suite")]
+            (report-sh-result node-result)
             (when (= install-exit 0)
-              (log/info :msg "Installed npm stuff")
+              (log/info :msg "Tests Ready!")
               true)))
         false)))
 
@@ -85,7 +100,7 @@
   "Completely remove the tests."
   []
   (log/info :msg "Deleting test suite...")
-  (sh "rm" "-rf" "lrs-conformance-test-suite"))
+  (report-sh-result (sh "rm" "-rf" "lrs-conformance-test-suite")))
 
 (defrecord RequestLog [out-str])
 
@@ -128,17 +143,14 @@
   [& args]
   ;; delete any logs
   (log/info :msg "Running Tests...")
-  (let [{:keys [exit out err]}
-        (apply sh "node" "bin/console_runner.js" "-e" "http://localhost:8080/xapi" "-b" "-z"
+  (let [{:keys [exit out err] :as test-result}
+        (apply sh
+               "bash" "../script/with_node.bash"
+               "node" "bin/console_runner.js" "-e" "http://localhost:8080/xapi" "-b" "-z"
                (concat
                 args
-                [:dir "lrs-conformance-test-suite"
-                 :out-enc :bytes]))]
-    (io/copy out *out*)
-    (flush)
-    (when-let [e (not-empty err)]
-      (io/copy e *err*))
-    (flush)
+                [:dir "lrs-conformance-test-suite"]))]
+    (report-sh-result test-result)
     (print-logs)
     (if (= 0 exit)
       true
