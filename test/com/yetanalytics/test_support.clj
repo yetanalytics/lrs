@@ -70,7 +70,12 @@
     ;; if it's a new clone, we need to install
     (or (when (= clone-exit 0)
           (log/info :msg "Cloned tests from master")
-          (let [{install-exit :exit} (sh "npm" "install" :dir "lrs-conformance-test-suite")]
+          (let [{install-exit :exit} (sh
+                                      ;; Install node via nvm
+                                      "bash" "script/ensure_nvm.bash"
+                                      "&&"
+                                      ;; Install the tests
+                                      "npm" "install" :dir "lrs-conformance-test-suite")]
             (when (= install-exit 0)
               (log/info :msg "Installed npm stuff")
               true)))
