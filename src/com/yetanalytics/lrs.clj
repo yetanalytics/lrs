@@ -7,15 +7,10 @@
             [com.yetanalytics.lrs.xapi.document :as doc]
             ))
 
-(s/def :com.yetanalytics/lrs
-  (s/and ::p/about-resource-instance
-         ::p/activity-info-resource-instance
-         ;; ::p/activity-profile-resource-instance
-         ;; ::p/activity-state-resource-instance
-         ::p/agent-info-resource-instance
-         ;; ::p/agent-profile-resource-instance
-         ::p/statements-resource-instance
-         ))
+(defn lrs-gen-fn
+  "Generate a full LRS for specs"
+  []
+  (s/gen :com.yetanalytics.lrs.impl.memory/lrs))
 
 ;; About
 ;; /xapi/about
@@ -25,7 +20,8 @@
   (p/-get-about lrs))
 
 (s/fdef get-about
-        :args (s/cat :lrs ::p/about-resource-instance)
+        :args (s/cat :lrs (s/with-gen ::p/about-resource-instance
+                            lrs-gen-fn))
         :ret :xapi.about.GET.response/body)
 
 ;; Documents
@@ -37,9 +33,12 @@
  set-document
  :args
  (s/cat
-  :lrs ::p/document-resource-instance
-  :params ::p/set-document-params)
- :ret nil?)
+  :lrs (s/with-gen ::p/document-resource-instance
+         lrs-gen-fn)
+  :params ::p/set-document-params
+  :document :com.yetanalytics.lrs.xapi/document
+  :merge? (s/nilable boolean?))
+ :ret ::p/document-resource-instance)
 
 (defn get-document
   [lrs params]
@@ -49,7 +48,8 @@
  get-document
  :args
  (s/cat
-  :lrs ::p/document-resource-instance
+  :lrs (s/with-gen ::p/document-resource-instance
+         lrs-gen-fn)
   :params ::p/get-document-params)
  :ret (s/nilable
        :com.yetanalytics.lrs.xapi/document))
@@ -62,7 +62,8 @@
  get-document-ids
  :args
  (s/cat
-  :lrs ::p/document-resource-instance
+  :lrs (s/with-gen ::p/document-resource-instance
+         lrs-gen-fn)
   :params ::p/get-document-ids-params)
  :ret (s/coll-of ::doc/id))
 
@@ -74,9 +75,10 @@
 (s/fdef
  delete-document
  :args (s/cat
-        :lrs ::p/document-resource-instance
+        :lrs (s/with-gen ::p/document-resource-instance
+               lrs-gen-fn)
         :params ::p/delete-document-params)
- :ret nil?)
+ :ret ::p/document-resource-instance)
 
 (defn delete-documents
   [lrs params]
@@ -85,9 +87,10 @@
 (s/fdef
  delete-documents
  :args (s/cat
-        :lrs ::p/document-resource-instance
+        :lrs (s/with-gen ::p/document-resource-instance
+               lrs-gen-fn)
         :params ::p/delete-documents-params)
- :ret nil?)
+ :ret ::p/document-resource-instance)
 
 ;; Activities
 ;; /xapi/activities
@@ -97,7 +100,8 @@
   (p/-get-activity lrs params))
 
 (s/fdef get-activity
-        :args (s/cat :lrs ::p/activity-info-resource-instance
+        :args (s/cat :lrs (s/with-gen ::p/activity-info-resource-instance
+                            lrs-gen-fn)
                      :params :xapi.activities.GET.request/params)
         :ret (s/nilable ::xs/activity))
 
@@ -109,9 +113,10 @@
   (p/-get-person lrs params))
 
 (s/fdef get-person
-        :args (s/cat :lrs ::p/agent-info-resource-instance
-                     :params :xapi.agents.GET.request/params)
-        :ret :xapi.agents.GET.response/person)
+        :args (s/cat :lrs (s/with-gen ::p/agent-info-resource-instance
+                            lrs-gen-fn)
+                     :params ::p/get-person-params)
+        :ret (s/nilable :xapi.agents.GET.response/person))
 
 ;; TODO: /xapi/agents/profile
 
@@ -123,9 +128,10 @@
   (p/-store-statements lrs statements attachments))
 
 (s/fdef store-statements
-        :args (s/cat :lrs ::p/statements-resource-instance
+        :args (s/cat :lrs (s/with-gen ::p/statements-resource-instance
+                            lrs-gen-fn)
                      :statements ::xs/statements
-                     :attachments vector?)
+                     :attachments ::ss/attachments)
         :ret (s/coll-of :statement/id))
 
 (defn get-statements
@@ -134,8 +140,9 @@
   (p/-get-statements lrs params ltags))
 
 (s/fdef get-statements
-        :args (s/cat :lrs ::p/statements-resource-instance
-                     :params :xapi.statements.GET.request/params
+        :args (s/cat :lrs (s/with-gen ::p/statements-resource-instance
+                            lrs-gen-fn)
+                     :params ::p/get-statements-params
                      :ltags (s/coll-of ::xs/language-tag))
         :ret (s/nilable
               (s/keys

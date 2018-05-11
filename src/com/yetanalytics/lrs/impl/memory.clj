@@ -250,7 +250,7 @@
                 document-key]}
         (param-keys
          params)]
-    (update documents context-key (fnil dissoc {}) document-key)))
+    (update documents context-key (fnil dissoc (doc/documents-priority-map)) document-key)))
 
 (s/fdef delete-document
         :args (s/cat :documents :state/documents
@@ -339,6 +339,32 @@
         :args (s/cat :lrs-state ::state
                      :statements ::xs/lrs-statements
                      :attachments ::ss/attachments)
+        :ret ::state)
+
+(defn fixture-state*
+  "Get the state of a post-conformance test lrs from file."
+  []
+  (-> (read-string (slurp (io/resource "lrs/state.edn")))
+      (update :state/statements (partial conj (ss/statements-priority-map)))
+      (update :state/attachments
+              #(reduce-kv (fn [m sha2 a]
+                            (assoc m sha2
+                                   (update a :content byte-array)))
+                          {}
+                          %))
+      (update
+       :state/documents
+       (fn [docs]
+         (into {}
+               (for [[ctx-key docs-map] docs]
+                 [ctx-key (into (doc/documents-priority-map)
+                                (for [[doc-id doc] docs-map]
+                                  [doc-id (update doc :contents byte-array)]))]))))))
+
+(def fixture-state (memoize fixture-state*))
+
+(s/fdef fixture-state
+        :args (s/cat)
         :ret ::state)
 
 
@@ -472,14 +498,14 @@
                                  (catch java.lang.IndexOutOfBoundsException e
                                    (list)))
                   more? (seq (drop (inc page) paged))
-                  statement-result (cond-> {"statements"
+                  statement-result (cond-> {:statements
                                             (into []
                                                   (cond-> this-page
                                                     (= "canonical" format-type)
                                                     (ss/format-canonical ltags)
                                                     (= "ids" format-type)
                                                     ss/format-ids))}
-                                     more? (assoc "more"
+                                     more? (assoc :more
                                                   (str xapi-path-prefix
                                                        "/xapi/statements?"
                                                        (codec/form-encode
@@ -493,17 +519,19 @@
                                      (:state/attachments state')
                                      (ss/all-attachment-hashes this-page))))}))))
       p/DocumentResource
-      (-set-document [_ params document merge?]
+      (-set-document [lrs params document merge?]
         (swap! state update :state/documents transact-document params document merge?)
-        )
+        lrs)
       (-get-document [_ params]
         (get-document @state params))
       (-get-document-ids [_ params]
         (get-document-ids @state params))
-      (-delete-document [_ params]
-        (swap! state update :state/documents delete-document params))
-      (-delete-documents [_ params]
-        (swap! state update :state/documents delete-documents params))
+      (-delete-document [lrs params]
+        (swap! state update :state/documents delete-document params)
+        lrs)
+      (-delete-documents [lrs params]
+        (swap! state update :state/documents delete-documents params)
+        lrs)
       p/AgentInfoResource
       (-get-person [_ params]
         (let [ifi-lookup (ag/find-ifi (:agent params))]
@@ -521,31 +549,6 @@
       (dump [_]
         @state))))
 
-(defn fixture-state
-  "Get the state of a post-conformance test lrs from file."
-  []
-  (-> (read-string (slurp (io/resource "lrs/state.edn")))
-      (update :state/statements (partial conj (ss/statements-priority-map)))
-      (update :state/attachments
-              #(reduce-kv (fn [m sha2 a]
-                            (assoc m sha2
-                                   (update a :content byte-array)))
-                         {}
-                         %))
-      (update
-       :state/documents
-       (fn [docs]
-         (into {}
-               (for [[ctx-key docs-map] docs]
-                 [ctx-key (into (doc/documents-priority-map)
-                                (for [[doc-id doc] docs-map]
-                                  [doc-id (update doc :contents byte-array)]))]))))))
-
-(s/fdef fixture-state
-        :args (s/cat)
-        :ret ::state)
-
-
 (s/def ::xapi-path-prefix
   string?)
 
@@ -554,9 +557,14 @@
 
 (s/def ::init-state ::state)
 
+(s/def ::lrs
+  (s/with-gen ::p/lrs
+    (fn []
+      (sgen/return (new-lrs {:init-state (fixture-state)})))))
+
 (s/fdef new-lrs
         :args (s/cat :options
                      (s/keys :opt-un [::xapi-path-prefix
                                       ::statements-result-max
                                       ::init-state]))
-        :ret ::p/statements-resource-instance)
+        :ret ::lrs)

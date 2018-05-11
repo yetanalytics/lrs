@@ -15,3 +15,11 @@
     (fn []
       (sgen/not-empty
        (sgen/string-alphanumeric)))))
+
+(defn with-conform-gen
+  "Return a version of the spec that generates then conforms"
+  [spec]
+  (s/with-gen spec
+    (fn []
+      (sgen/fmap (partial s/conform spec)
+                 (s/gen spec)))))

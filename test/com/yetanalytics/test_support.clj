@@ -62,10 +62,10 @@
   "Print a generic sh output."
   [{:keys [exit out err]}]
   (when-let [o (not-empty out)]
-    (.write ^java.io.PrintWriter *out* o)
+    (.write ^java.io.Writer *out* ^String o)
     (flush))
   (when-let [e (not-empty err)]
-    (.write ^java.io.PrintWriter *err* e)
+    (.write ^java.io.Writer *err* ^String e)
     (flush)))
 
 (defn ensure-test-suite
@@ -118,7 +118,7 @@
    :prefix "<" :suffix ">"
    (doseq [line (cs/split-lines out-str)]
      (clojure.pprint/pprint-newline :linear)
-     (.write ^java.io.Writer *out* line))
+     (.write ^java.io.Writer *out* ^String line))
    (clojure.pprint/pprint-newline :linear)))
 
 
@@ -162,3 +162,5 @@
   (ensure-test-suite)
   (delete-logs)
   (f))
+
+;; Some spec utils

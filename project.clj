@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [com.yetanalytics/xapi-schema "1.0.0-alpha16"]
+                 [com.yetanalytics/xapi-schema "1.0.0-alpha17-SNAPSHOT"]
                  [io.pedestal/pedestal.service "0.5.3"]
                  [digest "1.4.8"]
                  [buddy/buddy-sign "2.2.0"]

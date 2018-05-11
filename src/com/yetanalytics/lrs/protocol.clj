@@ -1,7 +1,9 @@
 (ns com.yetanalytics.lrs.protocol
   (:require [clojure.spec.alpha :as s]
             [xapi-schema.spec.resources :as xsr]
-            [xapi-schema.spec :as xs]))
+            [xapi-schema.spec :as xs]
+            [com.yetanalytics.lrs.spec.common :as sc]))
+
 (set! *warn-on-reflection* true)
 
 
@@ -38,27 +40,27 @@
 
 (s/def ::set-document-params
   (s/or :state
-        :xapi.document.state/id-params
+        (sc/with-conform-gen :xapi.document.state/id-params)
         :agent-profile
-        :xapi.document.agent-profile/id-params
+        (sc/with-conform-gen :xapi.document.agent-profile/id-params)
         :activity-profile
-        :xapi.document.activity-profile/id-params))
+        (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
 (s/def ::get-document-params
   (s/or :state
-        :xapi.document.state/id-params
+        (sc/with-conform-gen :xapi.document.state/id-params)
         :agent-profile
-        :xapi.document.agent-profile/id-params
+        (sc/with-conform-gen :xapi.document.agent-profile/id-params)
         :activity-profile
-        :xapi.document.activity-profile/id-params))
+        (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
 (s/def ::get-document-ids-params
   (s/or :state
-        :xapi.document.state/query-params
+        (sc/with-conform-gen :xapi.document.state/query-params)
         :agent-profile
-        :xapi.document.agent-profile/query-params
+        (sc/with-conform-gen :xapi.document.agent-profile/query-params)
         :activity-profile
-        :xapi.document.activity-profile/query-params))
+        (sc/with-conform-gen :xapi.document.activity-profile/query-params)))
 
 (s/def ::get-document-all-params
   (s/or :single
@@ -68,14 +70,14 @@
 
 (s/def ::delete-document-params
   (s/or :state
-        :xapi.document.state/id-params
+        (sc/with-conform-gen :xapi.document.state/id-params)
         :agent-profile
-        :xapi.document.agent-profile/id-params
+        (sc/with-conform-gen :xapi.document.agent-profile/id-params)
         :activity-profile
-        :xapi.document.activity-profile/id-params))
+        (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
 (s/def ::delete-documents-params
-  (s/or :state :xapi.document.state/context-params))
+  (s/or :state (sc/with-conform-gen :xapi.document.state/context-params)))
 
 (s/def ::delete-document-all-params
   (s/or :single
@@ -93,46 +95,6 @@
 (s/def ::activity-info-resource-instance
   #(satisfies? ActivityInfoResource %))
 
-;; /xapi/activities/profile
-
-(defprotocol ActivityProfileResource
-  "Protocol for storing/retrieving activity profile documents.
-   See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#27-activity-profile-resource"
-  (-set-activity-profile [this params document]
-    "Store an activity profile document, overwrites.")
-  (-update-activity-profile [this params document]
-    "Store an activity profile document, merges.")
-  (-get-activity-profile [this params]
-    "Get an activity profile document")
-  (-get-activity-profile-ids [this params]
-    "Get multiple activity profile document ids")
-  (-delete-activity-profile [this params]
-    "Delete an activity profile document"))
-
-(s/def ::activity-profile-resource-instance
-  #(satisfies? ActivityProfileResource %))
-
-;; /xapi/activities/state
-
-(defprotocol ActivityStateResource
-  "Protocol for storing/retrieving activity state documents.
-   See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#23-state-resource"
-  (-set-state [this params document]
-    "Store a state document, overwrites.")
-  (-update-state [this params document]
-    "Store a state document, merges.")
-  (-get-state [this params]
-    "Get a single state document.")
-  (-get-state-ids [this params]
-    "Get multiple state document ids.")
-  (-delete-state [this params]
-    "Delete a single state document.")
-  (-delete-states [this params]
-    "Delete multiple state documents."))
-
-(s/def ::activity-state-resource-instance
-  #(satisfies? ActivityStateResource %))
-
 ;; Agents
 ;; /xapi/agents
 
@@ -144,24 +106,8 @@
 (s/def ::agent-info-resource-instance
   #(satisfies? AgentInfoResource %))
 
-;; /xapi/agents/profile
-
-(defprotocol AgentProfileResource
-  "Protocol for storing/retrieving agent profile documents.
-   See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#26-agent-profile-resource"
-  (-set-agent-profile [this params document]
-    "Store an agent profile document, overwrites.")
-  (-update-agent-profile [this params document]
-    "Store an agent profile document, merges.")
-  (-get-agent-profile [this params]
-    "Get an agent profile document")
-  (-get-agent-profile-ids [this params]
-    "Get multiple agent profile document ids")
-  (-delete-agent-profile [this params]
-    "Delete an agent profile document"))
-
-(s/def ::agent-profile-resource-instance
-  #(satisfies? AgentProfileResource %))
+(s/def ::get-person-params
+  (sc/with-conform-gen :xapi.agents.GET.request/params))
 
 ;; Statements
 ;; /xapi/statements
@@ -178,6 +124,9 @@
 
 (s/def ::statements-resource-instance
   #(satisfies? StatementsResource %))
+
+(s/def ::get-statements-params
+  (sc/with-conform-gen :xapi.statements.GET.request/params))
 
 (defn throw-statement-conflict [conflicting-statement
                                 extant-statement]
@@ -214,10 +163,8 @@
 ;; Spec for the whole LRS
 (s/def ::lrs ;; A minimum viable LRS
   (s/and ::about-resource-instance
-         ::activity-info-resource-instance
-         ::activity-profile-resource-instance
-         ::activity-state-resource-instance
-         ::agent-info-resource-instance
-         ::agent-profile-resource-instance
          ::statements-resource-instance
+         ::activity-info-resource-instance
+         ::agent-info-resource-instance
+         ::document-resource-instance
          ))
