@@ -43,9 +43,7 @@
   (sgen/fmap
    (fn [json-data]
      (.getBytes ^String (json/generate-string json-data)))
-   (sgen/one-of
-    [(s/gen ::json-map)
-     (s/gen ::xs/any-json)])))
+   (s/gen ::json-map)))
 
 (defn document-gen-fn []
   (sgen/fmap
@@ -185,14 +183,18 @@
      (merge-or-replace new-doc))))
 
 (s/fdef merge-or-replace
-        :args (s/cat :doc-1 :com.yetanalytics.lrs.xapi/document
-                     :doc-2 (s/? :com.yetanalytics.lrs.xapi/document))
-        :ret :com.yetanalytics.lrs.xapi/document)
-
-
-(comment
-  (*read-json-contents*
-   (.getBytes "{\"activityId\":\"http://www.example.com/activityId/hashset\",\"agent\":{\"objectType\":\"Agent\",\"account\":{\"homePage\":\"http://www.example.com/agentId/1\",\"name\":\"Rick James\"}},\"stateId\":\"555b41ce-33b0-4562-8fa8-2f3cd4b4e68b\"}{" "UTF-8"))
-
-  (sgen/generate (s/gen ::documents-priority-map))
-  )
+        :args (s/cat :doc-1 (s/with-gen :com.yetanalytics.lrs.xapi/document
+                              json-document-gen-fn)
+                     :doc-2 (s/? (s/with-gen :com.yetanalytics.lrs.xapi/document
+                                   json-document-gen-fn)))
+        :ret :com.yetanalytics.lrs.xapi/document
+        :fn
+        (fn merges-or-returns?
+          [{ret :ret
+            {doc-1 :doc-1 doc-2 :doc-2} :args}]
+          (if (and doc-1 doc-2)
+            (= (*read-json-contents* (:contents ret))
+               (merge (*read-json-contents* (:contents doc-1))
+                      (*read-json-contents* (:contents doc-2))))
+            (= (*read-json-contents* (:contents doc-1))
+               (*read-json-contents* (:contents ret))))))
