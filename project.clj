@@ -23,4 +23,5 @@
                              [org.slf4j/jcl-over-slf4j "1.7.22"]
                              [org.slf4j/log4j-over-slf4j "1.7.22"]
                              [io.pedestal/pedestal.service-tools "0.5.3"]
-                             ]}})
+                             ]
+              :aliases {"conformance-test" ["test" ":only" "com.yetanalytics.lrs-test"]}}})

@@ -6,14 +6,15 @@
             [mem-lrs.impl.xapi :refer [new-lrs]]
             [com.yetanalytics.lrs.pedestal.routes :refer [build]]))
 
-(def lrs (delay (new-lrs {})))
+(defn new-routes [lrs]
+  (build {:lrs lrs}))
 
-(defn new-routes []
-  (build {:lrs @lrs}))
+;; Tabular routes + default LRS
+(def default-lrs
+  (new-lrs {}))
 
-;; Tabular routes
 (def routes
-  (new-routes))
+  (new-routes default-lrs))
 
 ;; Map-based routes
 ;(def routes `{"/" {:interceptors [(body-params/body-params) http/html-body]

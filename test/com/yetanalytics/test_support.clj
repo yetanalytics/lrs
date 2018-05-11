@@ -120,13 +120,15 @@
 
 (defn run-test-suite
   "Run the lrs tests. Returns true on a pass, false on not"
-  []
+  [& args]
   ;; delete any logs
   (log/info :msg "Running Tests...")
   (let [{:keys [exit out err]}
-        (sh "node" "bin/console_runner.js" "-e" "http://localhost:8080/xapi" "-b" "-z"
-            :dir "lrs-conformance-test-suite"
-            :out-enc :bytes)]
+        (apply sh "node" "bin/console_runner.js" "-e" "http://localhost:8080/xapi" "-b" "-z"
+               (concat
+                args
+                [:dir "lrs-conformance-test-suite"
+                 :out-enc :bytes]))]
     (io/copy out *out*)
     (flush)
     (when-let [e (not-empty err)]
@@ -138,9 +140,8 @@
       false)))
 
 (defn test-suite-fixture
-  "Fixture to ensure clean test environment"
+  "Fixture to ensure clean test environment."
   [f]
   (ensure-test-suite)
-  (try (f)
-       (finally
-         (delete-logs))))
+  (delete-logs)
+  (f))

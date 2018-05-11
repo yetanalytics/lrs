@@ -3,6 +3,7 @@
   (:require [io.pedestal.http :as server]
             [io.pedestal.http.route :as route]
             [mem-lrs.service :as service]
+            [mem-lrs.impl.xapi :refer [new-lrs]]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]))
 
 ;; This is an adapted service map, that can be started and stopped
@@ -12,18 +13,21 @@
 
 (defn run-dev
   "The entry-point for 'lein run-dev'"
-  [& {:keys [reload-routes?]
-      :or {reload-routes? true}}]
+  [& {:keys [reload-routes?
+             lrs]
+      :or {reload-routes? true
+           lrs (new-lrs {})}}]
   (println "\nCreating your [DEV] server...")
   (-> service/service ;; start with production configuration
       (merge {:env :dev
+              ::lrs lrs
               ;; do not block thread that starts web server
               ::server/join? false
               ;; Routes can be a function that resolve routes,
               ;;  we can use this to set the routes to be reloadable
               ::server/routes (if reload-routes?
-                                #(route/expand-routes (service/new-routes))
-                                service/routes)
+                                #(route/expand-routes (service/new-routes lrs))
+                                (service/new-routes lrs))
               ;; all origins are allowed in dev mode
               ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
               ;; Content Security Policy (CSP) is mostly turned off in dev mode
