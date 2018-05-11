@@ -12,6 +12,7 @@
                  [commons-fileupload/commons-fileupload "1.3.3"]]
   :profiles {:dev
              {:source-paths ["src" "dev"]
+              :main mem-lrs.server
               :repl-options {:init-ns user}
               :dependencies [[org.clojure/test.check "0.10.0-alpha2"]
                              [io.pedestal/pedestal.service "0.5.3"]

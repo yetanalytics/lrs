@@ -63,12 +63,13 @@
 
 
 (defn build [{:keys [lrs]}]
-  (let [global-interceptors (conj i/common-interceptors
-                                  (i/lrs-interceptor lrs))
+  (let [lrs-i (i/lrs-interceptor lrs)
+        global-interceptors (conj i/common-interceptors
+                                  lrs-i)
         protected-interceptors (into global-interceptors
                                      i/xapi-protected-interceptors)
         document-interceptors (into (conj i/doc-interceptors-base
-                                          (i/lrs-interceptor lrs))
+                                          lrs-i)
                                     i/xapi-protected-interceptors)]
     (into #{;; xapi
             ["/xapi/about" :get (conj global-interceptors

@@ -7,11 +7,13 @@
 
 ;; This is an adapted service map, that can be started and stopped
 ;; From the REPL you can call server/start and server/stop on this service
-(defonce runnable-service (server/create-server service/service))
+(defonce runnable-service (server/create-server (i/xapi-default-interceptors
+                                                 service/service)))
 
 (defn run-dev
   "The entry-point for 'lein run-dev'"
-  [& args]
+  [& {:keys [reload-routes?]
+      :or {reload-routes? true}}]
   (println "\nCreating your [DEV] server...")
   (-> service/service ;; start with production configuration
       (merge {:env :dev
@@ -19,7 +21,9 @@
               ::server/join? false
               ;; Routes can be a function that resolve routes,
               ;;  we can use this to set the routes to be reloadable
-              ::server/routes #(route/expand-routes (service/new-routes))
+              ::server/routes (if reload-routes?
+                                #(route/expand-routes (service/new-routes))
+                                service/routes)
               ;; all origins are allowed in dev mode
               ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
               ;; Content Security Policy (CSP) is mostly turned off in dev mode
