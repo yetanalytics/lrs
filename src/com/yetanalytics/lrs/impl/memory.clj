@@ -43,6 +43,7 @@
 
 (s/fdef store-ref
         :args (s/cat
+               :refs-map :state/refs
                :ref-id :statement/id
                :target-id :statement/id))
 
@@ -225,9 +226,9 @@
                    document-key])))
 
 (s/fdef get-document
-        :args (s/cat :documents :state/documents
+        :args (s/cat :state ::state
                      :params ::p/get-document-params)
-        :ret :state/documents)
+        :ret (s/nilable :com.yetanalytics.lrs.xapi/document))
 
 (defn get-document-ids
   [state params]
