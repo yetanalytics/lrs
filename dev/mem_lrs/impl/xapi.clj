@@ -278,7 +278,8 @@
                 :state/attachments
                 :state/documents]))
 
-(defn empty-state []
+(defn empty-state
+  []
   {:state/statements
    (ss/statements-priority-map)
    :state/voided-statements {}
@@ -340,11 +341,17 @@
                      :attachments ::ss/attachments)
         :ret ::state)
 
+
+(defprotocol DumpableMemoryLRS
+  (dump [_] "Return the LRS's state in EDN"))
+
 (defn new-lrs [{:keys [xapi-path-prefix
-                       statements-result-max]
+                       statements-result-max
+                       init-state]
                 :or {xapi-path-prefix ""
-                     statements-result-max 50}}]
-  (let [state (atom (empty-state)
+                     statements-result-max 50
+                     init-state (empty-state)}}]
+  (let [state (atom init-state
                     :validator (fn [s]
                                  (or (s/valid? ::state s)
                                      (s/explain ::state s)
@@ -509,7 +516,35 @@
       (-get-activity [_ params]
         (get-in @state
                 [:state/activities
-                 (:activityId params)])))))
+                 (:activityId params)]))
+      DumpableMemoryLRS
+      (dump [_]
+        @state))))
+
+(defn fixture-state
+  "Get the state of a post-conformance test lrs from file."
+  []
+  (-> (read-string (slurp (io/resource "lrs/state.edn")))
+      (update :state/statements (partial conj (ss/statements-priority-map)))
+      (update :state/attachments
+              #(reduce-kv (fn [m sha2 a]
+                            (assoc m sha2
+                                   (update a :content byte-array)))
+                         {}
+                         %))
+      (update
+       :state/documents
+       (fn [docs]
+         (into {}
+               (for [[ctx-key docs-map] docs]
+                 [ctx-key (into (doc/documents-priority-map)
+                                (for [[doc-id doc] docs-map]
+                                  [doc-id (update doc :contents byte-array)]))]))))))
+
+(s/fdef fixture-state
+        :args (s/cat)
+        :ret ::state)
+
 
 (s/def ::xapi-path-prefix
   string?)
@@ -517,52 +552,11 @@
 (s/def ::statements-result-max
   pos-int?)
 
+(s/def ::init-state ::state)
+
 (s/fdef new-lrs
         :args (s/cat :options
                      (s/keys :opt-un [::xapi-path-prefix
-                                      ::statements-result-max]))
+                                      ::statements-result-max
+                                      ::init-state]))
         :ret ::p/statements-resource-instance)
-
-(comment
-  (require '[clojure.spec.test.alpha :as stest])
-  (stest/instrument [`empty-state
-                     `new-lrs
-                     `transact-statements
-                     `store-activity
-                     `store-activities
-                     `store-agent
-                     `store-agents
-                     `ss/now-stamp
-                     `ss/statement-agents
-                     `ss/fix-statement-context-activities
-                     `ss/fix-context-activities
-                     `ss/dissoc-lrs-attrs
-                     `ss/statements-priority-map
-                     `ss/format-statement-ids
-                     `ss/format-ids
-                     `ss/format-canonical
-                     `ss/collect-context-activities
-                     `ss/prepare-statement
-                     `ss/canonize-lmap
-                     `ss/statement-related-activities
-                     `ss/statement-related-activity-ids
-                     `ac/merge-activity
-                     `ag/actor-seq
-                     `ag/person-conj
-                     `ag/person
-                     `ag/ifi-match?
-                     `ag/find-ifi])
-
-  (def long-s (with-open [rdr (io/reader "dev-resources/statements/long.json")]
-                (json/read rdr)))
-  (let [state (sgen/generate (s/gen ::state))
-        doc (sgen/generate (s/gen :com.yetanalytics.lrs.xapi/document))]
-    #_(get-in (update state :state/documents transact-document {:profileId (str (java.util.UUID/randomUUID))
-                                                              :activityId "https://foo.bar/baz"}
-                    doc true) [:state/documents "https://foo.bar/baz"])
-    (s/explain ::doc/documents-priority-map
-              (get-in (update state :state/documents transact-document {:profileId (str (java.util.UUID/randomUUID))
-                                                                    :activityId "https://foo.bar/baz"}
-                              doc true) [:state/documents "https://foo.bar/baz"])))
-
-  )

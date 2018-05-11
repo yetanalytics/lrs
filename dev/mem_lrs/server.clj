@@ -3,7 +3,7 @@
   (:require [io.pedestal.http :as server]
             [io.pedestal.http.route :as route]
             [mem-lrs.service :as service]
-            [mem-lrs.impl.xapi :refer [new-lrs]]
+            [mem-lrs.impl.xapi :as lrs-impl :refer [new-lrs]]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]))
 
 ;; This is an adapted service map, that can be started and stopped
@@ -65,8 +65,19 @@
 ;;  (reset! servlet nil))
 
 (comment
-  (def s (run-dev))
-(server/stop s)
-(def s nil)
-(route/expand-routes (service/new-routes))
+  (def lrs (new-lrs {}
+                    #_{:init-state
+                     (lrs-impl/fixture-state)}))
+
+  (clojure.pprint/pprint (lrs-impl/dump lrs))
+
+  (def s (run-dev :lrs lrs))
+  (server/stop s)
+  (def s nil)
+
+  (def state (lrs-impl/dump lrs))
+
+
+
+
   )
