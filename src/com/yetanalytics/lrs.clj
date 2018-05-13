@@ -64,7 +64,7 @@
   :lrs (s/with-gen ::p/document-resource-instance
          lrs-gen-fn)
   :params ::p/get-document-ids-params)
- :ret (s/coll-of ::doc/id))
+ :ret ::p/get-document-ids-ret)
 
 (defn delete-document
   [lrs params]

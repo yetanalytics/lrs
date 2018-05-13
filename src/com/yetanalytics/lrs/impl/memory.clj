@@ -529,7 +529,7 @@
       (-get-document [_ params]
         {:document (get-document @state params)})
       (-get-document-ids [_ params]
-        (get-document-ids @state params))
+        {:document-ids (get-document-ids @state params)})
       (-delete-document [lrs params]
         (swap! state update :state/documents delete-document params)
         lrs)

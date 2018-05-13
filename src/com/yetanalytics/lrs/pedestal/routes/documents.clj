@@ -111,10 +111,15 @@
                                    :body contents #_(ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
              (assoc ctx :response {:status 404})))
          :query
-         (assoc ctx :response {:headers {"Content-Type" "application/json"}
-                               :status 200
-                               :body (json/generate-string
-                                      (into [] (lrs/get-document-ids lrs params)))}))))})
+         (let [{ids :document-ids
+                ?etag :etag}
+               (lrs/get-document-ids lrs params)]
+           (cond->
+             (assoc ctx :response {:headers {"Content-Type" "application/json"}
+                                         :status 200
+                                         :body (json/generate-string
+                                                (into [] ids))})
+             ?etag (assoc ::i/etag ?etag))))))})
 
 (def handle-delete
   {:name ::handle-delete

@@ -3,7 +3,8 @@
             [xapi-schema.spec.resources :as xsr]
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi :as xapi]
-            [com.yetanalytics.lrs.spec.common :as sc]))
+            [com.yetanalytics.lrs.spec.common :as sc]
+            [com.yetanalytics.lrs.xapi.document :as doc]))
 
 (set! *warn-on-reflection* true)
 
@@ -72,6 +73,15 @@
         (sc/with-conform-gen :xapi.document.agent-profile/query-params)
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/query-params)))
+
+(s/def :get-document-ids-ret/document-ids
+  (s/coll-of ::doc/id
+             :kind vector?
+             :into []))
+
+(s/def ::get-document-ids-ret
+  (s/keys :opt-un [::xapi/etag
+                   :get-document-ids-ret/document-ids]))
 
 (s/def ::get-document-all-params
   (s/or :single
