@@ -4,6 +4,7 @@
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi :as xapi]
             [com.yetanalytics.lrs.spec.common :as sc]
+            [com.yetanalytics.lrs.xapi.statements :as ss]
             [com.yetanalytics.lrs.xapi.document :as doc]))
 
 (set! *warn-on-reflection* true)
@@ -160,6 +161,15 @@
 
 (s/def ::get-statements-params
   (sc/with-conform-gen :xapi.statements.GET.request/params))
+
+(s/def ::get-statements-ret
+  (s/or :not-found (s/map-of any? any? :count 0)
+        :found (s/keys
+                :opt-un [::xapi/etag]
+                :req-un [(and (or
+                               :xapi.statements.GET.response/statement-result
+                               ::xs/statement)
+                              ::ss/attachments)])))
 
 (defn throw-statement-conflict [conflicting-statement
                                 extant-statement]

@@ -428,21 +428,22 @@
                                 format-type "exact"}} ltags]
         (let [state' @state]
           (if (or statementId voidedStatementId)
-            (when-let [result (cond
-                                statementId
-                                (get-in state' [:state/statements statementId])
-                                voidedStatementId
-                                (get-in state' [:state/voided-statements voidedStatementId]))]
-              {:statement
-               (cond-> result
-                 (= "canonical" format-type)
-                 (ss/format-canonical ltags)
-                 (= "ids" format-type)
-                 ss/format-statement-ids)
-               :attachments (into []
-                                  (when result
+            (let [result (cond
+                           statementId
+                           (get-in state' [:state/statements statementId])
+                           voidedStatementId
+                           (get-in state' [:state/voided-statements voidedStatementId]))]
+              (cond-> {}
+                result (assoc :statement
+                              (cond-> result
+                                (= "canonical" format-type)
+                                (ss/format-canonical ltags)
+                                (= "ids" format-type)
+                                ss/format-statement-ids)
+                              :attachments
+                              (into []
                                     (keep (:state/attachments state')
-                                          (ss/all-attachment-hashes [result]))))})
+                                          (ss/all-attachment-hashes [result]))))))
             ;; otherwise, this is a paged sequential query
             (let [page (or
                         (if (string? page)

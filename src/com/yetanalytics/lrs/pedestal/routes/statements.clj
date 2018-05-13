@@ -80,26 +80,27 @@
             (let [lrs (get ctx :com.yetanalytics/lrs)
                   params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
                   ltags (get ctx :xapi/ltags [])
-                  attachments-query? (:attachments params)]
+                  attachments-query? (:attachments params)
+                  {:keys [statement-result
+                          statement
+                          attachments
+                          etag]}
+                  (lrs/get-statements
+                   lrs
+                   params
+                   ltags)]
               (try
-                (if-let [{:keys [statement-result
-                                 statement
-                                 attachments]}
-                         (lrs/get-statements
-                          lrs
-                          params
-                          ltags)]
-                  (let [s-data (or statement-result
-                                   statement)]
-                    (if (and attachments-query?
-                             (seq attachments))
-                      {:status 200
-                       :headers {"Content-Type" att-resp/content-type}
-                       :body (att-resp/build-multipart
-                              s-data
-                              attachments)}
-                      {:status 200
-                       :body s-data}))
+                (if-let [s-data (or statement statement-result)]
+                  (if (and attachments-query?
+                           (seq attachments))
+                    {:status 200
+                     :headers (cond-> {"Content-Type" att-resp/content-type}
+                                etag (assoc "etag" etag))
+                     :body (att-resp/build-multipart
+                            s-data
+                            attachments)}
+                    {:status 200
+                     :body s-data})
                   {:status 404})
                 (catch clojure.lang.ExceptionInfo exi
                   (error-response exi))))))})

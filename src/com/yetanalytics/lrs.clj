@@ -143,11 +143,6 @@
                             lrs-gen-fn)
                      :params ::p/get-statements-params
                      :ltags (s/coll-of ::xs/language-tag))
-        :ret (s/nilable
-              (s/keys
-               :req-un [(or
-                         :xapi.statements.GET.response/statement-result
-                         ::xs/statement)
-                        ::ss/attachments])))
+        :ret ::p/get-statements-ret)
 
 ;; TODO: auth
