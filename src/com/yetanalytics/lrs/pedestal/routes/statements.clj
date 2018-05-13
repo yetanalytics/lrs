@@ -54,19 +54,20 @@
    :enter
    (fn [ctx]
      (assoc ctx :response
-            (let [{?statements :xapi-schema.spec/statements
-                   ?statement :xapi-schema.spec/statement
-                   attachments :xapi.statements/attachments} (:xapi ctx)
-                  lrs (get ctx :com.yetanalytics/lrs)
-                  statements (or ?statements [?statement])]
-              (try
+            (try
+              (let [{?statements :xapi-schema.spec/statements
+                     ?statement :xapi-schema.spec/statement
+                     attachments :xapi.statements/attachments} (:xapi ctx)
+                    lrs (get ctx :com.yetanalytics/lrs)
+                    statements (or ?statements [?statement])
+                    {:keys [statement-ids]} (lrs/store-statements
+                                             lrs
+                                             statements
+                                             attachments)]
                 {:status 200
-                 :body (lrs/store-statements
-                        lrs
-                        statements
-                        attachments)}
-                (catch clojure.lang.ExceptionInfo exi
-                  (error-response exi))))))})
+                 :body statement-ids})
+              (catch clojure.lang.ExceptionInfo exi
+                (error-response exi)))))})
 
 ;; TODO: wrap attachment response
 ;; TODO: Last modfified https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#requirements-4

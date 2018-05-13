@@ -162,6 +162,12 @@
 (s/def ::get-statements-params
   (sc/with-conform-gen :xapi.statements.GET.request/params))
 
+(s/def :store-statements-ret/statement-ids
+  (s/coll-of :statement/id :kind vector? :into []))
+
+(s/def ::store-statements-ret
+  (s/keys :req-un [:store-statements-ret/statement-ids]))
+
 (s/def ::get-statements-ret
   (s/or :not-found (s/map-of any? any? :count 0)
         :found (s/keys

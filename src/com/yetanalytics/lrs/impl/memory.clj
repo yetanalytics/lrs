@@ -400,9 +400,10 @@
         (let [prepared-statements (map ss/prepare-statement
                                        statements)]
           (swap! state transact-statements prepared-statements attachments)
-          (into []
-                (map #(get % "id")
-                     prepared-statements))))
+          {:statement-ids
+           (into []
+                 (map #(get % "id")
+                      prepared-statements))}))
       (-get-statements [_ {:keys [statementId
                                   voidedStatementId
                                   verb

@@ -131,7 +131,7 @@
                             lrs-gen-fn)
                      :statements ::xs/statements
                      :attachments ::ss/attachments)
-        :ret (s/coll-of :statement/id))
+        :ret ::p/store-statements-ret)
 
 (defn get-statements
   "Get statements from the LRS"
