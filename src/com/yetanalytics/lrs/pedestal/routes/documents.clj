@@ -41,69 +41,16 @@
                 (let [[params-spec params] (find-some xapi
                                                       :xapi.activities.profile.PUT.request/params
                                                       :xapi.agents.profile.PUT.request/params)
-                      {:strs [if-match if-none-match]} headers
-                      success-ctx (assoc ctx :response {:status 204})
-                      fail-ctx (assoc ctx :response {:status 412})]
-                  (cond
-                    if-match
-                    (if (= if-match "*")
-                      ;; only respond if the thing exists at all
-                      (if (lrs/get-document lrs params)
-                        (do (lrs/set-document
-                             lrs params
-                             {:content-type content-type
-                              :content-length content-length
-                              :contents (ByteStreams/toByteArray ^InputStream body)}
-                             false)
-                            success-ctx)
-                        fail-ctx)
-                      (let [etag-set (etag-header->etag-set if-match)]
-                        (if-let [{:keys [contents]} (lrs/get-document lrs params)]
-                          (let [resp-etag (i/calculate-etag contents)]
-                            (if (etag-set resp-etag)
-                              ;; If the etag is a match, proceed
-                              (do (lrs/set-document
-                                   lrs params
-                                   {:content-type content-type
-                                    :content-length content-length
-                                    :contents (ByteStreams/toByteArray ^InputStream body)}
-                                   false)
-                                  success-ctx)
-                              ;; otherwise, don't
-                              fail-ctx))
-                          fail-ctx)))
-                    if-none-match
-                    (if (= if-none-match "*")
-                      (if (lrs/get-document lrs params)
-                        fail-ctx
-                        (do (lrs/set-document
-                             lrs params
-                             {:content-type content-type
-                              :content-length content-length
-                              :contents (ByteStreams/toByteArray ^InputStream body)}
-                             false)
-                            success-ctx))
-                      (let [etag-set (etag-header->etag-set if-match)]
-                        (if-let [{:keys [contents]} (lrs/get-document lrs params)]
-                          (if (etag-set (i/calculate-etag contents))
-                            ;; fail if the etag matches
-                            fail-ctx
-                            ;; If the etag doesn't match, proceed
-                            (do (lrs/set-document
-                                 lrs params
-                                 {:content-type content-type
-                                  :content-length content-length
-                                  :contents (ByteStreams/toByteArray ^InputStream body)}
-                                 false)
-                                success-ctx))
-                          (do (lrs/set-document
-                               lrs params
-                               {:content-type content-type
-                                :content-length content-length
-                                :contents (ByteStreams/toByteArray ^InputStream body)}
-                               false)
-                              success-ctx))))
-                    :else ;; if neither header is present
+                      {:strs [if-match if-none-match]} headers]
+                  (if (or if-match if-none-match)
+                    (do (lrs/set-document
+                         lrs params
+                         {:content-type content-type
+                          :content-length content-length
+                          :contents (ByteStreams/toByteArray ^InputStream body)}
+                         false)
+                        (assoc ctx :response {:status 204}))
+                    ;; if neither header is present
                     (if (lrs/get-document lrs params)
                       (assoc ctx :response {:status 409
                                             :body "If-Match or If-None-Match header is required for existing document."})

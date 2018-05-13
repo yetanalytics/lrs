@@ -176,25 +176,102 @@
 (defmethod calculate-etag :default [x]
   (sha-1 (str (hash x))))
 
+;; TODO: handle weak etags
+(def etag-string-pattern
+  #"\w+")
+
+(defn etag-header->etag-set
+  [etag-header]
+  (into #{} (re-seq etag-string-pattern etag-header)))
+
+(declare etag-leave)
+
+(defn etag-enter [{:keys [request] :as ctx}]
+  (let [{:strs [if-match if-none-match]} (:headers request)]
+    (if (or if-match if-none-match)
+      (let [get-ctx (delay
+                     (etag-leave
+                      (try
+                        (chain/execute-only
+                         (-> ctx
+                             (assoc-in [:request
+                                        :request-method]
+                                       :get))
+                         :enter)
+                        (catch Exception _
+                          (merge ctx
+                                 {:request (assoc request :request-method :get)
+                                  :response {:status 400
+                                             :body ""}})))))
+            if-match-ok? (case if-match
+                           nil true
+                           "*" (= 200
+                                  (get-in @get-ctx
+                                          [:response
+                                           :status]))
+                           (contains? (etag-header->etag-set if-match)
+                                      (::etag @get-ctx)))
+
+            if-none-match-ok? (case if-none-match
+                                nil true
+                                "*" (= 404
+                                       (get-in @get-ctx
+                                               [:response
+                                                :status]))
+                                (not (contains? (etag-header->etag-set if-none-match)
+                                                (::etag @get-ctx))))]
+        (if (and if-match-ok? if-none-match-ok?)
+          ctx
+          (let [{{route-interceptors :interceptors
+                  :as route} :route
+                 :as after-route-ctx} (chain/execute-only (chain/terminate-when ctx :route) :enter)]
+            (-> ctx
+                ;; Run the leave stuff
+                (dissoc ::chain/queue)
+                (chain/enqueue (mapv #(assoc % :enter nil)
+                                     route-interceptors))
+                ;; Set the error response
+                (assoc :response
+                       (or
+                        ;; If the params are not valid for the GET
+                        ;; then the status is contagious
+                        (let [get-response (:response @get-ctx)]
+                          (when (= 400 (:status get-response))
+                            {:status 400}))
+                        ;; If the enter interceptors (except the handler)
+                        ;; for this request would return a 400
+                        (when-let [error-response
+                                   (some-> ctx
+                                           (dissoc ::chain/queue)
+                                           (chain/enqueue (into []
+                                                                (butlast route-interceptors)))
+                                           (chain/execute-only :enter)
+                                           :response
+                                           )]
+                          (when (= 400 (:status error-response))
+                            error-response))
+                        ;; Otherwise, it's a precon fail
+                        {:status 412}))))))
+      ctx)))
 
 (defn- quote-etag [etag]
   (str "\"" etag "\""))
 
 (defn etag-leave
   [{:keys [request response] :as ctx}]
-  (let [if-none-match (get-in request [:headers "if-none-match"])
-        etag (or
-              (get-in response [:headers "etag"])
-              (some-> response :body meta :etag)
-              (calculate-etag (:body response)))
-        ]
-    (if (= etag if-none-match)
-      (assoc ctx :response
-             {:status 304 :body "" :headers {"ETag" (quote-etag etag)}})
-      (update-in ctx [:response :headers] merge {"ETag" (quote-etag etag)}))))
+  (if (#{:get :head} (:request-method request))
+    (let [etag (or
+                (get-in response [:headers "etag"])
+                (some-> response :body meta :etag)
+                (calculate-etag (:body response)))]
+      (-> ctx
+          (assoc ::etag etag)
+          (update-in [:response :headers] merge {"ETag" (quote-etag etag)})))
+    ctx))
 
 (def etag-interceptor
   {:name ::etag
+   :enter etag-enter
    :leave etag-leave})
 
 ;; Combo
@@ -287,6 +364,9 @@
                true (conj xapi-method-param)
                true (conj (route/method-param :method))
                (some? secure-headers) (conj (sec-headers/secure-headers secure-headers))
+               ;; The etag interceptor may mess with routes, so it's important not to have any
+               ;; important leave stuff after it in the defaults
+               true (conj etag-interceptor)
                ;; TODO: If all platforms support async/NIO responses, we can bring this back
                ;(not (nil? resource-path)) (conj (middlewares/fast-resource resource-path))
                (some? resource-path) (conj (middlewares/resource resource-path))
@@ -332,7 +412,7 @@
                           #_{:name ::foo
                            :enter (fn [ctx] (clojure.pprint/pprint (:request ctx))
                                     ctx)}
-                          etag-interceptor
+                          ;; etag-interceptor
                           ;; route/query-params
                           ;; xapi-alternate-request-headers-interceptor
                           ;; keyword-params
@@ -350,7 +430,7 @@
   [ensure-jetty-consumed
    x-forwarded-for-interceptor
    xapi/alternate-request-syntax-interceptor
-   etag-interceptor
+   ;; etag-interceptor
    ;; route/query-params
    ;; xapi-alternate-request-headers-interceptor
    ;; keyword-params
