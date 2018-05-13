@@ -187,8 +187,10 @@
 (declare etag-leave)
 
 (defn etag-enter [{:keys [request] :as ctx}]
-  (let [{:strs [if-match if-none-match]} (:headers request)]
-    (if (or if-match if-none-match)
+  (let [{{:strs [if-match if-none-match]} :headers
+         method :request-method} request]
+    (if (and (#{:put :post :delete} method)
+             (or if-match if-none-match))
       (let [get-ctx (delay
                      (etag-leave
                       (try
