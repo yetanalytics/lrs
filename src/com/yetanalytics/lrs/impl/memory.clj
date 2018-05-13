@@ -538,17 +538,18 @@
         lrs)
       p/AgentInfoResource
       (-get-person [_ params]
-        (let [ifi-lookup (ag/find-ifi (:agent params))]
-          ;; TODO: extract this fn
-          (get-in @state
-                  [:state/agents
-                   ifi-lookup]
-                  (ag/person (:agent params)))))
+        {:person
+         (let [ifi-lookup (ag/find-ifi (:agent params))]
+           ;; TODO: extract this fn
+           (get-in @state
+                   [:state/agents
+                    ifi-lookup]
+                   (ag/person (:agent params))))})
       p/ActivityInfoResource
       (-get-activity [_ params]
-        (get-in @state
-                [:state/activities
-                 (:activityId params)]))
+        {:activity (get-in @state
+                           [:state/activities
+                            (:activityId params)])})
       DumpableMemoryLRS
       (dump [_]
         @state))))

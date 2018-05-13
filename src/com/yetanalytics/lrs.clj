@@ -102,7 +102,7 @@
         :args (s/cat :lrs (s/with-gen ::p/activity-info-resource-instance
                             lrs-gen-fn)
                      :params :xapi.activities.GET.request/params)
-        :ret (s/nilable ::xs/activity))
+        :ret ::p/get-activity-ret)
 
 ;; Agents
 ;; /xapi/agents
@@ -115,7 +115,7 @@
         :args (s/cat :lrs (s/with-gen ::p/agent-info-resource-instance
                             lrs-gen-fn)
                      :params ::p/get-person-params)
-        :ret (s/nilable :xapi.agents.GET.response/person))
+        :ret ::p/get-person-ret)
 
 ;; TODO: /xapi/agents/profile
 

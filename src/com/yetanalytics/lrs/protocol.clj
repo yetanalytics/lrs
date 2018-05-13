@@ -116,6 +116,13 @@
 (s/def ::activity-info-resource-instance
   #(satisfies? ActivityInfoResource %))
 
+(s/def :get-activity-ret/activity
+  (s/nilable ::xs/activity))
+
+(s/def ::get-activity-ret
+  (s/keys :opt-un [::xapi/etag
+                   :get-activity-ret/activity]))
+
 ;; Agents
 ;; /xapi/agents
 
@@ -129,6 +136,11 @@
 
 (s/def ::get-person-params
   (sc/with-conform-gen :xapi.agents.GET.request/params))
+
+(s/def ::get-person-ret
+  (s/keys
+   :req-un [:xapi.agents.GET.response/person]
+   :opt-un [::xapi/etag]))
 
 ;; Statements
 ;; /xapi/statements
