@@ -22,7 +22,7 @@
 (s/fdef get-about
         :args (s/cat :lrs (s/with-gen ::p/about-resource-instance
                             lrs-gen-fn))
-        :ret ::p/get-about-result)
+        :ret ::p/get-about-ret)
 
 ;; Documents
 (defn set-document
@@ -51,8 +51,7 @@
   :lrs (s/with-gen ::p/document-resource-instance
          lrs-gen-fn)
   :params ::p/get-document-params)
- :ret (s/nilable
-       :com.yetanalytics.lrs.xapi/document))
+ :ret ::p/get-document-ret)
 
 (defn get-document-ids
   [lrs params]

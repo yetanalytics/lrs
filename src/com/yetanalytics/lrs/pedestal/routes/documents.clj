@@ -51,7 +51,7 @@
                          false)
                         (assoc ctx :response {:status 204}))
                     ;; if neither header is present
-                    (if (lrs/get-document lrs params)
+                    (if (:document (lrs/get-document lrs params))
                       (assoc ctx :response {:status 409
                                             :body "If-Match or If-None-Match header is required for existing document."})
                       (assoc ctx :response {:status 400})))))))})
@@ -95,17 +95,21 @@
 
        (case params-type
          :id
-         (if-let [{:keys [content-type
-                          content-length
-                          contents
-                          id
-                          updated] :as result} (lrs/get-document lrs params)]
-           (assoc ctx :response {:status 200
-                                 :headers {"Content-Type" content-type
-                                           "Content-Length" (str content-length)
-                                           "Last-Modified" updated}
-                                 :body contents #_(ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
-           (assoc ctx :response {:status 404}))
+         (let [{?document :document
+                ?etag :etag}
+               (lrs/get-document lrs params)]
+           (if-let [{:keys [content-type
+                            content-length
+                            contents
+                            id
+                            updated] :as result} ?document]
+             (assoc ctx :response {:status 200
+                                   :headers (cond-> {"Content-Type" content-type
+                                                     "Content-Length" (str content-length)
+                                                     "Last-Modified" updated}
+                                              ?etag (assoc "etag" ?etag))
+                                   :body contents #_(ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
+             (assoc ctx :response {:status 404})))
          :query
          (assoc ctx :response {:headers {"Content-Type" "application/json"}
                                :status 200

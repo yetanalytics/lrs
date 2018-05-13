@@ -18,7 +18,7 @@
 (s/def ::about-resource-instance
   #(satisfies? AboutResource %))
 
-(s/def ::get-about-result
+(s/def ::get-about-ret
   (s/keys
    :req-un [:xapi.about.GET.response/body]
    :opt-un [::xapi/etag]))
@@ -50,8 +50,6 @@
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
-
-
 (s/def ::get-document-params
   (s/or :state
         (sc/with-conform-gen :xapi.document.state/id-params)
@@ -59,6 +57,13 @@
         (sc/with-conform-gen :xapi.document.agent-profile/id-params)
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
+
+(s/def :get-document-ret/document
+  (s/nilable :com.yetanalytics.lrs.xapi/document))
+
+(s/def ::get-document-ret
+  (s/keys :opt-un [::xapi/etag
+                   :get-document-ret/document]))
 
 (s/def ::get-document-ids-params
   (s/or :state
