@@ -5,6 +5,7 @@
             [com.yetanalytics.lrs.xapi.agents :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
             [com.yetanalytics.lrs.xapi.document :as doc]
+            [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as sgen]
             [xapi-schema.spec :as xs]
@@ -14,7 +15,8 @@
             [clojure.walk :as w]
             [clojure.java.io :as io]
             [clojure.string :as cstr]
-            [ring.util.codec :as codec]))
+            [ring.util.codec :as codec]
+            ))
 
 (set! *warn-on-reflection* true)
 
@@ -388,10 +390,11 @@
     (reify
       p/AboutResource
       (-get-about [_]
-        {:version ["1.0.0",
-                   "1.0.1",
-                   "1.0.2",
-                   "1.0.3"]})
+        {:etag (sha-1 @state)
+         :body {:version ["1.0.0",
+                          "1.0.1",
+                          "1.0.2",
+                          "1.0.3"]}})
       p/StatementsResource
       (-store-statements [_ statements attachments]
         (let [prepared-statements (map ss/prepare-statement

@@ -22,7 +22,7 @@
 (s/fdef get-about
         :args (s/cat :lrs (s/with-gen ::p/about-resource-instance
                             lrs-gen-fn))
-        :ret :xapi.about.GET.response/body)
+        :ret ::p/get-about-result)
 
 ;; Documents
 (defn set-document

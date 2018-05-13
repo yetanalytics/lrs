@@ -2,10 +2,10 @@
   (:require [clojure.spec.alpha :as s]
             [xapi-schema.spec.resources :as xsr]
             [xapi-schema.spec :as xs]
+            [com.yetanalytics.lrs.xapi :as xapi]
             [com.yetanalytics.lrs.spec.common :as sc]))
 
 (set! *warn-on-reflection* true)
-
 
 ;; About
 ;; /xapi/about
@@ -17,6 +17,11 @@
 
 (s/def ::about-resource-instance
   #(satisfies? AboutResource %))
+
+(s/def ::get-about-result
+  (s/keys
+   :req-un [:xapi.about.GET.response/body]
+   :opt-un [::xapi/etag]))
 
 ;; Document APIs
 
@@ -33,8 +38,7 @@
     "Delete a single document.")
   (-delete-documents [this params]
     "Delete multiple documents."))
-;; TODO: all the ones called from routes should be non-conforming
-;; unless desired/needed
+
 (s/def ::document-resource-instance
   #(satisfies? DocumentResource %))
 
@@ -45,6 +49,8 @@
         (sc/with-conform-gen :xapi.document.agent-profile/id-params)
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
+
+
 
 (s/def ::get-document-params
   (s/or :state

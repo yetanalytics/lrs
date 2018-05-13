@@ -5,5 +5,10 @@
   {:name ::handle-get
    :enter (fn [ctx]
             (let [lrs (get ctx :com.yetanalytics/lrs)]
-              (assoc ctx :response {:status 200
-                                    :body (lrs/get-about lrs)})))})
+              (assoc ctx :response (let [{body :body
+                                          ?etag :etag}
+                                         (lrs/get-about lrs)]
+                                     (cond-> {:status 200
+                                              :body body}
+                                       ?etag (assoc :headers
+                                                    {"etag" ?etag}))))))})
