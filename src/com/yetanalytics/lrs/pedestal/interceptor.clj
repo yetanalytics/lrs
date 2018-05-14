@@ -16,6 +16,8 @@
             [io.pedestal.http.secure-headers :as sec-headers]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
             [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed]
+            [com.yetanalytics.lrs.spec.common :as cs]
+            [clojure.core.async :as a]
             [io.pedestal.log :as log])
   (:import [java.security MessageDigest]
            [java.io File]
@@ -184,9 +186,39 @@
   [etag-header]
   (into #{} (re-seq etag-string-pattern etag-header)))
 
+(defn tap [x] (clojure.pprint/pprint x) x)
+
+(defn execute-sync
+  "Force pre-routing execution to handle the last enter interceptor
+   Synchronously."
+  [ctx]
+  (let [{{route-interceptors :interceptors
+          :as route} :route
+         :as routed-ctx}
+        (chain/execute-only (chain/terminate-when ctx :route) :enter)
+        last-interceptor (last route-interceptors)
+        butlast-ctx (chain/execute-only
+                     (chain/terminate-when
+                      ctx
+                      (fn [ctx]
+                        ;; Post routing, when there is a terminal interceptor
+                        (when (:route ctx)
+                          ;; When we're down to the last one
+                          (some-> ctx
+                                  ::chain/queue
+                                  peek
+                                  (= last-interceptor))))) :enter)]
+    (if (get-in butlast-ctx [:response :status])
+      butlast-ctx
+      (let [last-i-enter-fn (:enter last-interceptor)
+            response-ctx (last-i-enter-fn butlast-ctx)]
+        (cond-> response-ctx
+          (cs/read-port? response-ctx)
+          a/<!!)))))
+
 (declare etag-leave)
 
-(defn etag-enter [{:keys [request] :as ctx}]
+(defn etag-enter* [{:keys [request] :as ctx}]
   (let [{{:strs [if-match if-none-match]} :headers
          method :request-method} request]
     (if (and (#{:put :post :delete} method)
@@ -194,17 +226,16 @@
       (let [get-ctx (delay
                      (etag-leave
                       (try
-                        (chain/execute-only
-                         (-> ctx
-                             (assoc-in [:request
+                        (execute-sync
+                         (assoc-in ctx [:request
                                         :request-method]
-                                       :get))
-                         :enter)
+                                   :get))
                         (catch Exception _
                           (merge ctx
                                  {:request (assoc request :request-method :get)
                                   :response {:status 400
                                              :body ""}})))))
+            ;; _ (clojure.pprint/pprint @get-ctx)
             if-match-ok? (case if-match
                            nil true
                            "*" (= 200
@@ -255,6 +286,8 @@
                         ;; Otherwise, it's a precon fail
                         {:status 412}))))))
       ctx)))
+
+(defn etag-enter [ctx] (etag-enter* ctx))
 
 (defn- quote-etag [etag]
   (str "\"" etag "\""))

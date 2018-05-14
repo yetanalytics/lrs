@@ -5,7 +5,8 @@
             [clojure.java.io :as io]
             [clojure.string :as cstr]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
-            [clojure.core.async :as a])
+            [clojure.core.async :as a]
+            [io.pedestal.log :as log])
   (:import [com.google.common.io ByteStreams]
            [java.io InputStream ByteArrayOutputStream]
            [java.nio ByteBuffer]))
@@ -123,7 +124,10 @@
                                        :status 200
                                        :body (json/generate-string
                                               (into [] ids))})
-               ?etag (assoc ::i/etag ?etag)))))))})
+               ?etag (assoc ::i/etag ?etag)))
+           (do
+             (log/info :msg "Invalid params" :xapi xapi)
+            (assoc ctx :response {:status 400}))))))})
 
 (def handle-delete
   {:name ::handle-delete
