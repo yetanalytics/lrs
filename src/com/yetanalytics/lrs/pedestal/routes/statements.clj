@@ -3,6 +3,7 @@
             [com.yetanalytics.lrs.protocol :as p]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
              :as att-resp]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             [clojure.core.async :as a]))
 
 (defn error-response
@@ -104,8 +105,13 @@
                        :body (att-resp/build-multipart
                               s-data
                               attachments)}
-                      {:status 200
-                       :body s-data})
+                      (if statement-result
+                        {:status 200
+                         :headers {"Content-Type" "application/json"}
+                         :body (partial si/lazy-statement-result
+                                        s-data)}
+                        {:status 200
+                         :body s-data}))
                     {:status 404})
                   (catch clojure.lang.ExceptionInfo exi
                     (error-response exi)))))))})

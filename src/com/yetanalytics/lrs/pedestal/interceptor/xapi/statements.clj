@@ -9,8 +9,11 @@
    [cheshire.core :as json]
    [clojure.java.io :as io]
    [clojure.walk :as w]
-   [io.pedestal.log :as log])
-  (:import [java.time Instant]))
+   [io.pedestal.log :as log]
+   [clojure.core.async :as a])
+  (:import [java.time Instant]
+           [java.io OutputStream ByteArrayOutputStream]
+           [javax.servlet ServletOutputStream]))
 
 ;; The general flow for these is 1. parse 2. validate 3. place in context
 
@@ -189,3 +192,19 @@
    :leave (fn [ctx]
             (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
                       (str (Instant/now))))})
+
+(defn lazy-statement-result [{:keys [statements
+                                     more]}
+                             ^OutputStream os]
+  (with-open [w (io/writer os)]
+    ;; Write everything up to the beginning of the statements
+    (.write w "{\"statements\": [")
+    (doseq [x (interpose :comma statements)]
+      (if (= :comma x)
+        (.write w ",")
+        (json/with-writer [w {}]
+          (json/write x))))
+    (.write w
+     (if more
+       (format "], \"more\": \"%s\"}" more)
+       "]}"))))

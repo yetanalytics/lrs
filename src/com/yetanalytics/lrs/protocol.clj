@@ -201,6 +201,15 @@
    (s/or :success (s/keys :req-un [:store-statements-ret/statement-ids])
          :error ::error-ret)))
 
+(s/def :get-statements-ret/statement-result-chan
+  (sc/from-port-coll
+   (s/cat :statements (s/* ::xs/statement)
+          :more-link (s/? :xapi.statements.GET.response.statement-result/more))))
+
+(s/def :get-statements-ret/attachments-chan
+  (sc/from-port-coll
+   (s/coll-of ::ss/attachment)))
+
 (s/def ::get-statements-ret
   (sc/from-port
    (s/or :not-found (s/map-of any? any? :count 0)
@@ -208,8 +217,11 @@
                  :opt-un [::xapi/etag]
                  :req-un [(and (or
                                 :xapi.statements.GET.response/statement-result
+                                :get-statements-ret/statement-result-chan
                                 ::xs/statement)
-                               ::ss/attachments)]))))
+                               (or
+                                ::ss/attachments
+                                :get-statements-ret/attachments-chan))]))))
 
 (defn throw-statement-conflict [conflicting-statement
                                 extant-statement]
