@@ -1,5 +1,6 @@
 (ns com.yetanalytics.lrs.protocol
   (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as sgen]
             [xapi-schema.spec.resources :as xsr]
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi :as xapi]
@@ -8,6 +9,18 @@
             [com.yetanalytics.lrs.xapi.document :as doc]))
 
 (set! *warn-on-reflection* true)
+
+(s/def :ret/error
+  (s/with-gen
+    #(instance? clojure.lang.ExceptionInfo %)
+    (fn []
+      (sgen/fmap ex-info
+                 (sgen/tuple
+                  (sgen/string-ascii)
+                  (s/gen map?))))))
+
+(s/def ::error-ret
+  (s/keys :req-un [:ret/error]))
 
 ;; About
 ;; /xapi/about
@@ -21,9 +34,10 @@
   #(satisfies? AboutResource %))
 
 (s/def ::get-about-ret
-  (s/keys
-   :req-un [:xapi.about.GET.response/body]
-   :opt-un [::xapi/etag]))
+  (sc/from-port
+   (s/keys
+    :req-un [:xapi.about.GET.response/body]
+    :opt-un [::xapi/etag])))
 
 ;; Document APIs
 
@@ -52,6 +66,11 @@
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
+(s/def ::set-document-ret
+  (sc/from-port
+   (s/or :success nil?
+         :error ::error-ret)))
+
 (s/def ::get-document-params
   (s/or :state
         (sc/with-conform-gen :xapi.document.state/id-params)
@@ -64,8 +83,9 @@
   (s/nilable :com.yetanalytics.lrs.xapi/document))
 
 (s/def ::get-document-ret
-  (s/keys :opt-un [::xapi/etag
-                   :get-document-ret/document]))
+  (sc/from-port
+   (s/keys :opt-un [::xapi/etag
+                    :get-document-ret/document])))
 
 (s/def ::get-document-ids-params
   (s/or :state
@@ -81,8 +101,9 @@
              :into []))
 
 (s/def ::get-document-ids-ret
-  (s/keys :opt-un [::xapi/etag
-                   :get-document-ids-ret/document-ids]))
+  (sc/from-port
+   (s/keys :opt-un [::xapi/etag
+                    :get-document-ids-ret/document-ids])))
 
 (s/def ::get-document-all-params
   (s/or :single
@@ -98,8 +119,16 @@
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
+(s/def ::delete-document-ret
+  (sc/from-port
+   nil?))
+
 (s/def ::delete-documents-params
   (s/or :state (sc/with-conform-gen :xapi.document.state/context-params)))
+
+(s/def ::delete-documents-ret
+  (sc/from-port
+   nil?))
 
 (s/def ::delete-document-all-params
   (s/or :single
@@ -121,8 +150,9 @@
   (s/nilable ::xs/activity))
 
 (s/def ::get-activity-ret
-  (s/keys :opt-un [::xapi/etag
-                   :get-activity-ret/activity]))
+  (sc/from-port
+   (s/keys :opt-un [::xapi/etag
+                    :get-activity-ret/activity])))
 
 ;; Agents
 ;; /xapi/agents
@@ -139,9 +169,10 @@
   (sc/with-conform-gen :xapi.agents.GET.request/params))
 
 (s/def ::get-person-ret
-  (s/keys
-   :req-un [:xapi.agents.GET.response/person]
-   :opt-un [::xapi/etag]))
+  (sc/from-port
+   (s/keys
+    :req-un [:xapi.agents.GET.response/person]
+    :opt-un [::xapi/etag])))
 
 ;; Statements
 ;; /xapi/statements
@@ -166,16 +197,19 @@
   (s/coll-of :statement/id :kind vector? :into []))
 
 (s/def ::store-statements-ret
-  (s/keys :req-un [:store-statements-ret/statement-ids]))
+  (sc/from-port
+   (s/or :success (s/keys :req-un [:store-statements-ret/statement-ids])
+         :error ::error-ret)))
 
 (s/def ::get-statements-ret
-  (s/or :not-found (s/map-of any? any? :count 0)
-        :found (s/keys
-                :opt-un [::xapi/etag]
-                :req-un [(and (or
-                               :xapi.statements.GET.response/statement-result
-                               ::xs/statement)
-                              ::ss/attachments)])))
+  (sc/from-port
+   (s/or :not-found (s/map-of any? any? :count 0)
+         :found (s/keys
+                 :opt-un [::xapi/etag]
+                 :req-un [(and (or
+                                :xapi.statements.GET.response/statement-result
+                                ::xs/statement)
+                               ::ss/attachments)]))))
 
 (defn throw-statement-conflict [conflicting-statement
                                 extant-statement]

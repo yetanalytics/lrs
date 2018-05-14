@@ -38,7 +38,7 @@
   :params ::p/set-document-params
   :document :com.yetanalytics.lrs.xapi/document
   :merge? (s/nilable boolean?))
- :ret ::p/document-resource-instance)
+ :ret ::p/set-document-ret)
 
 (defn get-document
   [lrs params]
@@ -77,7 +77,7 @@
         :lrs (s/with-gen ::p/document-resource-instance
                lrs-gen-fn)
         :params ::p/delete-document-params)
- :ret ::p/document-resource-instance)
+ :ret ::p/delete-document-ret)
 
 (defn delete-documents
   [lrs params]
@@ -89,7 +89,7 @@
         :lrs (s/with-gen ::p/document-resource-instance
                lrs-gen-fn)
         :params ::p/delete-documents-params)
- :ret ::p/document-resource-instance)
+ :ret ::p/delete-documents-ret)
 
 ;; Activities
 ;; /xapi/activities
