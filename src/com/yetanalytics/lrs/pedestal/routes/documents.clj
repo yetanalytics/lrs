@@ -125,9 +125,7 @@
                                        :body (json/generate-string
                                               (into [] ids))})
                ?etag (assoc ::i/etag ?etag)))
-           (do
-             (log/info :msg "Invalid params" :xapi xapi)
-            (assoc ctx :response {:status 400}))))))})
+           (assoc ctx :response {:status 400})))))})
 
 (def handle-delete
   {:name ::handle-delete

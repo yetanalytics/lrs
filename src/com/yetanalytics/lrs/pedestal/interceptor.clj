@@ -218,7 +218,7 @@
 
 (declare etag-leave)
 
-(defn etag-enter* [{:keys [request] :as ctx}]
+(defn etag-enter [{:keys [request] :as ctx}]
   (let [{{:strs [if-match if-none-match]} :headers
          method :request-method} request]
     (if (and (#{:put :post :delete} method)
@@ -286,8 +286,6 @@
                         ;; Otherwise, it's a precon fail
                         {:status 412}))))))
       ctx)))
-
-(defn etag-enter [ctx] (etag-enter* ctx))
 
 (defn- quote-etag [etag]
   (str "\"" etag "\""))
