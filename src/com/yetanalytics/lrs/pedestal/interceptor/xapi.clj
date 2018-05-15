@@ -129,7 +129,8 @@
                                       :attachments
                                       :ascending
                                       ;; TODO: handle param-based MORE implementations
-                                      :page))))
+                                      :page
+                                      :from))))
       nil)
     #_(.endsWith path-info "/xapi/activities/state")
     #_(case request-method

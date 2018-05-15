@@ -8,4 +8,4 @@
 (alias 'stc 'clojure.spec.test.check)
 
 (deftest-check-ns ns-test com.yetanalytics.lrs
-  {:default {::stc/opts {:num-tests 50 :max-size 3}}})
+  {:default {::stc/opts {:num-tests 5 :max-size 3}}})

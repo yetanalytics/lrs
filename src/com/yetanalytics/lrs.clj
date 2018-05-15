@@ -24,6 +24,16 @@
                             lrs-gen-fn))
         :ret ::p/get-about-ret)
 
+(defn get-about-async
+  "Get information about this LRS. Returns a promise channel."
+  [lrs]
+  (p/-get-about-async lrs))
+
+(s/fdef get-about-async
+        :args (s/cat :lrs (s/with-gen ::p/about-resource-async-instance
+                            lrs-gen-fn))
+        :ret ::p/get-about-asyc-ret)
+
 ;; Documents
 (defn set-document
   [lrs params document merge?]
@@ -40,6 +50,21 @@
   :merge? (s/nilable boolean?))
  :ret ::p/set-document-ret)
 
+(defn set-document-async
+  [lrs params document merge?]
+  (p/-set-document-async lrs params document merge?))
+
+(s/fdef
+ set-document-async
+ :args
+ (s/cat
+  :lrs (s/with-gen ::p/document-resource-async-instance
+         lrs-gen-fn)
+  :params ::p/set-document-params
+  :document :com.yetanalytics.lrs.xapi/document
+  :merge? (s/nilable boolean?))
+ :ret ::p/set-document-async-ret)
+
 (defn get-document
   [lrs params]
   (p/-get-document lrs params))
@@ -52,6 +77,19 @@
          lrs-gen-fn)
   :params ::p/get-document-params)
  :ret ::p/get-document-ret)
+
+(defn get-document-async
+  [lrs params]
+  (p/-get-document-async lrs params))
+
+(s/fdef
+ get-document-async
+ :args
+ (s/cat
+  :lrs (s/with-gen ::p/document-resource-async-instance
+         lrs-gen-fn)
+  :params ::p/get-document-params)
+ :ret ::p/get-document-async-ret)
 
 (defn get-document-ids
   [lrs params]
@@ -66,10 +104,22 @@
   :params ::p/get-document-ids-params)
  :ret ::p/get-document-ids-ret)
 
+(defn get-document-ids-async
+  [lrs params]
+  (p/-get-document-ids-async lrs params))
+
+(s/fdef
+ get-document-ids-async
+ :args
+ (s/cat
+  :lrs (s/with-gen ::p/document-resource-async-instance
+         lrs-gen-fn)
+  :params ::p/get-document-ids-params)
+ :ret ::p/get-document-ids-async-ret)
+
 (defn delete-document
   [lrs params]
   (p/-delete-document lrs params))
-
 
 (s/fdef
  delete-document
@@ -78,6 +128,18 @@
                lrs-gen-fn)
         :params ::p/delete-document-params)
  :ret ::p/delete-document-ret)
+
+(defn delete-document-async
+  [lrs params]
+  (p/-delete-document-async lrs params))
+
+(s/fdef
+ delete-document-async
+ :args (s/cat
+        :lrs (s/with-gen ::p/document-resource-async-instance
+               lrs-gen-fn)
+        :params ::p/delete-document-params)
+ :ret ::p/delete-document-async-ret)
 
 (defn delete-documents
   [lrs params]
@@ -90,6 +152,19 @@
                lrs-gen-fn)
         :params ::p/delete-documents-params)
  :ret ::p/delete-documents-ret)
+
+(defn delete-documents-async
+  [lrs params]
+  (p/-delete-documents-async lrs params))
+
+(s/fdef
+ delete-documents-async
+ :args (s/cat
+        :lrs (s/with-gen ::p/document-resource-async-instance
+               lrs-gen-fn)
+        :params ::p/delete-documents-params)
+ :ret ::p/delete-documents-async-ret)
+
 
 ;; Activities
 ;; /xapi/activities
@@ -104,6 +179,18 @@
                      :params :xapi.activities.GET.request/params)
         :ret ::p/get-activity-ret)
 
+(defn get-activity-async
+  "Get the canonical representation of an activity"
+  [lrs params]
+  (p/-get-activity-async lrs params))
+
+(s/fdef get-activity-async
+        :args (s/cat :lrs (s/with-gen ::p/activity-info-resource-async-instance
+                            lrs-gen-fn)
+                     :params :xapi.activities.GET.request/params)
+        :ret ::p/get-activity-async-ret)
+
+
 ;; Agents
 ;; /xapi/agents
 (defn get-person
@@ -116,6 +203,18 @@
                             lrs-gen-fn)
                      :params ::p/get-person-params)
         :ret ::p/get-person-ret)
+
+(defn get-person-async
+  "Get an object representing an actor"
+  [lrs params]
+  (p/-get-person-async lrs params))
+
+(s/fdef get-person-async
+        :args (s/cat :lrs (s/with-gen ::p/agent-info-resource-async-instance
+                            lrs-gen-fn)
+                     :params ::p/get-person-params)
+        :ret ::p/get-person-async-ret)
+
 
 ;; TODO: /xapi/agents/profile
 
@@ -133,6 +232,19 @@
                      :attachments ::ss/attachments)
         :ret ::p/store-statements-ret)
 
+(defn store-statements-async
+  "Store statements and attachments in the LRS"
+  [lrs statements attachments]
+  (p/-store-statements-async lrs statements attachments))
+
+(s/fdef store-statements-async
+        :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
+                            lrs-gen-fn)
+                     :statements ::xs/statements
+                     :attachments ::ss/attachments)
+        :ret ::p/store-statements-async-ret)
+
+
 (defn get-statements
   "Get statements from the LRS"
   [lrs params ltags]
@@ -144,5 +256,17 @@
                      :params ::p/get-statements-params
                      :ltags (s/coll-of ::xs/language-tag))
         :ret ::p/get-statements-ret)
+
+(defn get-statements-async
+  "Get statements from the LRS"
+  [lrs params ltags]
+  (p/-get-statements-async lrs params ltags))
+
+(s/fdef get-statements-async
+        :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
+                            lrs-gen-fn)
+                     :params ::p/get-statements-params
+                     :ltags (s/coll-of ::xs/language-tag))
+        :ret ::p/get-statements-async-ret)
 
 ;; TODO: auth

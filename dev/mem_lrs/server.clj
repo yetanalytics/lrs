@@ -78,6 +78,6 @@
   (def state (lrs-impl/dump lrs))
 
 
-
-
+  (time (satisfies? lrs-impl/DumpableMemoryLRS lrs))
+  (+ 1 11)
   )
