@@ -1,7 +1,8 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
   (:require [clojure.java.io :as io]
             [cheshire.core :as json]
-            [clojure.core.async :as a])
+            ;; [clojure.core.async :as a]
+            )
   (:import [java.io
             OutputStream
             PipedInputStream
@@ -68,7 +69,7 @@
           (.print ^PrintWriter *out* "--"))))
     pipe-in))
 
-
+(comment
 (def statement-result-pre
   "{\"statements\":[")
 
@@ -142,3 +143,4 @@
       ;; Close the body chan
       (a/close! body-chan))
     body-chan))
+)
