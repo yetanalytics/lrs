@@ -431,7 +431,7 @@
                            :as params
                            :or {related_activities false
                                 related_agents false
-                                limit 0
+                                limit 50
                                 attachments false
                                 ascending false
                                 page 0
