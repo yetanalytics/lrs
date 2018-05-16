@@ -138,8 +138,15 @@
                (if statement-result
                  {:status 200
                   :headers {"Content-Type" "application/json"}
-                  :body (partial si/lazy-statement-result
-                                 s-data)}
+                  :body (si/lazy-statement-result-async
+                         (let [c (a/chan)]
+                           (a/onto-chan
+                            c
+                            (concat (cons :statements
+                                          (:statements statement-result))
+                                    (when-let [more (:more statement-result)]
+                                      (list :more more))))
+                          c))}
                  {:status 200
                   :body s-data}))
              {:status 404})

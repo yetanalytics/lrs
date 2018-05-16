@@ -208,3 +208,33 @@
      (if more
        (format "], \"more\": \"%s\"}" more)
        "]}"))))
+
+(defn lazy-statement-result-async
+  [statement-result-chan]
+  (let [body-chan (a/chan)]
+    (a/go
+      (loop [stage :init
+             s-count 0]
+        (if-let [x (a/<! statement-result-chan)]
+          (case x
+            :statements
+            (do (a/>! body-chan "{\"statements\":[")
+                (recur :statements s-count))
+            :more
+            (do (a/>! body-chan
+                      (format "],\"more\":\"%s\"}"
+                              (a/<! statement-result-chan)))
+                (recur :more s-count))
+
+            (do
+              ;; maybe Comma
+              (when (< 0 s-count)
+                (a/>! body-chan ","))
+              ;; Write statement
+              (a/>! body-chan (json/generate-string x))
+              (recur :statements (inc s-count))))
+          ;; if no more link, close
+          (when (= stage :statements)
+            (a/>! body-chan "]}"))))
+      (a/close! body-chan))
+    body-chan))
