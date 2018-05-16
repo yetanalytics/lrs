@@ -1,7 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
   (:require [clojure.java.io :as io]
             [cheshire.core :as json]
-            ;; [clojure.core.async :as a]
+            [clojure.core.async :as a]
             )
   (:import [java.io
             OutputStream
@@ -24,14 +24,16 @@
           boundary))
 
 (defn write-attachments [^PrintWriter out attachment-objects]
-  (doseq [{:keys [content contentType sha2] :as attachment-object} attachment-objects]
+  (doseq [{:keys [content sha2]
+           ctype :contentType
+           :as attachment-object} attachment-objects]
     ;; encapsulation boundary
     (.print out crlf)
     (.print out "--")
     (.print out boundary)
     (.print out crlf)
 
-    (.print out (str "Content-Type:" content-type)) ;; TODO: this is wrong
+    (.print out (str "Content-Type:" ctype))
     (.print out crlf)
     (.print out "Content-Transfer-Encoding:binary")
     (.print out crlf)
@@ -69,16 +71,14 @@
           (.print ^PrintWriter *out* "--"))))
     pipe-in))
 
-(comment
 (def statement-result-pre
   "{\"statements\":[")
 
-(defn statement-result-post
-  ([] "]}")
-  ([more]
-   (format "],\"more\":\"%s\"}" more)))
+(def statement-result-post
+  "]}")
 
-(defn build-multipart-async [statement-result-chan single-statement?]
+(defn build-multipart-async
+  [statement-result-chan]
   (let [body-chan (a/chan)]
     (a/go
       ;; Begin
@@ -88,53 +88,56 @@
                            "Content-Type:application/json"
                            crlf
                            crlf))
-      (when-not single-statement?
-        ;; open statement result
-        (a/>! body-chan
-              statement-result-pre))
-      (loop [part :statement
-             s-count 0]
+      (loop [stage :init
+             s-count 0] ;; s-count is used with multiple statements to enclose
         (when-let [x (a/<! statement-result-chan)]
-          (cond
-            ;; Statement
-            (get x "id")
+          (case x
+            ;; headers
+            :statement
+            (do (a/>! body-chan (json/generate-string (a/<! statement-result-chan)))
+                (recur :statement s-count))
+            :statements
+            (do (a/>! body-chan statement-result-pre)
+                (recur :statements s-count))
+            :more
+            (do (a/>! body-chan (format "],\"more\":\"%s\"}"
+                                        (a/<! statement-result-chan)))
+                (recur :more s-count))
+            :attachments
             (do
-              ;; maybe Comma
-              (when (< 0 s-count)
-                (a/>! body-chan ","))
-              ;; Write statement
-              (a/>! body-chan (json/generate-string x))
-              (recur :statement (inc s-count)))
-            ;; More Link
-            (string? x)
-            (do
-              (a/>! body-chan
-                    (statement-result-post x))
-              (recur :more s-count))
-            ;; Attachment
-            :else
-            (let [{:keys [content contentType sha2] :as attachment-object} x]
-              (when (and (= :statement part)
-                         (not single-statement?))
+              ;; when there's no more link, close the statement result
+              (when (= stage :statements)
+                (a/>! body-chan statement-result-post))
+              (recur :attachments s-count))
+            ;; now we have a stage, dispatch on that
+            (case stage
+              :statements
+              (do
+                ;; maybe Comma
+                (when (< 0 s-count)
+                  (a/>! body-chan ","))
+                ;; Write statement
+                (a/>! body-chan (json/generate-string x))
+                (recur :statements (inc s-count)))
+              :attachments
+              (let [{:keys [content contentType sha2] :as attachment-object} x]
+                ;; attachment headers
                 (a/>! body-chan
-                      (statement-result-post)))
-              ;; attachment headers
-              (a/>! body-chan
-                    (str crlf
-                         "--"
-                         boundary
-                         crlf
-                         (format "Content-Type:%s" contentType)
-                         crlf
-                         "Content-Transfer-Encoding:binary"
-                         crlf
-                         (format "X-Experience-API-Hash:%s" sha2)
-                         crlf
-                         crlf))
-              ;; Attachment Content
-              (a/>! body-chan
-                    content)
-              (recur :attachment s-count)))))
+                      (str crlf
+                           "--"
+                           boundary
+                           crlf
+                           (format "Content-Type:%s" contentType)
+                           crlf
+                           "Content-Transfer-Encoding:binary"
+                           crlf
+                           (format "X-Experience-API-Hash:%s" sha2)
+                           crlf
+                           crlf))
+                ;; Attachment Content
+                (a/>! body-chan
+                      content)
+                (recur :attachments s-count))))))
       ;; End
       (a/>! body-chan (str crlf
                            "--"
@@ -143,4 +146,3 @@
       ;; Close the body chan
       (a/close! body-chan))
     body-chan))
-)

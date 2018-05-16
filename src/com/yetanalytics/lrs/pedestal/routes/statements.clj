@@ -120,9 +120,21 @@
                {:status 200
                 :headers (cond-> {"Content-Type" att-resp/content-type}
                            etag (assoc "etag" etag))
-                :body (att-resp/build-multipart
-                       s-data
-                       attachments)}
+                :body
+                ;; shim, the protocol will be expected to return this
+                (att-resp/build-multipart-async
+                 (let [c (a/chan)]
+                   (a/onto-chan
+                    c
+                    (if (some? statement)
+                      (concat (list :statement statement)
+                              (cons :attachments attachments))
+                      (concat (cons :statements
+                                    (:statements statement-result))
+                              (when-let [more (:more statement-result)]
+                                (list :more more))
+                              (cons :attachments attachments))))
+                   c))}
                (if statement-result
                  {:status 200
                   :headers {"Content-Type" "application/json"}
