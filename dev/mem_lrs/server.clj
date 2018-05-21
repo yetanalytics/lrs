@@ -77,7 +77,11 @@
 
   (def state (lrs-impl/dump lrs))
 
+  (require '[clojure.core.async :as a])
 
+  (require '[com.yetanalytics.lrs :as lrs])
+
+  (a/<!! (a/into [] (lrs/get-statements-async lrs {:statementId "foo" :attachments true} [])))
   (time (satisfies? lrs-impl/DumpableMemoryLRS lrs))
   (+ 1 11)
   )

@@ -586,9 +586,79 @@
       (-store-statements-async [lrs statements attachments]
         (a/go
           (p/-store-statements lrs statements attachments)))
-      (-get-statements-async [lrs params ltags]
-        (a/go
-          (p/-get-statements lrs params ltags)))
+      (-get-statements-async [_ {:keys [statementId
+                                  voidedStatementId
+                                  verb
+                                  activity
+                                  registration
+                                  related_activities
+                                  related_agents
+                                  since
+                                  until
+                                  limit
+                                  attachments
+                                  ascending
+                                  page
+                                  agent
+                                  from ;; Like "Exclusive Start Key"
+                                  ]
+                           format-type :format
+                           :as params
+                           :or {related_activities false
+                                related_agents false
+                                limit 50
+                                attachments false
+                                ascending false
+                                page 0
+                                format-type "exact"}} ltags]
+        (let [single? (or statementId voidedStatementId)
+              result-chan (a/chan)]
+          (a/go
+            ;; write the first header
+            (a/>! result-chan (if single?
+                                :statement
+                                :statements))
+            (loop [results (statements-seq @state params ltags)
+                   last-id nil
+                   result-count 0
+                   result-attachments (list)]
+              (if ;; all results returned, maybe process more
+                  (and (< 0 limit)
+                       (= result-count
+                          limit)
+                       (first results))
+                (do
+                  (a/>! result-chan
+                        :more)
+                  (a/>! result-chan
+                        (str xapi-path-prefix
+                             "/xapi/statements?"
+                             (codec/form-encode
+                              (cond-> (assoc params :from
+                                             last-id)
+                                ;; Re-encode the agent if present
+                                agent (assoc :agent (json/write-str agent))))))
+                    (recur (list)
+                           nil
+                           0
+                           result-attachments))
+                (if-let [statement (first results)]
+                  (do
+                    (a/>! result-chan statement)
+                    (recur (rest results)
+                           (get statement "id")
+                           (inc result-count)
+                           (into result-attachments
+                                 (when attachments
+                                   (keep
+                                    (:state/attachments @state)
+                                    (ss/all-attachment-hashes [statement]))))))
+                  (when attachments
+                    (a/>! result-chan :attachments)
+                    (doseq [att result-attachments]
+                      (a/>! result-chan att))))))
+            (a/close! result-chan))
+          result-chan))
       p/DocumentResource
       (-set-document [lrs params document merge?]
         (try (swap! state update :state/documents transact-document params document merge?)
@@ -666,3 +736,10 @@
                                       ::statements-result-max
                                       ::init-state]))
         :ret ::lrs)
+
+
+(comment
+  (clojure.repl/doc a/pipe)
+
+
+  )
