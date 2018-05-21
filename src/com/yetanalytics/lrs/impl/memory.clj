@@ -385,6 +385,11 @@
       (list))
     (cond->> (or (vals (:state/statements state))
                  (list))
+      ascending reverse
+      ;; paging from
+      from (drop-while #(not= from
+                              (get % "id")))
+      from rest
       (and
        (not ascending)
        since) (drop-while #(< -1 (compare since (get % "stored"))))
@@ -392,8 +397,6 @@
        (not ascending)
        until)
       (take-while #(< -1 (compare until (get % "stored"))))
-      ;; ascending=true
-      ascending reverse
       (and
        ascending
        until) (drop-while #(< -1 (compare until (get % "stored"))))
@@ -441,11 +444,6 @@
          "canonical") (map #(ss/format-canonical % ltags))
       (= format-type
          "ids")       (map ss/format-statement-ids)
-
-      ;; paging from
-      from (drop-while #(not= from
-                              (get % "id")))
-      from rest
       )))
 
 (s/fdef statements-seq
