@@ -146,7 +146,7 @@
                                           (:statements statement-result))
                                     (when-let [more (:more statement-result)]
                                       (list :more more))))
-                          c))}
+                           c))}
                  {:status 200
                   :body s-data}))
              {:status 404})
@@ -161,56 +161,44 @@
      (let [params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
            ltags (get ctx :xapi/ltags [])]
        (if (p/statements-resource-async? lrs)
-         (a/go
-           (assoc ctx :response
-                  (cond ;; Special handling to see if it's a 404
-                    ((some-fn :statementId :voidedStatementId)
-                     params)
-                    (let [r-chan (lrs/get-statements-async
-                                  lrs
-                                  params
-                                  ltags)
-                          _ (a/<! r-chan)
-                          ?statement (a/<! r-chan)
-                          ]
-                      (if (map? ?statement)
-                        (if (:attachments params)
-                          {:status 200
-                           :headers {"Content-Type" att-resp/content-type}
-                           :body
-                           (att-resp/build-multipart-async
-                            (let [c (a/chan)]
-                              (a/>! c :statement)
-                              (a/>! c ?statement)
-                              (a/pipe r-chan c)
-                              c))}
-                          {:status 200
-                           :headers {"Content-Type" "application/json"}
-                           :body (si/lazy-statement-result-async
-                                  (let [c (a/chan)]
-                                    (a/>! c :statement)
-                                    (a/>! c ?statement)
-                                    c))})
-                        {:status 404}))
-                    (:attachments params)
-                    {:status 200
-                     :headers {"Content-Type" att-resp/content-type}
-                     :body
-                     ;; shim, the protocol will be expected to return this
-                     (att-resp/build-multipart-async
-                      (lrs/get-statements-async
+         (let [r-chan (lrs/get-statements-async
                        lrs
                        params
-                       ltags))}
-                    :else
-                    {:status 200
-                     :headers {"Content-Type" "application/json"}
-                     :body
-                     (si/lazy-statement-result-async
-                      (lrs/get-statements-async
-                       lrs
-                       params
-                       ltags))})))
+                       ltags)]
+           (a/go
+             (assoc ctx :response
+                    (cond ;; Special handling to see if it's a 404
+                      ((some-fn :statementId :voidedStatementId)
+                       params)
+                      (let [_ (a/<! r-chan)
+                            ?statement (a/<! r-chan)
+                            ]
+                        (if (map? ?statement)
+                          (if (:attachments params)
+                            {:status 200
+                             :headers {"Content-Type" att-resp/content-type}
+                             :body
+                             (att-resp/build-multipart-async
+                              (let [c (a/chan)]
+                                (a/onto-chan c (a/<! (a/into [:statement
+                                                              ?statement]
+                                                             r-chan)))
+                                c))}
+                            {:status 200
+                             :body ?statement})
+                          {:status 404}))
+                      (:attachments params)
+                      {:status 200
+                       :headers {"Content-Type" att-resp/content-type}
+                       :body
+                       (att-resp/build-multipart-async
+                        r-chan)}
+                      :else
+                      {:status 200
+                       :headers {"Content-Type" "application/json"}
+                       :body
+                       (si/lazy-statement-result-async
+                        r-chan)}))))
          (get-response ctx (lrs/get-statements
                             lrs
                             params

@@ -734,10 +734,3 @@
                                       ::statements-result-max
                                       ::init-state]))
         :ret ::lrs)
-
-
-(comment
-  (clojure.repl/doc a/pipe)
-
-
-  )
