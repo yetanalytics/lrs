@@ -345,6 +345,115 @@
                      :attachments ::ss/attachments)
         :ret ::state)
 
+(defn statements-seq
+  "Returns a lazy seq of statements for the given params possibly from id from,
+  w/o limit."
+  [state {:keys [statementId
+                 voidedStatementId
+                 verb
+                 activity
+                 registration
+                 related_activities
+                 related_agents
+                 since
+                 until
+                 limit
+                 attachments
+                 ascending
+                 agent
+                 from ;; Like "Exclusive Start Key"
+                 ]
+          format-type :format
+          :as params
+          :or {related_activities false
+               related_agents false
+               limit 50
+               attachments false
+               ascending false
+               format-type "exact"}} ltags]
+  (if (or statementId voidedStatementId)
+    (if-let [result (cond
+                      statementId
+                      (get-in state [:state/statements statementId])
+                      voidedStatementId
+                      (get-in state [:state/voided-statements voidedStatementId]))]
+      (list (cond-> result
+              (= "canonical" format-type)
+              (ss/format-canonical ltags)
+              (= "ids" format-type)
+              ss/format-statement-ids))
+      (list))
+    (cond->> (or (vals (:state/statements state))
+                 (list))
+      (and
+       (not ascending)
+       since) (drop-while #(< -1 (compare since (get % "stored"))))
+      (and
+       (not ascending)
+       until)
+      (take-while #(< -1 (compare until (get % "stored"))))
+      ;; ascending=true
+      ascending reverse
+      (and
+       ascending
+       until) (drop-while #(< -1 (compare until (get % "stored"))))
+      (and
+       ascending
+       since) (take-while #(< -1 (compare since (get % "stored"))))
+
+      ;; simple filters
+      verb (filter #(or
+                     ;; direct
+                     (= verb (get-in % ["verb" "id"]))
+                     ;; via reference
+                     (and (ss/statement-ref? %)
+                          (let [ref-id (get % "id")
+                                target-id (ss/statement-ref-id %)]
+                            ;; non-void statement
+                            (= verb (get-in state [:state/statements
+                                                   target-id
+                                                   "verb"
+                                                   "id"]))
+                            (= verb (get-in state [:state/voided-statements
+                                                   target-id
+                                                   "verb"
+                                                   "id"]))))))
+      registration (filter #(= registration
+                               (get-in % ["context" "registration"])))
+      ;; complex filters
+      activity (filter
+                (if related_activities
+                  ;; complex activity-filter
+                  (fn [s]
+                    (some (partial = activity)
+                          (ss/statement-related-activity-ids s)))
+                  ;; simple activity filter
+                  #(= activity (get-in % ["object" "id"]))))
+      agent (filter
+             (let [agents-fn (if related_agents
+                               #(ss/statement-agents % true)
+                               #(ss/statement-agents % false))]
+               (fn [s]
+                 (some (partial ag/ifi-match? agent)
+                       (agents-fn s)))))
+      ;; Formatting
+      (= format-type
+         "canonical") (map #(ss/format-canonical % ltags))
+      (= format-type
+         "ids")       (map ss/format-statement-ids)
+
+      ;; paging from
+      from (drop-while #(not= from
+                              (get % "id")))
+      from rest
+      )))
+
+(s/fdef statements-seq
+        :args (s/cat :state ::state
+                     :params :xapi.statements.GET.request/params
+                     :ltags (s/coll-of ::xs/language-tag))
+        :ret (s/coll-of ::xs/lrs-statement))
+
 (defn fixture-state*
   "Get the state of a post-conformance test lrs from file."
   []
@@ -436,85 +545,25 @@
                                 ascending false
                                 page 0
                                 format-type "exact"}} ltags]
-        (let [state' @state]
-          (if (or statementId voidedStatementId)
-            (let [result (cond
-                           statementId
-                           (get-in state' [:state/statements statementId])
-                           voidedStatementId
-                           (get-in state' [:state/voided-statements voidedStatementId]))]
+        (let [results (statements-seq @state params ltags)]
+          (if (or statementId voidedStatementId) ;; single statement
+            (let [statement (first results)]
               (cond-> {}
-                result (assoc :statement
-                              (cond-> result
-                                (= "canonical" format-type)
-                                (ss/format-canonical ltags)
-                                (= "ids" format-type)
-                                ss/format-statement-ids)
-                              :attachments
-                              (into []
-                                    (keep (:state/attachments state')
-                                          (ss/all-attachment-hashes [result]))))))
+                statement (assoc :statement
+                                 statement)
+                attachments (assoc :attachments
+                                   (into []
+                                         (keep (:state/attachments @state)
+                                               (ss/all-attachment-hashes [statement]))))))
             ;; otherwise, this is a paged sequential query
-            (let [drop-fn (if from
-                            (fn [ss] (rest (drop-while #(not= from
-                                                              (get % "id"))
-                                                       ss)))
-                            identity)
-                  take-fn (if (< 0 limit)
-                            (fn [ss] (split-at limit ss))
-                            (juxt identity (constantly (list))))
-                  page-fn (comp take-fn drop-fn)
-                  results-base
-                  (cond->> (vals (:state/statements state'))
-                    since (drop-while #(< -1 (compare since (get % "stored"))))
-                    until (take-while #(< -1 (compare until (get % "stored"))))
-                    ascending reverse
-                    ;; simple filters
-                    verb (filter #(or
-                                   ;; direct
-                                   (= verb (get-in % ["verb" "id"]))
-                                   ;; via reference
-                                   (and (ss/statement-ref? %)
-                                        (let [ref-id (get % "id")
-                                              target-id (ss/statement-ref-id %)]
-                                          ;; non-void statement
-                                          (= verb (get-in state' [:state/statements
-                                                                  target-id
-                                                                  "verb"
-                                                                  "id"]))
-                                          (= verb (get-in state' [:state/voided-statements
-                                                                  target-id
-                                                                  "verb"
-                                                                  "id"]))))))
-                    registration (filter #(= registration
-                                             (get-in % ["context" "registration"])))
-                    ;; complex filters
-                    activity (filter
-                              (if related_activities
-                                ;; complex activity-filter
-                                (fn [s]
-                                  (some (partial = activity)
-                                        (ss/statement-related-activity-ids s)))
-                                ;; simple activity filter
-                                #(= activity (get-in % ["object" "id"]))))
-                    agent (filter
-                           (let [agents-fn (if related_agents
-                                             #(ss/statement-agents % true)
-                                             #(ss/statement-agents % false))]
-                             (fn [s]
-                               (some (partial ag/ifi-match? agent)
-                                     (agents-fn s)))))
-                    #_(and limit
-                           (not= limit 0)) #_(take limit))
-                  [return-results rest-results] (page-fn results-base)
-
+            (let [[statements rest-results]
+                  (cond->> results
+                    ;; paging to
+                    (< 0 limit) (split-at limit)
+                    ;; mock the split
+                    (= 0 limit) vector)
                   more? (some? (first rest-results))
-                  statements (into []
-                                   (cond-> return-results
-                                     (= "canonical" format-type)
-                                     (ss/format-canonical ltags)
-                                     (= "ids" format-type)
-                                     ss/format-ids))
+
                   statement-result (cond-> {:statements
                                             statements}
                                      more? (assoc :more
@@ -531,8 +580,8 @@
                :attachments (into []
                                   (when attachments
                                     (keep
-                                     (:state/attachments state')
-                                     (ss/all-attachment-hashes return-results))))}))))
+                                     (:state/attachments @state)
+                                     (ss/all-attachment-hashes statements))))}))))
       p/StatementsResourceAsync
       (-store-statements-async [lrs statements attachments]
         (a/go
