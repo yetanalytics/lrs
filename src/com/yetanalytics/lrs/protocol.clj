@@ -366,18 +366,17 @@
    (s/coll-of ::ss/attachment)))
 
 (s/def ::get-statements-async-ret
-  (sc/from-port
-   (s/or :not-found (s/map-of any? any? :count 0)
-         :found (s/keys
-                 :opt-un [::xapi/etag]
-                 :req-un [(and (or
-                                :xapi.statements.GET.response/statement-result
-                                ;; :get-statements-async-ret/statement-result-chan
-                                ::xs/statement)
-                               ::ss/attachments
-                               #_(or
-                                ::ss/attachments
-                                :get-statements-async-ret/attachments-chan))]))))
+  (sc/from-port-coll
+   (s/cat :result
+          (s/alt :s (s/cat :header #{:statement}
+                           :statement (s/? ::xs/lrs-statement))
+                 :ss (s/cat :statements-header #{:statements}
+                            :statements (s/* ::xs/lrs-statement)
+                            :more (s/? (s/cat :more-header #{:more}
+                                              :more-link :xapi.statements.GET.response.statement-result/more))))
+          :attachments
+          (s/? (s/cat :header #{:attachments}
+                      :attachments (s/* ::ss/attachment))))))
 
 ;; Auth
 (defprotocol LRSAuth
