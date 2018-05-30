@@ -152,9 +152,7 @@
                 [:dir "lrs-conformance-test-suite"]))]
     (report-sh-result test-result)
     (print-logs)
-    (if (= 0 exit)
-      true
-      false)))
+    (= 0 exit)))
 
 (defn test-suite-fixture
   "Fixture to ensure clean test environment."
