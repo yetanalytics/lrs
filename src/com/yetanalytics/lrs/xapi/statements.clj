@@ -7,11 +7,10 @@
    [clojure.data.priority-map :as pm]
    [clojure.walk :as w]
    [clojure.java.io :as io]
-   [digest :as digest])
+   [com.yetanalytics.lrs.util.hash :refer [sha-256]])
   (:import [java.time Instant]
            [clojure.data.priority_map PersistentPriorityMap]
-           [java.io File]
-           ))
+           [java.io File]))
 
 (set! *warn-on-reflection* true)
 
@@ -326,7 +325,7 @@
          {:content content
           :contentType content-type
           :length (count content)
-          :sha2 (digest/sha-256 content)})
+          :sha2 (sha-256 content)})
        (sgen/tuple
         (s/gen :attachment/content)
         (s/gen :attachment/contentType))))))
