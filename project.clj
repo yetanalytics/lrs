@@ -6,7 +6,9 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [com.yetanalytics/xapi-schema "1.0.0-alpha17-SNAPSHOT"
                   :exclusions [org.clojure/clojurescript]]
-                 [io.pedestal/pedestal.service "0.5.3"]]
+                 [io.pedestal/pedestal.service "0.5.3"]
+                 ;; TODO: Find a replacement where we use guava
+                 [com.google.guava/guava "25.1-jre"]]
   :profiles {:dev
              {:source-paths ["src" "dev"]
               :clean-targets ^{:protect false} ["lrs-conformance-test-suite" "node_modules"]
