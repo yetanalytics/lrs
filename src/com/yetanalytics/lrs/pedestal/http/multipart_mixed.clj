@@ -1,82 +1,54 @@
 (ns com.yetanalytics.lrs.pedestal.http.multipart-mixed
   (:require [clojure.java.io :as io]
-            [clojure.spec.alpha :as s])
+            [clojure.spec.alpha :as s]
+            [clojure.string :as cs])
   (:import
-   ;; [javax.servlet MultipartConfigElement]
-   ;; [javax.servlet.http Part]
-   ;; [org.eclipse.jetty.util MultiPartInputStreamParser]
-
-   [org.apache.commons.mail ByteArrayDataSource]
-   [org.apache.commons.fileupload.util LimitedInputStream]
-   [javax.mail BodyPart]
-   [javax.mail.internet MimeMultipart InternetHeaders$InternetHeader]))
+   [java.util Scanner]
+   [java.io ByteArrayInputStream InputStream]))
 
 (set! *warn-on-reflection* true)
 
 ;; TODO: configurable temp dir
-;; TODO: Can't get the jetty way to work, so we use the old one
-#_(defn parse-multiparts [req]
-  (let [parser (MultiPartInputStreamParser.
-                ^java.io.InputStream (:body req)
-                ^String (:content-type req)
-                MultiPartInputStreamParser/__DEFAULT_MULTIPART_CONFIG
-                ^java.io.File (io/file "/tmp"))]
-    (assoc req :body-parts
-           (mapv
-            (fn [^Part part]
-              (let [header-names (into []
-                                       (.getHeaderNames part))]
-                {:content-type (.getContentType part)
-                 :headers (into {}
-                                (map (fn [^String header-name]
-                                       [header-name (.getHeader part
-                                                                header-name)])
-                                     header-names))
-                 :body (.getInputStream part)
-                 :content-length (.getSize part)}))
-            (.getParts parser)))))
 
-(defn- parse-part-headers [^BodyPart part]
-  (let [^java.util.Enumeration header-enum (.getAllHeaders part)]
-    (into {}
-          (for [^InternetHeaders$InternetHeader header (enumeration-seq header-enum)]
-            [(.getName header) (.getValue header)]))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Simpler impl w/scanner
 
-(defn- parts-sequence
-  "Returns a lazy sequence of the parts from a MimeMultipart request"
-  ([^MimeMultipart multipart] (parts-sequence multipart (int 0)))
-  ([^MimeMultipart multipart ^Integer n]
-   (if (< n (.getCount multipart))
-     (let [^BodyPart part (.getBodyPart multipart n)]
-       (lazy-seq (cons {:input-stream (.getInputStream part)
-                        :content-type (.getContentType part)
-                        :content-length (.getSize part)
-                        :headers (parse-part-headers part)}
-                       (parts-sequence multipart (inc n))))))))
+(defn parse-body-headers
+  "Given a string of line-separated body headers, parse them into a string map"
+  [^String headers-str]
+  (into {}
+        (for [h-str (cs/split-lines headers-str)]
+          (mapv cs/trim
+                (cs/split h-str #"\s*:\s*" 2)))))
 
-(defn- input-stream ^java.io.InputStream [request & [limit]]
-  "Returns either the input stream of a size limited input stream if limit is set"
-  (if limit
-    (proxy [LimitedInputStream] [(:body request) limit]
-      (raiseError [max-size count]
-        (throw (ex-info (format "The body exceeds its maximum permitted size of %s bytes" max-size)
-                        {:type ::too-much-content
-                         :max-size max-size
-                         :count count}))))
-    (:body request)))
-
-(defn parse-request
-  "Parse a mutlipart/mixed request"
-  [request & [limit]]
-  (let [multipart (MimeMultipart. (ByteArrayDataSource.
-                                   (input-stream request (or limit
-                                                             (int 1048576)))
-                                   "multipart/mixed"))]
-    (if (.isComplete multipart)
-      (parts-sequence multipart)
+(defn parse-parts [^InputStream in
+                   ^String boundary]
+  (try
+    (let [boundary-pattern (re-pattern (str "(?m)\\R?^--" boundary "(--)?$\\R?"))]
+      (with-open [scanner (Scanner. in)]
+        (assert (.hasNext scanner boundary-pattern)
+                "No initial multipart boundary.")
+        (into []
+              (for [file-chunk (iterator-seq (.useDelimiter scanner boundary-pattern))
+                    :let [[headers-str body-str] (cs/split file-chunk #"\R\R")
+                          headers (parse-body-headers headers-str)
+                          body-bytes (.getBytes ^String body-str "UTF-8")]]
+                {:content-type (get headers "Content-Type")
+                 :content-length (count body-bytes)
+                 :headers headers
+                 :input-stream (ByteArrayInputStream. body-bytes)}))))
+    (catch AssertionError ae
+      (throw (ex-info "Invalid Multipart Body"
+                      {:type ::invalid-multipart-body})))
+    (catch Exception ex
       (throw (ex-info "Incomplete Multipart Request"
                       {:type ::incomplete-multipart})))))
 
-(defn parse-multiparts [req]
-  (assoc req :multiparts
-         (parse-request req)))
+(defn find-boundary
+  "Find a boundary in a content type, or nil"
+  ^String [^String ctype]
+  (let [[m quoted unquoted]
+        (re-find #"(?:^\s*multipart/mixed\s*;\s*boundary\s*=\s*)(?:(?:\"(.*)\".*$)|(?:([a-zA-Z0-9\'\+\-\_]*)$))"
+                 ctype)]
+    (when m
+      (or quoted unquoted))))

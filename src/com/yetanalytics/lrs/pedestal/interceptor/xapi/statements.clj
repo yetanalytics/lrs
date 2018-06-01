@@ -78,15 +78,18 @@
    :enter (fn [{:keys [request] :as ctx}]
             (let [content-type (:content-type request)]
               (if (.startsWith ^String content-type "multipart/mixed")
-                (if (s/valid? ::ctype-boundary content-type)
-                  (try (let [parts-seq (multipart/parse-request request)]
+                (if-let [boundary (multipart/find-boundary content-type)]
+                  (try (let [parts-seq (multipart/parse-parts (:body request)
+                                                              boundary)]
                          (if-let [error (s/explain-data ::xapi-multiparts parts-seq)]
                            (assoc (chain/terminate ctx)
                                   :response
                                   {:status 400
                                    :body
                                    {:error
-                                    {:message "Invalid Multipart Request"}}})
+                                    {:message "Invalid Multipart Request"
+                                     ;; :spec-error (pr-str error)
+                                     }}})
                            (-> ctx
                                (assoc-in [:request :json-params]
                                          (with-open [rdr (io/reader (-> parts-seq
@@ -98,6 +101,13 @@
                        (catch clojure.lang.ExceptionInfo exi
                          (let [exd (ex-data exi)]
                            (case (:type exd)
+                             ::multipart/invalid-multipart-body
+                             (assoc (chain/terminate ctx)
+                                    :response
+                                    {:status 400
+                                     :body
+                                     {:error
+                                      {:message "Invalid Multipart Body"}}})
                              ::multipart/incomplete-multipart
                              (assoc (chain/terminate ctx)
                                     :response

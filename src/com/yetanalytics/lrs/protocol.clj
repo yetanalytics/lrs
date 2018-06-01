@@ -311,13 +311,13 @@
 
 
 (s/def ::get-statements-ret
-  (s/or :not-found (s/map-of any? any? :count 0)
-        :found (s/keys
-                :opt-un [::xapi/etag]
-                :req-un [(and (or
-                               :xapi.statements.GET.response/statement-result
-                               ::xs/statement)
-                              ::ss/attachments)])))
+  (s/or :not-found-single (s/keys :opt-un [::xapi/etag]) #_(s/map-of any? any? :count 0)
+        :found-single (s/keys :opt-un [::xapi/etag
+                                       ::ss/attachments]
+                              :req-un [::xs/statement])
+        :multiple (s/keys :opt-un [::xapi/etag]
+                          :req-un [::ss/attachments
+                                   :xapi.statements.GET.response/statement-result])))
 
 (defn throw-statement-conflict [conflicting-statement
                                 extant-statement]
