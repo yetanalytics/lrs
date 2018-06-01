@@ -428,6 +428,9 @@
   {:name ::ensure-jetty-consumed
    :leave (fn [ctx]
             (when (some-> ctx :response :status (>= 400))
+              (println "Consuming all?" (-> ctx :request :request-method)
+                       (-> ctx :request :path-info)
+                       (some-> ctx :request :body (->> (instance? HttpInput))))
               (some-> ctx :request :body jetty-consume-all-and-close!))
             ctx)})
 

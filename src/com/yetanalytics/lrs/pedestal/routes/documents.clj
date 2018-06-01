@@ -7,7 +7,7 @@
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [clojure.core.async :as a]
             [io.pedestal.log :as log])
-  (:import [com.google.common.io ByteStreams]
+  (:import #_[com.google.common.io ByteStreams]
            [java.io InputStream ByteArrayOutputStream]
            [java.nio ByteBuffer]))
 
@@ -40,7 +40,7 @@
                              lrs params
                              {:content-type content-type
                               :content-length content-length
-                              :contents (ByteStreams/toByteArray ^InputStream body)}
+                              :contents body}
                              false))
                       (assoc ctx :response {:status 204}))
                     (let [[params-spec params] (find-some xapi
@@ -52,7 +52,7 @@
                                    lrs params
                                    {:content-type content-type
                                     :content-length content-length
-                                    :contents (ByteStreams/toByteArray ^InputStream body)}
+                                    :contents body}
                                    false))
                             (assoc ctx :response {:status 204}))
                         ;; if neither header is present
@@ -67,7 +67,7 @@
                        lrs params
                        {:content-type content-type
                         :content-length content-length
-                        :contents (ByteStreams/toByteArray ^InputStream body)}
+                        :contents body}
                        false)
                       (assoc ctx :response {:status 204}))
                     (let [[params-spec params] (find-some xapi
@@ -79,7 +79,7 @@
                              lrs params
                              {:content-type content-type
                               :content-length content-length
-                              :contents (ByteStreams/toByteArray ^InputStream body)}
+                              :contents body}
                              false)
                             (assoc ctx :response {:status 204}))
                         ;; if neither header is present
@@ -118,13 +118,13 @@
                                             lrs params
                                             {:content-type content-type
                                              :content-length content-length
-                                             :contents (ByteStreams/toByteArray ^InputStream body)}
+                                             :contents body}
                                             true))))
                 (post-response ctx (lrs/set-document
                                     lrs params
                                     {:content-type content-type
                                      :content-length content-length
-                                     :contents (ByteStreams/toByteArray ^InputStream body)}
+                                     :contents body}
                                     true)))))})
 
 (defn get-single-response
