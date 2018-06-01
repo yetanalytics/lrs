@@ -12,7 +12,7 @@
    [io.pedestal.log :as log]
    [clojure.core.async :as a])
   (:import [java.time Instant]
-           [java.io OutputStream ByteArrayOutputStream]
+           [java.io InputStream OutputStream ByteArrayOutputStream]
            [javax.servlet ServletOutputStream]))
 
 ;; The general flow for these is 1. parse 2. validate 3. place in context
@@ -23,7 +23,7 @@
 (s/def :multipart/content-length
   integer?)
 (s/def :multipart/input-stream
-  #(instance? java.io.ByteArrayInputStream %))
+  #(instance? InputStream %))
 
 (s/def ::X-Experience-API-Hash string?)
 (s/def ::Content-Transfer-Encoding #{"binary"})
