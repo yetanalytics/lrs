@@ -7,8 +7,7 @@
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [clojure.core.async :as a]
             [io.pedestal.log :as log])
-  (:import #_[com.google.common.io ByteStreams]
-           [java.io InputStream ByteArrayOutputStream]
+  (:import [java.io InputStream ByteArrayOutputStream]
            [java.nio ByteBuffer]))
 
 (defn find-some [m & kws]

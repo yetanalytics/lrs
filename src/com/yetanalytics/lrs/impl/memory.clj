@@ -17,7 +17,8 @@
             [clojure.string :as cstr]
             [ring.util.codec :as codec]
             [clojure.core.async :as a]
-            ))
+            )
+  (:import [java.io InputStream ByteArrayOutputStream]))
 
 (set! *warn-on-reflection* true)
 
@@ -198,12 +199,21 @@
     {:context-key activityId
      :query (select-keys params [:since])}))
 
+(defn contents->byte-array
+  [contents]
+  (with-open [is (io/input-stream contents)]
+    (let [buf (ByteArrayOutputStream.)]
+      (io/copy is buf)
+      (.flush buf)
+      (.toByteArray buf))))
+
 (defn transact-document
   [documents params document merge?]
   (let [{:keys [context-key
                 document-key
                 document]} (document-keys
-                            params document)]
+                            params
+                            (update document :contents contents->byte-array))]
     (update (if merge?
               (update-in documents [context-key document-key] doc/merge-or-replace document)
               (assoc-in documents [context-key document-key] (assoc
