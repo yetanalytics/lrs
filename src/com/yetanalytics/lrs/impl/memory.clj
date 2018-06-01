@@ -549,10 +549,11 @@
               (cond-> {}
                 statement (assoc :statement
                                  statement)
-                attachments (assoc :attachments
-                                   (into []
-                                         (keep (:state/attachments @state)
-                                               (ss/all-attachment-hashes [statement]))))))
+                (and statement
+                     attachments) (assoc :attachments
+                                         (into []
+                                               (keep (:state/attachments @state)
+                                                     (ss/all-attachment-hashes [statement]))))))
             ;; otherwise, this is a paged sequential query
             (let [[statements rest-results]
                   (cond->> results
