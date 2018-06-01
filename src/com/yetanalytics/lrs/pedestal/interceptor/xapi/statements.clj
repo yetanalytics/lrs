@@ -10,7 +10,8 @@
    [clojure.java.io :as io]
    [clojure.walk :as w]
    [io.pedestal.log :as log]
-   [clojure.core.async :as a])
+   [clojure.core.async :as a]
+   [clojure.string :as cs])
   (:import [java.time Instant]
            [java.io InputStream OutputStream ByteArrayOutputStream]
            [javax.servlet ServletOutputStream]))
@@ -77,7 +78,7 @@
   {:name ::parse-multiparts
    :enter (fn [{:keys [request] :as ctx}]
             (let [content-type (:content-type request)]
-              (if (.startsWith ^String content-type "multipart/mixed")
+              (if (.startsWith ^String (cs/trim content-type) "multipart")
                 (if-let [boundary (multipart/find-boundary content-type)]
                   (try (let [parts-seq (multipart/parse-parts (:body request)
                                                               boundary)]

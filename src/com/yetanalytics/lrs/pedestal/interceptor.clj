@@ -18,12 +18,11 @@
             [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed]
             [com.yetanalytics.lrs.spec.common :as cs]
             [clojure.core.async :as a]
-            [io.pedestal.log :as log])
+            [io.pedestal.log :as log]
+            [com.yetanalytics.lrs.pedestal.interceptor.util :as util])
   (:import [java.security MessageDigest]
-           [java.io File]
-           [org.eclipse.jetty.server HttpInputOverHTTP HttpInput]
-           [java.nio ByteBuffer]
-           ))
+           [java.io File InputStream]
+           [java.nio ByteBuffer]))
 
 ;; Enter
 (defn lrs-interceptor
@@ -227,9 +226,11 @@
                      (etag-leave
                       (try
                         (execute-sync
-                         (assoc-in ctx [:request
+                         (-> ctx
+                             (update :request dissoc :body)
+                             (assoc-in [:request
                                         :request-method]
-                                   :get))
+                                       :get)))
                         (catch Exception _
                           (merge ctx
                                  {:request (assoc request :request-method :get)
@@ -368,6 +369,7 @@
          enable-session ::http/enable-session
          enable-csrf ::http/enable-csrf
          secure-headers ::http/secure-headers
+         server-type ::http/type
          :or {file-path nil
               request-logger http/log-request
               router :map-tree
@@ -389,6 +391,8 @@
     (if-not interceptors
       (assoc service-map ::http/interceptors
              (cond-> [request-timer]
+               ;; For Jetty, ensure that request bodies are drained.
+               (= server-type :jetty) (conj util/ensure-body-drained)
                (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
                (some? allowed-origins) (conj (cors/allow-origin allowed-origins))
                (some? not-found-interceptor) (conj (io.pedestal.interceptor/interceptor not-found-interceptor))
@@ -410,29 +414,7 @@
                true (conj (route/router processed-routes router))))
       service-map)))
 
-
-(defn jetty-consume-all-and-close!
-  [^HttpInput hi]
-  (when (instance? HttpInput hi)
-    (doto hi
-      .consumeAll
-      .close)
-    hi))
-
-;; TODO: remove this if fixed upstream
-(def ensure-jetty-consumed
-  "When using Jetty on certain systems, certain requests will leave
-  data in the body (input-stream). This causes certain clients to hang.
-  This interceptor looks for a failing response, and consumes the rest of the
-  stream."
-  {:name ::ensure-jetty-consumed
-   :leave (fn [ctx]
-            (when (some-> ctx :response :status (>= 400))
-              (some-> ctx :request :body jetty-consume-all-and-close!))
-            ctx)})
-
-(def common-interceptors [ensure-jetty-consumed
-                          x-forwarded-for-interceptor
+(def common-interceptors [x-forwarded-for-interceptor
                           http/json-body
                           ;; etag-interceptor
 
@@ -463,8 +445,7 @@
                           ])
 
 (def doc-interceptors-base
-  [ensure-jetty-consumed
-   x-forwarded-for-interceptor
+  [x-forwarded-for-interceptor
    xapi/alternate-request-syntax-interceptor
    ;; etag-interceptor
    ;; route/query-params

@@ -75,9 +75,4 @@
   (server/stop s)
   (def s nil)
 
-  (def state (lrs-impl/dump lrs))
-
-  (require '[clojure.core.async :as a])
-
-  (require '[com.yetanalytics.lrs :as lrs])
   )
