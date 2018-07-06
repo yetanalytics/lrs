@@ -28,48 +28,52 @@
 (defn lrs-interceptor
   "An interceptor that takes an lrs implementation and puts it in the context"
   [lrs]
-  {:name ::lrs
-   :enter (fn [ctx]
-            (assoc ctx :com.yetanalytics/lrs lrs))})
+  (i/interceptor
+   {:name ::lrs
+    :enter (fn [ctx]
+             (assoc ctx :com.yetanalytics/lrs lrs))}))
 
 (def require-xapi-version-interceptor
-  {:name ::require-xapi-version
-   :enter (fn [ctx]
-            (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
-              (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
-                     ;; 1.0 must be accepted as if 1.0.0
-                     "1.0.0"
-                     "1.0.1"
-                     "1.0.2"
-                     "1.0.3"} version-header)
-                ctx
-                (assoc (chain/terminate ctx)
-                       :response
-                       {:status 400
-                        :body
-                        {:error {:message "X-Experience-API-Version header invalid!"}}}))
-              (assoc (chain/terminate ctx)
-                     :response
-                     {:status 400
-                      :body
-                      {:error {:message "X-Experience-API-Version header required!"}}})))})
+  (i/interceptor
+   {:name ::require-xapi-version
+    :enter (fn [ctx]
+             (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
+               (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
+                      ;; 1.0 must be accepted as if 1.0.0
+                      "1.0.0"
+                      "1.0.1"
+                      "1.0.2"
+                      "1.0.3"} version-header)
+                 ctx
+                 (assoc (chain/terminate ctx)
+                        :response
+                        {:status 400
+                         :body
+                         {:error {:message "X-Experience-API-Version header invalid!"}}}))
+               (assoc (chain/terminate ctx)
+                      :response
+                      {:status 400
+                       :body
+                       {:error {:message "X-Experience-API-Version header required!"}}})))}))
 
 (def x-forwarded-for-interceptor
-  {:name ::x-forwarded-for
-   :enter (fn [{:keys [request] :as ctx}]
-            (if-let [xff (get-in request [:headers "x-forwarded-for"])]
-              (update ctx :request assoc :remote-addr (last (cstr/split xff #"\s*,\s*")))
-              ctx))})
+  (i/interceptor
+   {:name ::x-forwarded-for
+    :enter (fn [{:keys [request] :as ctx}]
+             (if-let [xff (get-in request [:headers "x-forwarded-for"])]
+               (update ctx :request assoc :remote-addr (last (cstr/split xff #"\s*,\s*")))
+               ctx))}))
 
 (defn xapi-attachments-interceptor
   "Interceptor factory that takes a multipart parsing function, and adds xapi
    attachments to the request, if it is multipart/mixed;"
   [parse-request]
-  {:name ::xapi-attachments
-   :enter (fn [{:keys [request] :as ctx}]
-            (if-let [attachments (parse-request request)]
-              (assoc ctx :xapi/attachments attachments)
-              ctx))})
+  (i/interceptor
+   {:name ::xapi-attachments
+    :enter (fn [{:keys [request] :as ctx}]
+             (if-let [attachments (parse-request request)]
+               (assoc ctx :xapi/attachments attachments)
+               ctx))}))
 
 (def valid-alt-request-headers
   [:Authorization :X-Experience-API-Version :Content-Type
@@ -80,24 +84,25 @@
    ])
 
 (def xapi-alternate-request-interceptor
-  {:name ::xapi-alternate-request-headers
-   :enter (fn [{:keys [request] :as ctx}]
-            (if (some-> request :params :method)
-              (let [request (body-params/form-parser request)
-                    keyword-or-string-headers (into valid-alt-request-headers
-                                                    (map keyword
-                                                         valid-alt-request-headers))
-                    form-headers  (reduce conj {}
-                                          (map #(update % 0 (comp cstr/lower-case
-                                                                  name))
-                                               (select-keys (:form-params request)
-                                                            ;; for some reason, they are sometimes keywords
-                                                            keyword-or-string-headers)))]
-                (assoc ctx :request (apply dissoc
-                                           (update request :headers merge form-headers)
-                                           :params
-                                           keyword-or-string-headers)))
-              ctx))})
+  (i/interceptor
+   {:name ::xapi-alternate-request-headers
+    :enter (fn [{:keys [request] :as ctx}]
+             (if (some-> request :params :method)
+               (let [request (body-params/form-parser request)
+                     keyword-or-string-headers (into valid-alt-request-headers
+                                                     (map keyword
+                                                          valid-alt-request-headers))
+                     form-headers  (reduce conj {}
+                                           (map #(update % 0 (comp cstr/lower-case
+                                                                   name))
+                                                (select-keys (:form-params request)
+                                                             ;; for some reason, they are sometimes keywords
+                                                             keyword-or-string-headers)))]
+                 (assoc ctx :request (apply dissoc
+                                            (update request :headers merge form-headers)
+                                            :params
+                                            keyword-or-string-headers)))
+               ctx))}))
 
 (defn parse-accept-language
   "Parse an Accept-Language header and return a vector in order of quality"
@@ -121,28 +126,30 @@
 
 (def xapi-ltags-interceptor
   "Parse the accept-language header and add it to the context"
-  {:name ::xapi-ltags
-   :enter (fn [ctx]
-            (if-let [accept-language (get-in ctx [:request :headers "accept-language"])]
-              (try
-                (assoc ctx :xapi/ltags (parse-accept-language accept-language))
-                (catch clojure.lang.ExceptionInfo exi
-                  (let [exd (ex-data exi)]
-                    (if (= (:type exd) ::invalid-accept-language-header)
-                      (assoc (chain/terminate ctx)
-                             :response {:status 400
-                                        :body
-                                        {:message (.getMessage exi)
-                                         :header accept-language}})
-                      (throw exi)))))
-              ctx))})
+  (i/interceptor
+   {:name ::xapi-ltags
+    :enter (fn [ctx]
+             (if-let [accept-language (get-in ctx [:request :headers "accept-language"])]
+               (try
+                 (assoc ctx :xapi/ltags (parse-accept-language accept-language))
+                 (catch clojure.lang.ExceptionInfo exi
+                   (let [exd (ex-data exi)]
+                     (if (= (:type exd) ::invalid-accept-language-header)
+                       (assoc (chain/terminate ctx)
+                              :response {:status 400
+                                         :body
+                                         {:message (.getMessage exi)
+                                          :header accept-language}})
+                       (throw exi)))))
+               ctx))}))
 
 ;; Leave
 (def set-xapi-version-interceptor
-  {:name ::set-xapi-version
-   :leave (fn [ctx]
-            (assoc-in ctx [:response :headers "X-Experience-API-Version"]
-                      "1.0.3"))})
+  (i/interceptor
+   {:name ::set-xapi-version
+    :leave (fn [ctx]
+             (assoc-in ctx [:response :headers "X-Experience-API-Version"]
+                       "1.0.3"))}))
 
 ;; Etag
 (defn- sha-1 ^String [^String s]
@@ -307,48 +314,52 @@
     ctx))
 
 (def etag-interceptor
-  {:name ::etag
-   :enter etag-enter
-   :leave etag-leave})
+  (i/interceptor
+   {:name ::etag
+    :enter etag-enter
+    :leave etag-leave}))
 
 ;; Combo
 (def require-and-set-xapi-version-interceptor
-  (merge
-   require-xapi-version-interceptor
-   set-xapi-version-interceptor
-   {:name ::require-and-set-xapi-version}))
+  (i/interceptor
+   (merge
+    require-xapi-version-interceptor
+    set-xapi-version-interceptor
+    {:name ::require-and-set-xapi-version})))
 
 ;; TODO: Port the rest of the interceptors
 
 
 (def xapi-method-param
-  {:name ::xapi-method-param
-   :enter (fn [ctx]
-            (if-let [method (get-in ctx [:request :query-params :method])]
-              (-> ctx
-                  (assoc-in [:request :query-params :method]
-                            (cstr/lower-case method))
-                  (assoc-in [:request :original-request-method]
-                            (get-in ctx [:request :request-method])))
-              ctx))})
+  (i/interceptor
+   {:name ::xapi-method-param
+    :enter (fn [ctx]
+             (if-let [method (get-in ctx [:request :query-params :method])]
+               (-> ctx
+                   (assoc-in [:request :query-params :method]
+                             (cstr/lower-case method))
+                   (assoc-in [:request :original-request-method]
+                             (get-in ctx [:request :request-method])))
+               ctx))}))
 
 ;; Time Requests
 
 (def request-timer
-  {:name ::request-timer
-   :enter (fn [ctx]
-            (assoc ctx ::request-enter-ms (System/currentTimeMillis)))
-   :leave (fn [ctx]
-            (let [request-ms (- (System/currentTimeMillis)
-                                (::request-enter-ms ctx))
-                  {:keys [path-info request-method]} (:request ctx)]
-              (log/histogram "lrs request-ms all"
-                             request-ms)
-              (log/histogram (format "lrs request-ms %s %s"
-                                     path-info
-                                     request-method)
-                             request-ms)
-              ctx))})
+  (i/interceptor
+   {:name ::request-timer
+    :enter (fn [ctx]
+             (assoc ctx ::request-enter-ms (System/currentTimeMillis)))
+    :leave (fn [ctx]
+             (let [request-ms (- (System/currentTimeMillis)
+                                 (::request-enter-ms ctx))
+                   {:keys [path-info request-method]} (:request ctx)]
+               (log/histogram "lrs request-ms all"
+                              request-ms)
+               (log/histogram (format "lrs request-ms %s %s"
+                                      path-info
+                                      request-method)
+                              request-ms)
+               ctx))}))
 
 ;; Combined interceptors
 
@@ -392,7 +403,7 @@
       (assoc service-map ::http/interceptors
              (cond-> [request-timer]
                ;; For Jetty, ensure that request bodies are drained.
-               (= server-type :jetty) (conj util/ensure-body-drained)
+               ;; (= server-type :jetty) (conj util/ensure-body-drained)
                (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
                (some? allowed-origins) (conj (cors/allow-origin allowed-origins))
                (some? not-found-interceptor) (conj (io.pedestal.interceptor/interceptor not-found-interceptor))

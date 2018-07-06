@@ -227,7 +227,8 @@
         :args (s/cat :s ::xs/statement)
         :ret (s/coll-of :activity/id))
 
-(defn statement-agents [{:strs [actor object context authority] :as s} & [broad? agents-only?]]
+(defn statement-agents [{:strs [actor object context authority] :as s}
+                        & [broad? agents-only?]]
   (let [broad? (or broad? false)
         agents-only? (or agents-only? false)
         object-type (get object "objectType")]

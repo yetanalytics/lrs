@@ -60,7 +60,7 @@
 
               ;; Either :jetty, :immutant or :tomcat (see comments in project.clj)
               ;;  This can also be your own chain provider/server-fn -- http://pedestal.io/reference/architecture-overview#_chain_provider
-              ::http/type :immutant ;; :jetty
+              ::http/type :jetty ;; :immutant ;; :jetty
               ;;::http/host "localhost"
               ::http/port 8080
               ;; Options to pass to the container (Jetty)
