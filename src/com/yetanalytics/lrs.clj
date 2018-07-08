@@ -269,4 +269,26 @@
                      :ltags (s/coll-of ::xs/language-tag))
         :ret ::p/get-statements-async-ret)
 
+
+(defn consistent-through
+  "Get a timestamp for use in the X-Experience-API-Consistent-Through header"
+  [lrs]
+  (p/-consistent-through lrs))
+
+(s/fdef consistent-through
+  :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
+                      lrs-gen-fn))
+  :ret ::p/consistent-through-ret)
+
+(defn consistent-through-async
+  "Get a timestamp for use in the X-Experience-API-Consistent-Through header"
+  [lrs]
+  (p/-consistent-through-async lrs))
+
+(s/fdef consistent-through-async
+  :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
+                      lrs-gen-fn))
+  :ret ::p/consistent-through-async-ret)
+
+
 ;; TODO: auth

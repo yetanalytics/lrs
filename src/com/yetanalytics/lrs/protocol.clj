@@ -290,7 +290,9 @@
      It is expected that the ID param will be included in statements that are PUT.")
   (-get-statements [this params ltags]
     "Retrieve statement or statements from the LRS given params and optionally ltags.
-     Returns a statement result object or a single statement."))
+     Returns a statement result object or a single statement.")
+  (-consistent-through [this]
+    "Get an ISO 8601 stamp for the X-Experience-API-Consistent-Through"))
 
 (defn statements-resource?
   [lrs]
@@ -319,6 +321,9 @@
                           :req-un [::ss/attachments
                                    :xapi.statements.GET.response/statement-result])))
 
+(s/def ::consistent-through-ret
+  ::xs/timestamp)
+
 (defn throw-statement-conflict [conflicting-statement
                                 extant-statement]
   (throw (ex-info "Statement Conflict"
@@ -342,7 +347,9 @@
      For singular params, returns a promise channel with a single statement.
      For multiple statements GET returns a channel that will get, in order:
      Statements (if present), a more link if one is appropriate, and possibly
-     n attachments for the statements."))
+     n attachments for the statements.")
+  (-consistent-through-async [this]
+    "Returns a promise channel that will get an ISO 8601 stamp for the X-Experience-API-Consistent-Through"))
 
 (defn statements-resource-async?
   [lrs]
@@ -377,6 +384,10 @@
           :attachments
           (s/? (s/cat :header #{:attachments}
                       :attachments (s/* ::ss/attachment))))))
+
+(s/def ::consistent-through-async-ret
+  (sc/from-port
+   ::consistent-through-ret))
 
 ;; Auth
 (defprotocol LRSAuth

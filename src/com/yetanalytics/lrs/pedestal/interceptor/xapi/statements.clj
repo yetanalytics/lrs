@@ -3,6 +3,8 @@
    [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment :as attachment]
    [com.yetanalytics.lrs.xapi.statements]
+   [com.yetanalytics.lrs :as lrs]
+   [com.yetanalytics.lrs.protocol :as lrsp]
    [io.pedestal.interceptor.chain :as chain]
    [clojure.spec.alpha :as s]
    [xapi-schema.spec :as xs]
@@ -200,9 +202,18 @@
 ;; TODO: wire this up to something?!?
 (def set-consistent-through
   {:name ::set-consistent-through
-   :leave (fn [ctx]
-            (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
-                      (str (Instant/now))))})
+   :leave (fn [{:keys [com.yetanalytics/lrs] :as ctx}]
+            (cond
+              (lrsp/statements-resource-async? lrs)
+              (a/go
+                (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
+                          (a/<! (lrs/consistent-through-async lrs))))
+              (lrsp/statements-resource? lrs)
+              (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
+                        (lrs/consistent-through lrs))
+              :else
+              (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
+                        (str (Instant/now)))))})
 
 (defn lazy-statement-result [{:keys [statements
                                      more]}

@@ -18,7 +18,8 @@
             [ring.util.codec :as codec]
             [clojure.core.async :as a]
             )
-  (:import [java.io InputStream ByteArrayOutputStream]))
+  (:import [java.io InputStream ByteArrayOutputStream]
+           [java.time Instant]))
 
 (set! *warn-on-reflection* true)
 
@@ -591,6 +592,8 @@
                                     (keep
                                      (:state/attachments @state)
                                      (ss/all-attachment-hashes statements))))}))))
+      (-consistent-through [_]
+        (.toString ^Instant (Instant/now)))
       p/StatementsResourceAsync
       (-store-statements-async [lrs statements attachments]
         (a/go
@@ -668,6 +671,8 @@
                       (a/>! result-chan att))))))
             (a/close! result-chan))
           result-chan))
+      (-consistent-through-async [_]
+        (a/go (.toString ^Instant (Instant/now))))
       p/DocumentResource
       (-set-document [lrs params document merge?]
         (try (swap! state update :state/documents transact-document params document merge?)
