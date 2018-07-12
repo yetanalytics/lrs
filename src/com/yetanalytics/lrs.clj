@@ -272,22 +272,24 @@
 
 (defn consistent-through
   "Get a timestamp for use in the X-Experience-API-Consistent-Through header"
-  [lrs]
-  (p/-consistent-through lrs))
+  [lrs ctx]
+  (p/-consistent-through lrs ctx))
 
 (s/fdef consistent-through
   :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
-                      lrs-gen-fn))
+                      lrs-gen-fn)
+               :ctx map?)
   :ret ::p/consistent-through-ret)
 
 (defn consistent-through-async
   "Get a timestamp for use in the X-Experience-API-Consistent-Through header"
-  [lrs]
-  (p/-consistent-through-async lrs))
+  [lrs ctx]
+  (p/-consistent-through-async lrs ctx))
 
 (s/fdef consistent-through-async
   :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
-                      lrs-gen-fn))
+                      lrs-gen-fn)
+               :ctx map?)
   :ret ::p/consistent-through-async-ret)
 
 

@@ -207,10 +207,10 @@
               (lrsp/statements-resource-async? lrs)
               (a/go
                 (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
-                          (a/<! (lrs/consistent-through-async lrs))))
+                          (a/<! (lrs/consistent-through-async lrs ctx))))
               (lrsp/statements-resource? lrs)
               (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
-                        (lrs/consistent-through lrs))
+                        (lrs/consistent-through lrs ctx))
               :else
               (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
                         (str (Instant/now)))))})

@@ -592,7 +592,7 @@
                                     (keep
                                      (:state/attachments @state)
                                      (ss/all-attachment-hashes statements))))}))))
-      (-consistent-through [_]
+      (-consistent-through [_ _]
         (.toString ^Instant (Instant/now)))
       p/StatementsResourceAsync
       (-store-statements-async [lrs statements attachments]
@@ -671,7 +671,7 @@
                       (a/>! result-chan att))))))
             (a/close! result-chan))
           result-chan))
-      (-consistent-through-async [_]
+      (-consistent-through-async [_ _]
         (a/go (.toString ^Instant (Instant/now))))
       p/DocumentResource
       (-set-document [lrs params document merge?]

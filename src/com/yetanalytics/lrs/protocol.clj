@@ -291,8 +291,9 @@
   (-get-statements [this params ltags]
     "Retrieve statement or statements from the LRS given params and optionally ltags.
      Returns a statement result object or a single statement.")
-  (-consistent-through [this]
-    "Get an ISO 8601 stamp for the X-Experience-API-Consistent-Through"))
+  (-consistent-through [this ctx]
+    "Given the ctx map, return an ISO 8601 stamp for the
+     X-Experience-API-Consistent-Through header"))
 
 (defn statements-resource?
   [lrs]
@@ -348,8 +349,9 @@
      For multiple statements GET returns a channel that will get, in order:
      Statements (if present), a more link if one is appropriate, and possibly
      n attachments for the statements.")
-  (-consistent-through-async [this]
-    "Returns a promise channel that will get an ISO 8601 stamp for the X-Experience-API-Consistent-Through"))
+  (-consistent-through-async [this ctx]
+    "Given the ctx map, returns a promise channel that will get an ISO 8601
+     stamp for the X-Experience-API-Consistent-Through"))
 
 (defn statements-resource-async?
   [lrs]
