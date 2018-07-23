@@ -401,7 +401,7 @@
                                                  {:routes routes})))]
     (if-not interceptors
       (assoc service-map ::http/interceptors
-             (cond-> [request-timer]
+             (cond-> []
                ;; For Jetty, ensure that request bodies are drained.
                ;; (= server-type :jetty) (conj util/ensure-body-drained)
                (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
