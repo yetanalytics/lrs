@@ -79,7 +79,10 @@
   Puts statements in :json-params and multiparts (if any) in :multiparts."
   {:name ::parse-multiparts
    :enter (fn [{:keys [request] :as ctx}]
-            (let [content-type (:content-type request)]
+            (let [content-type (or
+                                (:content-type request)
+                                (get-in request [:headers "content-type"])
+                                (get-in request [:headers "Content-Type"]))]
               (if (.startsWith ^String (cs/trim content-type) "multipart")
                 (if-let [boundary (multipart/find-boundary content-type)]
                   (try (let [parts-seq (multipart/parse-parts (:body request)
