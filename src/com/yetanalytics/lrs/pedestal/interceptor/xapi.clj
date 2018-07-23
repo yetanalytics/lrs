@@ -167,7 +167,6 @@
                 (assoc (chain/terminate ctx)
                        :response
                        {:status 400
-                        :headers {"Content-Type" "application/json"}
                         :body {:error
                                {:message (format "Invalid Params for path: %s" path-info)
                                 :params raw-params}}}))))})
