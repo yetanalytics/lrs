@@ -57,6 +57,7 @@
                         ;; if neither header is present
                         (if (:document (a/<! (lrs/get-document-async lrs params)))
                           (assoc ctx :response {:status 409
+                                                :headers {"Content-Type" "text/plain"}
                                                 :body "If-Match or If-None-Match header is required for existing document."})
                           (assoc ctx :response {:status 400})))))))
               (let [{:keys [body content-type content-length headers]} request]
@@ -84,6 +85,7 @@
                         ;; if neither header is present
                         (if (:document (a/<! (lrs/get-document lrs params)))
                           (assoc ctx :response {:status 409
+                                                :headers {"Content-Type" "text/plain"}
                                                 :body "If-Match or If-None-Match header is required for existing document."})
                           (assoc ctx :response {:status 400}))))))))})
 
