@@ -305,11 +305,12 @@
                 (::etag ctx)
                 (get-in response [:headers "etag"])
                 (get-in response [:headers "Etag"])
+                (get-in response [:headers "ETag"])
                 (some-> response :body meta :etag)
                 (calculate-etag (:body response)))]
       (-> ctx
           (assoc ::etag etag)
-          (update-in [:response :headers] dissoc "etag" "ETag")
+          (update-in [:response :headers] dissoc "etag" "ETag" "Etag")
           (update-in [:response :headers] merge {"ETag" (quote-etag etag)})))
     ctx))
 
