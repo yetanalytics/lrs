@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.yetanalytics</groupId>
+    <artifactId>lrs</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <name>lrs</name>
+    <dependencies>
+        <dependency>
+            <groupId>org.clojure</groupId>
+            <artifactId>clojure</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.yetanalytics</groupId>
+            <artifactId>xapi-schema</artifactId>
+            <version>1.0.0-alpha17-SNAPSHOT</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.clojure</groupId>
+                    <artifactId>clojurescript</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.pedestal</groupId>
+            <artifactId>pedestal.service</artifactId>
+            <version>0.5.4</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <sourceDirectory>src</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>src</directory>
+            </resource>
+        </resources>
+    </build>
+    <repositories>
+        <repository>
+            <id>clojars</id>
+            <url>https://repo.clojars.org/</url>
+        </repository>
+    </repositories>
+    <distributionManagement>
+        <repository>
+            <id>yaven-releases</id>
+            <name>Yet Internal Release Repository</name>
+            <url>https://yaven.yetanalytics.io/repository/releases</url>
+        </repository>
+        <snapshotRepository>
+            <id>yaven-snapshots</id>
+            <name>Yet Internal Release Repository (snapshots)</name>
+            <url>https://yaven.yetanalytics.io/repository/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+</project>
