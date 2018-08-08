@@ -14,5 +14,6 @@ pom.xml.asc
 .hgignore
 .hg/
 /lrs-conformance-test-suite
-node_modules
 npm-debug.log
+/package.json
+/package-lock.json

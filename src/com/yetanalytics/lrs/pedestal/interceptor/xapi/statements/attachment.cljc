@@ -1,23 +1,27 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment
   "Provide validation and temp storage for statement attachments."
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as sgen]
+  (:require [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec :as xs]
-            [clojure.java.io :as io]
-            [cheshire.core :as json]
             [clojure.string :as cs]
-            [io.pedestal.log :as log]
-            [com.yetanalytics.lrs.xapi.statements :as ss])
-  (:import [java.io
-            File
-            InputStream
-            ByteArrayInputStream
-            ByteArrayOutputStream
-            IOException]
-           [java.util Base64]))
+            [com.yetanalytics.lrs.xapi.statements :as ss]
+            #?@(:clj [[clojure.java.io :as io]
+                      [cheshire.core :as json]]
+                :cljs [cljs.nodejs
+                       fs tmp
+                       [goog.crypt :as crypt]
+                       [goog.crypt.base64 :as base64]]))
+  #?(:clj (:import [java.io
+                    File
+                    InputStream
+                    ByteArrayInputStream
+                    ByteArrayOutputStream
+                    IOException]
+                   [java.util Base64])))
 
 
-(set! *warn-on-reflection* true)
+;; TODO: tmp externs
+#?(:clj (set! *warn-on-reflection* true))
 
 (s/def :xapi.statements/attachments
   (s/coll-of ::attachment :gen-max 10))
@@ -26,33 +30,61 @@
 (defn close-multiparts!
   "Close all input streams in a sequence of multiparts"
   [multiparts]
-  (doseq [{:keys [^InputStream input-stream]} multiparts]
-    (.close input-stream)))
+  #?(:clj (doseq [{:keys [^InputStream input-stream]} multiparts]
+            (.close input-stream))
+     :cljs nil))
 
-(defn save-attachment
-  "Given a multipart, save it to storage and return an attachment"
-  [{:keys [content-type
-           content-length
-           ^InputStream input-stream
-           headers]}
-   & [^File tempdir]]
-  (let [sha2 (get headers "X-Experience-API-Hash")
-        prefix "xapi_attachment_"
-        suffix (str "_" sha2)
-        tempfile (doto (if tempdir
-                        (File/createTempFile prefix suffix tempdir)
-                        (File/createTempFile prefix suffix))
-                   .deleteOnExit)]
-    (try (with-open [in input-stream]
-           (io/copy in tempfile))
-         (catch IOException ioe
-           (throw (ex-info "Attachment Tempfile Save Failed!"
-                           {:type ::attachment-save-failure}
-                           ioe))))
-    {:sha2 sha2
-     :contentType content-type
-     :length (.length tempfile)
-     :content tempfile}))
+#?(:clj (defn save-attachment
+          "Given a multipart, save it to storage and return an attachment"
+          [{:keys [content-type
+                   content-length
+                   ^InputStream input-stream
+                   headers]}
+           & [^File tempdir]]
+          (let [sha2 (get headers "X-Experience-API-Hash")
+                prefix "xapi_attachment_"
+                suffix (str "_" sha2)
+                tempfile (doto (if tempdir
+                                 (File/createTempFile prefix suffix tempdir)
+                                 (File/createTempFile prefix suffix))
+                           .deleteOnExit)]
+            (try (with-open [in input-stream]
+                   (io/copy in tempfile))
+                 (catch IOException ioe
+                   (throw (ex-info "Attachment Tempfile Save Failed!"
+                                   {:type ::attachment-save-failure}
+                                   ioe))))
+            {:sha2 sha2
+             :contentType content-type
+             :length (.length tempfile)
+             :content tempfile}))
+   :cljs (defn save-attachment
+          "Given a multipart, save it to storage and return an attachment"
+          [{:keys [content-type
+                   content-length
+                   ^String input-stream
+                   headers]}
+           & [tempdir]
+           ]
+          (let [sha2 (get headers "X-Experience-API-Hash")
+                prefix "xapi_attachment_"
+                suffix (str "_" sha2)
+                tempfile (.fileSync tmp (if tempdir
+                                          #js {:dir tempdir
+                                               :prefix prefix
+                                               :postfix suffix}
+                                          #js {:prefix prefix
+                                               :postfix suffix}))
+                ]
+            (try (.writeFileSync fs (.-name tempfile) input-stream)
+                 (catch js/Error e
+                   (throw (ex-info "Attachment Tempfile Save Failed!"
+                                   {:type ::attachment-save-failure}
+                                   e))))
+            {:sha2 sha2
+             :contentType content-type
+             :length (.-length input-stream)
+             :content tempfile})))
 
 (defn save-attachments
   "Save a list of multiparts and return attachments"
@@ -74,16 +106,28 @@
 (defn delete-attachments!
   "Delete all tempfiles for a sequence of attachments"
   [attachments]
-  (doseq [{:keys [^File content]} attachments]
-    (.delete content)))
+  (doseq [{:keys [#?(:clj ^File content
+                     :cljs content)]} attachments]
+    #?(:clj (.delete content)
+       :cljs (.removeCallback content))))
+
+(defn parse-string
+  [^String s & [kw-keys?]]
+  #?(:clj (json/parse-string-strict s (or kw-keys?
+                                          false))
+     :cljs (js->clj (.parse js/JSON s)
+                    :keywordize-keys (or kw-keys?
+                                         false))))
 
 ;; Signature validation
 (defn decode-sig-json [^String part kw-keys?]
-  (try (json/parse-string-strict
-        (slurp (.decode (Base64/getDecoder) (.getBytes part "UTF-8")))
+  (try (parse-string
+        #?(:clj (slurp (.decode (Base64/getDecoder) (.getBytes part "UTF-8")))
+           :cljs (base64/decodeString part))
         (or kw-keys?
             false))
-       (catch com.fasterxml.jackson.core.JsonParseException jpe
+       (catch #?(:clj com.fasterxml.jackson.core.JsonParseException
+                 :cljs js/Error) _
          (throw (ex-info "Invalid Statement Signature JSON"
                          {:type ::invalid-signature-json
                           :part part})))))
@@ -95,9 +139,11 @@
 
 (defn validate-sig
   "Validate a signed statement against a multipart and return if valid."
-  [statement {:keys [^InputStream input-stream] :as multipart}]
-  (let [^String jws (with-open [in input-stream]
-                      (slurp in :encoding "UTF-8"))
+  [statement {:keys [#?(:clj ^InputStream input-stream
+                        :cljs ^String input-stream)] :as multipart}]
+  (let [^String jws #?(:clj (with-open [in input-stream]
+                              (slurp in :encoding "UTF-8"))
+                       :cljs input-stream)
         {:keys [headers payload]} (decode-sig
                                    jws)
         {:keys [alg typ]} headers]
@@ -118,7 +164,8 @@
       :else
       ;; If everything is all good, return the multipart with a new input stream
       (assoc multipart
-             :input-stream (ByteArrayInputStream. (.getBytes jws "UTF-8"))))))
+             :input-stream #?(:clj (ByteArrayInputStream. (.getBytes jws "UTF-8"))
+                              :cljs jws)))))
 
 
 (defn multipart-map
@@ -208,12 +255,12 @@
 
 
 
-  (def s-parsed (json/parse-string-strict s-json))
+  (def s-parsed (parse-string s-json))
   (= (dissoc s-parsed "attachments") (:payload (decode-sig sig)))
   (keys s-parsed)
 
   (validate-sig s-parsed
-                {:input-stream (ByteArrayInputStream. (.getBytes ^String sig "UTF-8"))})
+                {:input-stream sig})
 
 
   (validate-sig )
