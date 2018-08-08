@@ -230,15 +230,6 @@
                      :ca-map :context/contextActivities)
         :ret (s/coll-of ::xs/activity))
 
-#_(defn statement-related-activities [s]
-  (distinct (cond->> (concat
-                     (when-let [context-activities (get-in s ["context" "contextActivities"])]
-                       (collect-context-activities context-activities))
-                     (when-let [ss-context-activities (get-in s ["object" "context" "contextActivities"])]
-                       (collect-context-activities ss-context-activities)))
-              (= "Activity" (get-in s ["object" "objectType"] "Activity"))
-              (cons (get s "object")))))
-
 (defn statement-activities-narrow [s]
   (cond-> []
     (= "Activity"
@@ -259,8 +250,10 @@
                    (statement-activities-narrow o)
                    (statement-activities-broad o))))))))
 
-(def statement-related-activities
-  statement-activities-broad)
+(defn statement-related-activities [s]
+  (distinct
+   (concat (statement-activities-narrow s)
+           (statement-activities-broad s))))
 
 (s/fdef statement-related-activities
         :args (s/cat :s ::xs/statement)
