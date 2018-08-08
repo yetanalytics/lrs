@@ -440,7 +440,7 @@
                         (statement-related-activities statement)))))})
 
 (s/def :statement-rel-docs/agents
-  (s/coll-of ::xs/actor))
+  (s/coll-of ::xs/agent))
 
 (s/def :statement-rel-docs/activities
   (s/coll-of ::xs/activity))
