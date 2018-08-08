@@ -1,7 +1,7 @@
 (ns com.yetanalytics.lrs.spec.common
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as sgen]
-            [clojure.core.async :as a]
+  (:require [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.gen.alpha :as sgen :include-macros true]
+            [clojure.core.async :as a :include-macros true]
             [clojure.core.async.impl.protocols :as ap]))
 
 (def string-ascii-not-empty

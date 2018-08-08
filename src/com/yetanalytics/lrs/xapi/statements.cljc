@@ -1,37 +1,41 @@
 (ns com.yetanalytics.lrs.xapi.statements
   (:require
    [com.yetanalytics.lrs.xapi.agents :as ag]
-   [clojure.spec.alpha :as s]
-   [clojure.spec.gen.alpha :as sgen]
+   [clojure.spec.alpha :as s :include-macros true]
+   [clojure.spec.gen.alpha :as sgen :include-macros true]
    [xapi-schema.spec :as xs]
-   [clojure.data.priority-map :as pm]
+   [com.yetanalytics.lrs.util.hash :refer [sha-256]]
    [clojure.walk :as w]
-   [clojure.java.io :as io]
-   [com.yetanalytics.lrs.util.hash :refer [sha-256]])
-  (:import [java.time Instant]
-           [clojure.data.priority_map PersistentPriorityMap]
-           [java.io File]))
+   #?@(:clj [[clojure.data.priority-map :as pm]
+             [clojure.java.io :as io]]))
+  #?(:clj (:import [java.time Instant]
+                   [clojure.data.priority_map PersistentPriorityMap]
+                   [java.io File])))
 
-(set! *warn-on-reflection* true)
+#?(:clj (set! *warn-on-reflection* true))
 
 (defn statements-priority-map [& key-vals]
-  (apply
-   pm/priority-map-keyfn-by
-   #(get % "stored")
-   #(compare %2 %1)
-   key-vals))
+  #?(:clj (apply
+           pm/priority-map-keyfn-by
+           #(get % "stored")
+           #(compare %2 %1)
+           key-vals)
+     :cljs (apply hash-map key-vals)))
 
 (defn s-pm-gen-fn []
-  (sgen/return (pm/priority-map-keyfn-by
-                #(get % "stored")
-                #(compare %2 %1))))
+  (sgen/return #?(:clj (pm/priority-map-keyfn-by
+                        #(get % "stored")
+                        #(compare %2 %1))
+                  :cljs {})))
 
 (s/def ::statements-priority-map
-  (s/with-gen (s/and #(instance? PersistentPriorityMap %)
-                     ;; It's a map of statement id to statement
-                     (s/map-of :statement/id
-                               ::xs/lrs-statement))
-    s-pm-gen-fn))
+  #?(:clj (s/with-gen (s/and #(instance? PersistentPriorityMap %)
+                             ;; It's a map of statement id to statement
+                             (s/map-of :statement/id
+                                       ::xs/lrs-statement))
+            s-pm-gen-fn)
+     :cljs (s/map-of :statement/id
+                     ::xs/lrs-statement)))
 
 (s/fdef statements-priority-map
         :args (s/* (s/cat :id :statement/id
@@ -40,7 +44,8 @@
 
 
 (defn now-stamp []
-  (str (Instant/now)))
+  #?(:clj (str (Instant/now))
+     :cljs (.toISOString (js/Date.))))
 
 (s/fdef now-stamp
         :args (s/cat)
@@ -87,7 +92,8 @@
 (defn prepare-statement
   "Assign an ID, stored, timestamp, etc prior to storage"
   [{:strs [id timestamp version] :as statement}]
-  (let [id (or id (str (java.util.UUID/randomUUID)))
+  (let [id (or id (str #?(:clj (java.util.UUID/randomUUID)
+                          :cljs (random-uuid))))
         stored (now-stamp)
         timestamp (or timestamp stored)
         authority {"name" "Memory LRS"
@@ -310,9 +316,10 @@
 ;; A representation of a stored attachment
 ;; TODO: generalize
 (s/def :attachment/content
-  (s/with-gen #(satisfies? clojure.java.io/IOFactory
-                           %)
-    sgen/bytes))
+  #?(:clj (s/with-gen #(satisfies? clojure.java.io/IOFactory
+                                   %)
+            sgen/bytes)
+     :cljs string?))
 
 (s/def ::attachment
   (s/with-gen (s/keys :req-un [:attachment/content

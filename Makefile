@@ -1,10 +1,15 @@
-.phony: clean repl run-dev test-lib test-conformance test-all
+.phony: clean repl -cljs run-dev test-lib test-lib-cljs test-conformance test-all
 clean:
-	rm -rf target lrs-conformance-test-suite pom.xml.asc logs
+	rm -rf target lrs-conformance-test-suite pom.xml.asc logs out
 repl:
 	clj -A:dev -r
+repl-cljs:
+	clj -A:dev -m cljs.main -re node -r
 run-dev:
 	clojure -A:dev -m mem-lrs.server
+test-lib-cljs:
+	clojure -A:dev -m cljs.main -t nodejs -o out/test.js -c com.yetanalytics.test-runner
+	node out/test.js
 test-lib:
 	clojure -A:dev -m com.yetanalytics.test-runner
 test-conformance:

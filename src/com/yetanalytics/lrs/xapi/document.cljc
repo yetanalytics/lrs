@@ -1,33 +1,35 @@
 (ns com.yetanalytics.lrs.xapi.document
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as sgen]
-            [clojure.java.io :as io]
+  (:require [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.gen.alpha :as sgen :include-macros true]
             [com.yetanalytics.lrs.spec.common
              :refer [string-ascii-not-empty
                      string-alphanumeric-not-empty]]
-            [cheshire.core :as json]
             [xapi-schema.spec :as xs]
-            [clojure.data.priority-map :as pm]
-            )
-  (:import [java.time Instant]
-           [java.io ByteArrayOutputStream]
-           [clojure.data.priority_map PersistentPriorityMap]))
+            #?@(:clj [[cheshire.core :as json]
+                      [clojure.data.priority-map :as pm]
+                      [clojure.java.io :as io]]))
+  #?(:clj (:import [java.time Instant]
+                   [java.io ByteArrayOutputStream]
+                   [clojure.data.priority_map PersistentPriorityMap])))
 
-(set! *warn-on-reflection* true)
+#?(:clj (set! *warn-on-reflection* true))
 
 (defn updated-stamp []
-  (str (Instant/now)))
+  #?(:clj (str (Instant/now))
+     :cljs (.toISOString (js/Date.))))
 
 (s/def ::content-type
   string-ascii-not-empty)
 
 (s/def ::content-length
-  (s/int-in 0 Long/MAX_VALUE))
+  (s/int-in 0 #?(:clj Long/MAX_VALUE
+                 :cljs 9007199254740992)))
 
 (s/def ::contents
-  (s/with-gen #(satisfies? clojure.java.io/IOFactory
-                          %)
-    sgen/bytes))
+  #?(:clj (s/with-gen #(satisfies? clojure.java.io/IOFactory
+                                   %)
+            sgen/bytes)
+     :cljs string?))
 
 (s/def ::updated
   :statement/timestamp)
@@ -42,7 +44,8 @@
 (defn json-bytes-gen-fn []
   (sgen/fmap
    (fn [json-data]
-     (.getBytes ^String (json/generate-string json-data)))
+     #?(:clj (.getBytes ^String (json/generate-string json-data))
+        :cljs (.stringify js/JSON (clj->js json-data))))
    (s/gen ::json-map)))
 
 (defn document-gen-fn []
@@ -89,18 +92,21 @@
                     (json-document-gen-fn)]))))
 
 (defn documents-priority-map [& key-vals]
-  (apply
-   pm/priority-map-keyfn-by
-   #(get % :updated)
-   #(compare %2 %1)
-   key-vals))
+  #?(:clj (apply
+           pm/priority-map-keyfn-by
+           #(get % :updated)
+           #(compare %2 %1)
+           key-vals)
+     :cljs (apply hash-map key-vals)))
 
 (s/def ::documents-priority-map
-  (s/with-gen (s/and #(instance? PersistentPriorityMap %)
-                     ;; It's a map of statement id to statement
-                     (s/map-of ::id
-                               :com.yetanalytics.lrs.xapi/document))
-    (partial sgen/return (documents-priority-map))))
+  #?(:clj (s/with-gen (s/and #(instance? PersistentPriorityMap %)
+                             ;; It's a map of statement id to statement
+                             (s/map-of ::id
+                                       :com.yetanalytics.lrs.xapi/document))
+            (partial sgen/return (documents-priority-map)))
+     :cljs (s/map-of ::id
+                     :com.yetanalytics.lrs.xapi/document)))
 
 (s/fdef documents-priority-map
         :args (s/* (s/cat :id ::id
@@ -118,10 +124,14 @@
 
 (def ^:dynamic *read-json-contents*
   (fn [contents]
-    (let [[result ?more] (try (with-open [rdr (io/reader contents)]
-                                 (doall (json/parsed-seq rdr)))
-                               (catch com.fasterxml.jackson.core.JsonParseException jpe
-                                 (throw-read-json-error)))]
+    (let [[result ?more] #?(:clj (try (with-open [rdr (io/reader contents)]
+                                        (doall (json/parsed-seq rdr)))
+                                      (catch com.fasterxml.jackson.core.JsonParseException jpe
+                                        (throw-read-json-error)))
+                            :cljs (try [(js->clj (.parse js/JSON contents))
+                                        nil]
+                                       (catch js/Error _
+                                         (throw-read-json-error))))]
       (if (and (map? result) (nil? ?more))
         result
         (throw-json-not-object-error result)))))
@@ -129,13 +139,15 @@
 (def ^:dynamic *write-json-contents*
   (fn
     ([json-map]
-     (let [out (ByteArrayOutputStream. 4096)]
-       (.toByteArray ^ByteArrayOutputStream (*write-json-contents*
-                                             out json-map))))
+     #?(:clj (let [out (ByteArrayOutputStream. 4096)]
+               (.toByteArray ^ByteArrayOutputStream (*write-json-contents*
+                                                     out json-map)))
+        :cljs (.stringify js/JSON (clj->js json-map))))
     ([out json-map]
-     (with-open [wtr (io/writer out)]
-       (json/generate-stream json-map wtr)
-       out))))
+     #?(:clj (with-open [wtr (io/writer out)]
+               (json/generate-stream json-map wtr)
+               out)
+        :cljs (.stringify js/JSON (clj->js json-map))))))
 
 (defn merge-or-replace
   ([{:keys [contents
