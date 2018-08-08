@@ -84,6 +84,18 @@
         (stest/check
          `ss/statement-related-activity-ids {stc-opts {:num-tests 10 :max-size 3}})))))
 
+(deftest statement-agents-narrow-test
+  (is (empty?
+       (failures
+        (stest/check
+         `ss/statement-agents-narrow {stc-opts {:num-tests 10 :max-size 3}})))))
+
+(deftest statement-agents-broad-test
+  (is (empty?
+       (failures
+        (stest/check
+         `ss/statement-agents-broad {stc-opts {:num-tests 10 :max-size 3}})))))
+
 (deftest statement-agents-test
   (is (empty?
        (failures
@@ -101,3 +113,9 @@
        (failures
         (stest/check
          `ss/all-attachment-hashes {stc-opts {:num-tests 2 :max-size 2}})))))
+
+(deftest statement-rel-docs-test
+  (is (empty?
+       (failures
+        (stest/check
+         `ss/statement-rel-docs {stc-opts {:num-tests 10 :max-size 3}})))))

@@ -1,6 +1,7 @@
 (ns com.yetanalytics.lrs.xapi.statements
   (:require
    [com.yetanalytics.lrs.xapi.agents :as ag]
+   [com.yetanalytics.lrs.xapi.activities :as ac]
    [clojure.spec.alpha :as s :include-macros true]
    [clojure.spec.gen.alpha :as sgen :include-macros true]
    [xapi-schema.spec :as xs]
@@ -13,6 +14,24 @@
                    [java.io File])))
 
 #?(:clj (set! *warn-on-reflection* true))
+
+
+(defn select-statement-keys
+  "Filter statment attributes to xapi"
+  [statement]
+  (select-keys
+   statement
+   ["id"
+    "actor"
+    "verb"
+    "object"
+    "result"
+    "context"
+    "timestamp"
+    "stored"
+    "authority"
+    "version"
+    "attachments"]))
 
 (defn statements-priority-map [& key-vals]
   #?(:clj (apply
@@ -211,7 +230,7 @@
                      :ca-map :context/contextActivities)
         :ret (s/coll-of ::xs/activity))
 
-(defn statement-related-activities [s]
+#_(defn statement-related-activities [s]
   (distinct (cond->> (concat
                      (when-let [context-activities (get-in s ["context" "contextActivities"])]
                        (collect-context-activities context-activities))
@@ -219,6 +238,29 @@
                        (collect-context-activities ss-context-activities)))
               (= "Activity" (get-in s ["object" "objectType"] "Activity"))
               (cons (get s "object")))))
+
+(defn statement-activities-narrow [s]
+  (cond-> []
+    (= "Activity"
+       (get-in s ["object" "objectType"] "Activity"))
+    (conj (get s "object"))))
+
+(defn statement-activities-broad [s]
+  (distinct (concat
+             (when-let [context-activities (get-in s ["context" "contextActivities"])]
+               (collect-context-activities context-activities))
+             (when-let [ss-context-activities (get-in s ["object" "context" "contextActivities"])]
+               (collect-context-activities ss-context-activities))
+             (lazy-seq
+              (when (= "SubStatement"
+                       (get-in s ["object" "objectType"]))
+                (let [o (get s "object")]
+                  (concat
+                   (statement-activities-narrow o)
+                   (statement-activities-broad o))))))))
+
+(def statement-related-activities
+  statement-activities-broad)
 
 (s/fdef statement-related-activities
         :args (s/cat :s ::xs/statement)
@@ -233,6 +275,56 @@
         :args (s/cat :s ::xs/statement)
         :ret (s/coll-of :activity/id))
 
+(defn statement-agents-narrow
+  "Get ONLY those agents who are in the actor and object positions
+  (or groups therein)"
+  [{:strs [actor object context authority] :as s}]
+  (let [object-type (get object "objectType")]
+    (distinct
+     (concat
+      (ag/actor-seq actor)
+      (when (#{"Agent" "Group"}
+             object-type)
+        (ag/actor-seq object))))))
+
+(s/fdef statement-agents-narrow
+  :args (s/cat :s (s/alt :statement
+                         ::xs/statement
+                         :sub-statement
+                         ::xs/sub-statement))
+  :ret (s/coll-of ::xs/actor))
+
+(defn statement-agents-broad
+  [{:strs [actor object context authority] :as s}]
+  (let [object-type (get object "objectType")]
+    (distinct
+     (concat
+      ;; Don't include authority, is not interesting
+      ;; and is a +1 for every authority
+      #_(when authority
+        (actor-seq authority))
+      (when-let [{:strs [instructor team]} context]
+        (concat
+         (when team
+           (ag/actor-seq team))
+         (when instructor
+           (ag/actor-seq instructor))))
+      (lazy-seq
+       (when (= "SubStatement" object-type)
+         (concat
+          (statement-agents-narrow
+           object)
+          (statement-agents-broad
+           object))))))))
+
+(s/fdef statement-agents-broad
+  :args (s/cat :s (s/alt :statement
+                         ::xs/statement
+                         :sub-statement
+                         ::xs/sub-statement))
+  :ret (s/coll-of ::xs/actor))
+
+;; TODO: deprecate
 (defn statement-agents [{:strs [actor object context authority] :as s}
                         & [broad? agents-only?]]
   (let [broad? (or broad? false)
@@ -340,3 +432,28 @@
 
 (s/def ::attachments
   (s/coll-of ::attachment))
+
+(defn statement-rel-docs
+  "Get related activities and agents"
+  [statement]
+  {:agents (distinct (statement-agents statement true true))
+   :activities (into []
+                     (vals
+                      (reduce
+                       (fn [m {:strs [id] :as a}]
+                         (update m id ac/merge-activity a))
+                       {}
+                       (distinct
+                        (statement-related-activities statement)))))})
+
+(s/def :statement-rel-docs/agents
+  (s/coll-of ::xs/actor))
+
+(s/def :statement-rel-docs/activities
+  (s/coll-of ::xs/activity))
+
+(s/fdef statement-rel-docs
+  :args (s/cat :statement
+               ::xs/statement)
+  :ret (s/keys :req-un [:statement-rel-docs/agents
+                        :statement-rel-docs/activities]))
