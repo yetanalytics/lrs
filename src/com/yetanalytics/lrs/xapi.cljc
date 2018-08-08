@@ -1,7 +1,7 @@
 (ns com.yetanalytics.lrs.xapi
   (:require
-   [clojure.spec.alpha :as s]
-   [clojure.spec.gen.alpha :as sgen]
+   [clojure.spec.alpha :as s :include-macros true]
+   [clojure.spec.gen.alpha :as sgen :include-macros true]
    [xapi-schema.spec.resources :as xsr]
    [xapi-schema.spec :as xs]
    [com.yetanalytics.lrs.spec.common :as sc]
@@ -13,4 +13,5 @@
            #(= 40 (count %)))
     (fn []
       (sgen/fmap bytes-sha-1
-                 (sgen/bytes)))))
+                 #?(:clj (sgen/bytes)
+                    :cljs (sgen/string))))))

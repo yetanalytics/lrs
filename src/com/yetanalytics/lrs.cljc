@@ -1,6 +1,6 @@
 (ns com.yetanalytics.lrs
   (:require [com.yetanalytics.lrs.protocol :as p]
-            [clojure.spec.alpha :as s]
+            [clojure.spec.alpha :as s :include-macros true]
             [xapi-schema.spec :as xs]
             [xapi-schema.spec.resources :as xsr]
             [com.yetanalytics.lrs.xapi.statements :as ss]

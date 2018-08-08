@@ -1,6 +1,6 @@
 (ns com.yetanalytics.lrs.protocol
-  (:require [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as sgen]
+  (:require [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec.resources :as xsr]
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi :as xapi]
@@ -8,11 +8,12 @@
             [com.yetanalytics.lrs.xapi.statements :as ss]
             [com.yetanalytics.lrs.xapi.document :as doc]))
 
-(set! *warn-on-reflection* true)
+#?(:clj (set! *warn-on-reflection* true))
 
 (s/def :ret/error
   (s/with-gen
-    #(instance? clojure.lang.ExceptionInfo %)
+    #(instance? #?(:clj clojure.lang.ExceptionInfo
+                   :cljs cljs.core/ExceptionInfo) %)
     (fn []
       (sgen/fmap ex-info
                  (sgen/tuple
