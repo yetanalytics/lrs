@@ -1,10 +1,12 @@
 (ns mem-lrs.server
-  (:gen-class) ; for -main method in uberjar
-  (:require [io.pedestal.http :as server]
-            [io.pedestal.http.route :as route]
-            [mem-lrs.service :as service]
-            [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
-            [com.yetanalytics.lrs.pedestal.interceptor :as i]))
+  #?(:clj (:gen-class)) ; for -main method in uberjar
+  (:require
+   #?(:cljs [cljs.nodejs :as node])
+   [io.pedestal.http :as server]
+   [io.pedestal.http.route :as route]
+   [mem-lrs.service :as service]
+   [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
+   [com.yetanalytics.lrs.pedestal.interceptor :as i]))
 
 ;; This is an adapted service map, that can be started and stopped
 ;; From the REPL you can call server/start and server/stop on this service
@@ -29,22 +31,24 @@
                                 #(route/expand-routes (service/new-routes lrs))
                                 (service/new-routes lrs))
               ;; all origins are allowed in dev mode
-              ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
+              ;; ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
               ;; Content Security Policy (CSP) is mostly turned off in dev mode
-              ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}})
+              ;; ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}
+              })
       ;; Wire up interceptor chains
       ;; server/default-interceptors
       i/xapi-default-interceptors
-      server/dev-interceptors
+      ;; server/dev-interceptors
       server/create-server
       server/start))
 
-(defn -main
+(defn ^:export -main
   "The entry-point for 'lein run'"
   [& args]
   (println "\nCreating your server...")
   (run-dev :reload-routes? false))
 
+#?(:cljs (set! *main-cli-fn* -main))
 ;; If you package the service up as a WAR,
 ;; some form of the following function sections is required (for io.pedestal.servlet.ClojureVarServlet).
 
@@ -67,12 +71,13 @@
 (comment
   (def lrs (new-lrs {}
                     #_{:init-state
-                     (lrs-impl/fixture-state)}))
+                       (lrs-impl/fixture-state)}))
 
   (clojure.pprint/pprint (lrs-impl/dump lrs))
 
   (def s (run-dev :lrs lrs))
   (server/stop s)
   (def s nil)
-
+  (-main)
+  (com.yetanalytics.lrs/get-statements lrs {:limit 1})
   )

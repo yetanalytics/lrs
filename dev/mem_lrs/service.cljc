@@ -1,10 +1,9 @@
 (ns mem-lrs.service
   (:require [io.pedestal.http :as http]
             [io.pedestal.http.route :as route]
-            [io.pedestal.http.body-params :as body-params]
-            [ring.util.response :as ring-resp]
             [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
-            [com.yetanalytics.lrs.pedestal.routes :refer [build]]))
+            [com.yetanalytics.lrs.pedestal.routes :refer [build]]
+            #?(:cljs [com.yetanalytics.node-chain-provider :as provider])))
 
 (defn new-routes [lrs]
   (build {:lrs lrs}))
@@ -15,18 +14,6 @@
 
 (def routes
   (new-routes default-lrs))
-
-;; Map-based routes
-;(def routes `{"/" {:interceptors [(body-params/body-params) http/html-body]
-;                   :get home-page
-;                   "/about" {:get about-page}}})
-
-;; Terse/Vector-based routes
-;(def routes
-;  `[[["/" {:get home-page}
-;      ^:interceptors [(body-params/body-params) http/html-body]
-;      ["/about" {:get about-page}]]]])
-
 
 ;; Consumed by mem-lrs.server/create-server
 ;; See http/default-interceptors for additional options you can configure
@@ -56,11 +43,13 @@
               ;;                                                          :frame-ancestors "'none'"}}
 
               ;; Root for resource interceptor that is available by default.
-              ::http/resource-path "/public"
+              #?@(:clj [::http/resource-path "/public"])
 
               ;; Either :jetty, :immutant or :tomcat (see comments in project.clj)
               ;;  This can also be your own chain provider/server-fn -- http://pedestal.io/reference/architecture-overview#_chain_provider
-              ::http/type :jetty ;; :immutant ;; :jetty
+              ::http/type #?(:clj :jetty
+                             :cljs provider/macchiato-server-fn) ;; :immutant ;; :jetty
+              #?@(:cljs [::http/chain-provider provider/macchiato-provider])
               ;;::http/host "localhost"
               ::http/port 8080
               ;; Options to pass to the container (Jetty)
