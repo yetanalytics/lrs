@@ -196,7 +196,8 @@
                                (assoc (chain/terminate ctx)
                                       :response
                                       (let [exd (ex-data exi)]
-                                        (.log js/console :msg "Statement Validation Exception" :exd exd)
+                                        (#?@(:clj [log/debug]
+                                             :cljs [.log js/console]) :msg "Statement Validation Exception" :exd exd)
                                         {:status (if (= ::attachment/attachment-save-failure (:type exd))
                                                    500
                                                    400)

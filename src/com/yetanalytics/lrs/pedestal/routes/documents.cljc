@@ -3,7 +3,8 @@
             [com.yetanalytics.lrs.protocol :as p]
             [clojure.string :as cstr]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
-            [clojure.core.async :as a :include-macros true]))
+            [clojure.core.async :as a :include-macros true]
+            #?(:clj [cheshire.core :as json])))
 
 (defn find-some [m & kws]
   (some (partial find m)
