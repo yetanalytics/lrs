@@ -1,12 +1,14 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi
-  (:require [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s :include-macros true]
             [xapi-schema.spec.resources :as xsr]
             [io.pedestal.interceptor.chain :as chain]
-            [io.pedestal.http.body-params :as body-params]
-            [cheshire.core :as json]
             [clojure.string :as cstr]
-            [clojure.java.io :as io])
-  (:import [java.io InputStream ByteArrayInputStream]))
+            #?@(:clj [[io.pedestal.http.body-params :as body-params]
+                      [cheshire.core :as json]
+                      [clojure.java.io :as io]]
+                :cljs [[goog.string :refer [format]]
+                       [goog.string.format]]))
+  #?(:clj (:import [java.io InputStream ByteArrayInputStream])))
 
 
 (def valid-alt-request-headers
@@ -18,10 +20,11 @@
    ])
 
 (defn- execute-next [ctx interceptor]
-  (update ctx :io.pedestal.interceptor.chain/queue
+  (update ctx ::chain/queue
           (fn [q]
             (apply conj
-                   clojure.lang.PersistentQueue/EMPTY
+                   #?(:clj clojure.lang.PersistentQueue/EMPTY
+                      :cljs cljs.core/PersistentQueue.EMPTY)
                    interceptor
                    (seq q)))))
 
@@ -62,11 +65,15 @@
                         ?content-type (or content-type
                                           (and content
                                                "application/json"))
-                        ?content-bytes (when content
-                                         (.getBytes ^String content "UTF-8"))
+                        ?content-bytes
+                        #?(:clj (when content
+                                  (.getBytes ^String content "UTF-8"))
+                           :cljs nil)
                         ?content-length (or content-length
-                                            (and ?content-bytes
-                                                 (count ?content-bytes)))]
+                                            #?(:clj (and ?content-bytes
+                                                         (count ?content-bytes))
+                                               :cljs (and content
+                                                          (.-length content))))]
 
                     (cond-> (assoc ctx
                                    :request
@@ -82,18 +89,23 @@
                                          ?content-length
                                          (assoc :content-length ?content-length)
                                          ;; If there's content, make it an input stream
-                                         ?content-bytes
-                                         (assoc :body (ByteArrayInputStream.
-                                                       ^bytes ?content-bytes)))))
-                      content (execute-next (body-params/body-params
+                                         #?(:clj ?content-bytes :cljs content)
+                                         (assoc :body #?(:clj (ByteArrayInputStream.
+                                                               ^bytes ?content-bytes)
+                                                         :cljs content)))))
+                      content
+                      ;; TODO: Need to figure out body-params in cljs
+                      #?(:clj (execute-next (body-params/body-params
                                              (body-params/default-parser-map
-                                              :json-options {:key-fn str})))))))
+                                              :json-options {:key-fn str})))
+                         :cljs identity)))))
               ctx))})
 
 (defn conform-cheshire [spec-kw x]
-  (binding [xsr/*read-json-fn* json/parse-string-strict
-            xsr/*write-json-fn* json/generate-string]
-    (s/conform spec-kw x)))
+  #?(:clj (binding [xsr/*read-json-fn* json/parse-string-strict
+                    xsr/*write-json-fn* json/generate-string]
+            (s/conform spec-kw x))
+     :cljs (s/conform spec-kw x)))
 
 
 (defn invalid-extra-params [^String path-info
@@ -149,6 +161,10 @@
       nil)
     :else nil))
 
+(defn json-str [x]
+  #?(:clj (json/generate-string x)
+     :cljs (.stringify js/JSON (clj->js x))))
+
 (defn params-interceptor
   "Interceptor factory, given a spec keyword, it validates params against it.
    coerce-params is a map of param to coercion function."
@@ -168,7 +184,7 @@
                        :response
                        {:status 400
                         :headers {"Content-Type" "application/json"}
-                        :body (json/generate-string
+                        :body (json-str
                                {:error
                                 {:message (format "Invalid Params for path: %s" path-info)
                                  :params raw-params}})}))))})
