@@ -1,22 +1,26 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements
   (:require
+   #?@(:clj [[cheshire.core :as json]
+             [clojure.java.io :as io]
+             [io.pedestal.log :as log]]
+       :cljs [[goog.string :as gstring]
+              goog.string.format])
+   [io.pedestal.interceptor.chain :as chain]
    [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment :as attachment]
-   [com.yetanalytics.lrs.xapi.statements]
+   [com.yetanalytics.lrs.xapi.statements :as ss]
    [com.yetanalytics.lrs :as lrs]
    [com.yetanalytics.lrs.protocol :as lrsp]
-   [io.pedestal.interceptor.chain :as chain]
-   [clojure.spec.alpha :as s]
+   [clojure.spec.alpha :as s :include-macros true]
    [xapi-schema.spec :as xs]
-   [cheshire.core :as json]
-   [clojure.java.io :as io]
    [clojure.walk :as w]
-   [io.pedestal.log :as log]
-   [clojure.core.async :as a]
+   [clojure.core.async :as a :include-macros true]
    [clojure.string :as cs])
-  (:import [java.time Instant]
-           [java.io InputStream OutputStream ByteArrayOutputStream]
-           [javax.servlet ServletOutputStream]))
+  #?(:clj (:import [java.time Instant]
+                   [java.io InputStream OutputStream ByteArrayOutputStream]
+                   [javax.servlet ServletOutputStream])))
+
+(def fmt #?(:clj format :cljs gstring/format))
 
 ;; The general flow for these is 1. parse 2. validate 3. place in context
 
@@ -26,7 +30,8 @@
 (s/def :multipart/content-length
   integer?)
 (s/def :multipart/input-stream
-  #(instance? InputStream %))
+  #?(:clj #(instance? InputStream %)
+     :cljs string?))
 
 (s/def ::X-Experience-API-Hash string?)
 (s/def ::Content-Transfer-Encoding #{"binary"})
@@ -98,13 +103,18 @@
                                      }}})
                            (-> ctx
                                (assoc-in [:request :json-params]
-                                         (with-open [rdr (io/reader (-> parts-seq
-                                                                        first
-                                                                        :input-stream))]
-                                           (json/parse-stream rdr)))
+                                         #?(:clj (with-open [rdr (io/reader (-> parts-seq
+                                                                                first
+                                                                                :input-stream))]
+                                                   (json/parse-stream rdr))
+                                            :cljs (-> (.parse js/JSON (-> parts-seq
+                                                                          first
+                                                                          :input-stream))
+                                                      js->clj)))
                                (assoc-in [:request :multiparts]
                                          (into [] (rest parts-seq))))))
-                       (catch clojure.lang.ExceptionInfo exi
+                       (catch #?(:clj clojure.lang.ExceptionInfo
+                                 :cljs ExceptionInfo) exi
                          (let [exd (ex-data exi)]
                            (case (:type exd)
                              ::multipart/invalid-multipart-body
@@ -129,7 +139,8 @@
                                      {:error
                                       {:message "Too much content"}}})
                              (throw exi))))
-                       (catch com.fasterxml.jackson.core.JsonParseException _
+                       (catch #?(:clj com.fasterxml.jackson.core.JsonParseException
+                                 :cljs js/Error) _ ;; TODO: detect json parse errs in cljs
                          (assoc (chain/terminate ctx)
                                 :response
                                 {:status 400
@@ -142,67 +153,62 @@
                 ctx)))})
 
 
-
-
-
-
 (def single-or-multiple-statement-spec
   (s/or :single ::xs/statement
         :multiple ::xs/statements))
 
-;; TODO: Wire up attachment + sig validation here
 (def validate-request-statements
-  "Validate statement JSON structure and return a 400 if it is missing or
+          "Validate statement JSON structure and return a 400 if it is missing or
   not valid. Puts statement data under the spec it satisfies in context :xapi"
-  {:name ::validate-request-statements
-   :enter (fn [ctx]
-            (let [multiparts (get-in ctx [:request :multiparts] [])]
-              (if-let [statement-data (get-in ctx [:request :json-params])]
-                (try (condp s/valid? statement-data
-                       ::xs/statement
-                       (let [[_ valid-multiparts] (attachment/validate-statements-multiparts
-                                                   [statement-data] multiparts)]
-                         (update ctx
-                                 :xapi
-                                 assoc
-                                 ::xs/statement statement-data
-                                 :xapi.statements/attachments
-                                 (attachment/save-attachments
-                                  valid-multiparts)))
-                       ::xs/statements
-                       (let [[_ valid-multiparts] (attachment/validate-statements-multiparts
-                                                   statement-data multiparts)]
-                         (update ctx
-                                 :xapi
-                                 assoc
-                                 ::xs/statements statement-data
-                                 :xapi.statements/attachments
-                                 (attachment/save-attachments
-                                  valid-multiparts)))
-                       (assoc (chain/terminate ctx)
-                              :response
-                              {:status 400
-                               :body {:error {:message "Invalid Statement Data"
-                                              :statement-data statement-data
-                                              :spec-error (s/explain-str single-or-multiple-statement-spec
-                                                                         statement-data)}}}))
-                     (catch clojure.lang.ExceptionInfo exi
-                       (assoc (chain/terminate ctx)
-                              :response
-                              (let [exd (ex-data exi)]
-                                (log/debug :msg "Statement Validation Exception" :exd exd)
-                                {:status (if (= ::attachment/attachment-save-failure (:type exd))
-                                           500
-                                           400)
-                                 :body
-                                 {:error {:message (.getMessage exi)}}})))
-                     (finally (attachment/close-multiparts! multiparts)))
-                (assoc (chain/terminate ctx)
-                       :response
-                       {:status 400
-                        :body {:error {:message "No Statement Data Provided"}}}))))})
+          {:name ::validate-request-statements
+           :enter (fn [ctx]
+                    (let [multiparts (get-in ctx [:request :multiparts] [])]
+                      (if-let [statement-data (get-in ctx [:request :json-params])]
+                        (try (condp s/valid? statement-data
+                               ::xs/statement
+                               (let [[_ valid-multiparts] (attachment/validate-statements-multiparts
+                                                           [statement-data] multiparts)]
+                                 (update ctx
+                                         :xapi
+                                         assoc
+                                         ::xs/statement statement-data
+                                         :xapi.statements/attachments
+                                         (attachment/save-attachments
+                                          valid-multiparts)))
+                               ::xs/statements
+                               (let [[_ valid-multiparts] (attachment/validate-statements-multiparts
+                                                           statement-data multiparts)]
+                                 (update ctx
+                                         :xapi
+                                         assoc
+                                         ::xs/statements statement-data
+                                         :xapi.statements/attachments
+                                         (attachment/save-attachments
+                                          valid-multiparts)))
+                               (assoc (chain/terminate ctx)
+                                      :response
+                                      {:status 400
+                                       :body {:error {:message "Invalid Statement Data"
+                                                      :statement-data statement-data
+                                                      :spec-error (s/explain-str single-or-multiple-statement-spec
+                                                                                 statement-data)}}}))
+                             (catch clojure.lang.ExceptionInfo exi
+                               (assoc (chain/terminate ctx)
+                                      :response
+                                      (let [exd (ex-data exi)]
+                                        (.log js/console :msg "Statement Validation Exception" :exd exd)
+                                        {:status (if (= ::attachment/attachment-save-failure (:type exd))
+                                                   500
+                                                   400)
+                                         :body
+                                         {:error {:message (#?(:clj .getMessage
+                                                               :cljs .-message) exi)}}})))
+                             (finally (attachment/close-multiparts! multiparts)))
+                        (assoc (chain/terminate ctx)
+                               :response
+                               {:status 400
+                                :body {:error {:message "No Statement Data Provided"}}}))))})
 
-;; TODO: wire this up to something?!?
 (def set-consistent-through
   {:name ::set-consistent-through
    :leave (fn [{:keys [com.yetanalytics/lrs] :as ctx}]
@@ -216,23 +222,27 @@
                         (lrs/consistent-through lrs ctx))
               :else
               (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
-                        (str (Instant/now)))))})
+                        (ss/now-stamp))))})
 
-(defn lazy-statement-result [{:keys [statements
-                                     more]}
-                             ^OutputStream os]
-  (with-open [w (io/writer os)]
-    ;; Write everything up to the beginning of the statements
-    (.write w "{\"statements\": [")
-    (doseq [x (interpose :comma statements)]
-      (if (= :comma x)
-        (.write w ",")
-        (json/with-writer [w {}]
-          (json/write x))))
-    (.write w
-     (if more
-       (format "], \"more\": \"%s\"}" more)
-       "]}"))))
+#?(:clj (defn lazy-statement-result [{:keys [statements
+                                             more]}
+                                     ^OutputStream os]
+          (with-open [w (io/writer os)]
+            ;; Write everything up to the beginning of the statements
+            (.write w "{\"statements\": [")
+            (doseq [x (interpose :comma statements)]
+              (if (= :comma x)
+                (.write w ",")
+                (json/with-writer [w {}]
+                  (json/write x))))
+            (.write w
+                    (if more
+                      (fmt "], \"more\": \"%s\"}" more)
+                      "]}")))))
+
+(defn json-string [x]
+  #?(:clj (json/generate-string x)
+     :cljs (.stringify js/JSON (clj->js x))))
 
 (defn lazy-statement-result-async
   [statement-result-chan]
@@ -247,7 +257,7 @@
                 (recur :statements s-count))
             :more
             (do (a/>! body-chan
-                      (format "],\"more\":\"%s\"}"
+                      (fmt "],\"more\":\"%s\"}"
                               (a/<! statement-result-chan)))
                 (recur :more s-count))
 
@@ -256,7 +266,7 @@
               (when (< 0 s-count)
                 (a/>! body-chan ","))
               ;; Write statement
-              (a/>! body-chan (json/generate-string x))
+              (a/>! body-chan (json-string x))
               (recur :statements (inc s-count))))
           ;; if no more link, close
           (when (= stage :statements)
