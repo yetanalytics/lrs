@@ -6,16 +6,19 @@
             [io.pedestal.http :as http]
             #?@(:clj [[io.pedestal.http.route :as route]
                       [io.pedestal.http.cors :as cors]
-                      [io.pedestal.http.body-params :as body-params]
+
                       [io.pedestal.http.params :refer [keyword-params
                                                        keyword-body-params
                                                        ]]
-                      [io.pedestal.http.route :as route]
 
-                      [io.pedestal.http.ring-middlewares :as middlewares]
+
+
                       [io.pedestal.http.csrf :as csrf]
                       [io.pedestal.http.secure-headers :as sec-headers]
                       [io.pedestal.log :as log]])
+            [io.pedestal.http.route :as route]
+            [io.pedestal.http.body-params :as body-params]
+            [io.pedestal.http.ring-middlewares :as middlewares]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
             [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
@@ -340,7 +343,7 @@
 
 ;; Combined interceptors
 
-#?(:clj (defn xapi-default-interceptors
+(defn xapi-default-interceptors
           "Like io.pedestal.http/default-interceptors, but includes support for xapi alt
    request syntax, etc."
           [service-map]
@@ -359,7 +362,7 @@
                  secure-headers ::http/secure-headers
                  server-type ::http/type
                  :or {file-path nil
-                      request-logger http/log-request
+                      #?@(:clj [request-logger http/log-request])
                       router :map-tree
                       resource-path nil
                       not-found-interceptor http/not-found
@@ -382,32 +385,34 @@
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
                        (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
-                       (some? allowed-origins) (conj (cors/allow-origin allowed-origins))
+                       #?@(:clj [(some? allowed-origins) (conj (cors/allow-origin allowed-origins))])
                        (some? not-found-interceptor) (conj (io.pedestal.interceptor/interceptor not-found-interceptor))
-                       (or enable-session enable-csrf) (conj (middlewares/session (or enable-session {})))
-                       (some? enable-csrf) (into [(body-params/body-params (:body-params enable-csrf (body-params/default-parser-map)))
-                                                  (csrf/anti-forgery enable-csrf)])
+                       #?@(:clj [(or enable-session enable-csrf) (conj (middlewares/session (or enable-session {})))
+                                 (some? enable-csrf) (into [(body-params/body-params (:body-params enable-csrf (body-params/default-parser-map)))
+                                                            (csrf/anti-forgery enable-csrf)])])
                        true (conj (middlewares/content-type {:mime-types ext-mime-types}))
                        true (conj route/query-params)
                        true (conj xapi-method-param)
                        true (conj (route/method-param :method))
-                       (some? secure-headers) (conj (sec-headers/secure-headers secure-headers))
+                       #?@(:clj [(some? secure-headers) (conj (sec-headers/secure-headers secure-headers))])
                        ;; The etag interceptor may mess with routes, so it's important not to have any
                        ;; important leave stuff after it in the defaults
                        true (conj etag-interceptor)
                        ;; TODO: If all platforms support async/NIO responses, we can bring this back
                                         ;(not (nil? resource-path)) (conj (middlewares/fast-resource resource-path))
-                       (some? resource-path) (conj (middlewares/resource resource-path))
-                       (some? file-path) (conj (middlewares/file file-path))
-                       true (conj (route/router processed-routes router))))
-              service-map))))
+                       #?@(:clj [(some? resource-path) (conj (middlewares/resource resource-path))
+                                 (some? file-path) (conj (middlewares/file file-path))])
+                       true (conj (#?(:clj route/router
+                                      :cljs route/delegate-router) processed-routes router))))
+              service-map)))
 
 (def common-interceptors [x-forwarded-for-interceptor
-                          #?(:clj http/json-body)
+                          http/json-body
 
                           #?(:clj (body-params/body-params
                                    (body-params/default-parser-map
-                                    :json-options {:key-fn str})))
+                                    :json-options {:key-fn str}))
+                             :cljs (body-params/body-params))
 
                           xapi/alternate-request-syntax-interceptor
                           #_(i/authentication auth/backend auth/cantilever-backend)

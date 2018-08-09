@@ -30,10 +30,10 @@
   body)
 
 (defn js-debug [& {:as opts}]
-  (.log js/console (str "Debug: " opts)))
+  #_(.log js/console (str "Debug: " opts)))
 
 (defn js-trace [& {:as opts}]
-  (.log js/console (str "Trace: " opts)))
+  #_(.log js/console (str "Trace: " opts)))
 
 (declare execute)
 (declare execute-only)
