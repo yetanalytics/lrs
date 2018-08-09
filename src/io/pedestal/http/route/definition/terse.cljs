@@ -44,10 +44,12 @@
 (defmethod expand-constraint (type "") [path-spec]
   (expand-path path-spec))
 
-(defmethod expand-constraint clojure.lang.APersistentMap [query-constraint-spec]
+(defmethod expand-constraint cljs.core/PersistentArrayMap [query-constraint-spec]
+  (expand-query-constraint query-constraint-spec))
+(defmethod expand-constraint cljs.core/PersistentHashMap [query-constraint-spec]
   (expand-query-constraint query-constraint-spec))
 
-(defmethod expand-constraint clojure.lang.PersistentVector [spec]
+(defmethod expand-constraint cljs.core/PersistentVector [spec]
   (assert false (unexpected-vector-in-route spec)))
 
 (defmethod expand-constraint :default [unmatched]
@@ -62,13 +64,14 @@
 (def constraint-map?     (every-pred map?    (comp :constraints  meta)))
 
 (extend-protocol ExpandableVerbAction
-  clojure.lang.Symbol
+  Symbol
   (expand-verb-action [symbol] symbol)
 
-  clojure.lang.IPersistentList
+  ;; clojure.lang.IPersistentList
+  List
   (expand-verb-action [l] (expand-verb-action (eval l)))
 
-  clojure.lang.APersistentVector
+  APersistentVector
   (expand-verb-action [vector]
     ;; Take this apart by hand so we can provide nice error
     ;; messages. Exceptions from destructuring are opaque to users.

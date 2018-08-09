@@ -471,8 +471,15 @@
         {:name ::router
          :enter #(route-context % router seq)})))
 
+  cljs.core/LazySeq
+  (router-spec [seq router-ctor]
+    (let [router (router-ctor seq)]
+      (interceptor/interceptor
+       {:name ::router
+        :enter #(route-context % router seq)})))
+
   ;; clojure.lang.Fn
-  Fn
+  function
   (router-spec [f router-ctor]
     ;; Caution: This could be very slow becuase it has to build the routing data
     ;; structure every time it routes a request.
@@ -493,7 +500,7 @@
 (defn delegate-router
   "Delegating fn for router-specification."
   ([spec]
-   (router spec :map-tree))
+   (delegate-router spec :map-tree))
   ([spec router-impl-key-or-fn]
    (assert (or (contains? router-implementations router-impl-key-or-fn)
                (fn? router-impl-key-or-fn))

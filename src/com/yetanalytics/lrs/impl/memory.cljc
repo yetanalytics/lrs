@@ -6,22 +6,28 @@
             [com.yetanalytics.lrs.xapi.activities :as ac]
             [com.yetanalytics.lrs.xapi.document :as doc]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
-            [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as sgen]
+            [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec :as xs]
             [xapi-schema.spec.resources :as xsr]
-            [clojure.data.priority-map :as pm]
-            [clojure.data.json :as json]
+            [#?(:clj clojure.data.priority-map
+                :cljs tailrecursion.priority-map) :as pm]
             [clojure.walk :as w]
-            [clojure.java.io :as io]
             [clojure.string :as cstr]
-            [ring.util.codec :as codec]
-            [clojure.core.async :as a]
-            )
-  (:import [java.io InputStream ByteArrayOutputStream]
-           [java.time Instant]))
+            [clojure.core.async :as a :include-macros true]
+            #?@(:clj [[cljs.nodejs :as node]
+                      [clojure.data.json :as json]
+                      [clojure.java.io :as io]
+                      [ring.util.codec :as codec]]
+                :cljs [[qs]
+                       [fs]
+                       [cljs.reader :refer [read-string]]])
 
-(set! *warn-on-reflection* true)
+            )
+  #?(:clj (:import [java.io InputStream ByteArrayOutputStream]
+                   )))
+
+#?(:clj (set! *warn-on-reflection* true))
 
 ;; State
 (s/def :state/statements
@@ -202,11 +208,13 @@
 
 (defn contents->byte-array
   [contents]
-  (with-open [is (io/input-stream contents)]
-    (let [buf (ByteArrayOutputStream.)]
-      (io/copy is buf)
-      (.flush buf)
-      (.toByteArray buf))))
+  #?(:clj (with-open [is (io/input-stream contents)]
+            (let [buf (ByteArrayOutputStream.)]
+              (io/copy is buf)
+              (.flush buf)
+              (.toByteArray buf)))
+     ;; Itsa no-op
+     :cljs contents))
 
 (defn transact-document
   [documents params document merge?]
@@ -463,15 +471,21 @@
                      :ltags (s/coll-of ::xs/language-tag))
         :ret (s/coll-of ::xs/lrs-statement))
 
+(defn load-fixture [resource-path]
+  #?(:clj (read-string (slurp (io/resource resource-path)))
+     :cljs (read-string (.readFileSync fs (str "dev-resources/" resource-path) #js {:encoding "UTF-8"}))))
+
+
 (defn fixture-state*
   "Get the state of a post-conformance test lrs from file."
   []
-  (-> (read-string (slurp (io/resource "lrs/state.edn")))
+  (-> (load-fixture "lrs/state.edn")
       (update :state/statements (partial conj (ss/statements-priority-map)))
       (update :state/attachments
               #(reduce-kv (fn [m sha2 a]
                             (assoc m sha2
-                                   (update a :content byte-array)))
+                                   #?(:cljs a
+                                      :clj (update a :content byte-array))))
                           {}
                           %))
       (update
@@ -481,14 +495,22 @@
                (for [[ctx-key docs-map] docs]
                  [ctx-key (into (doc/documents-priority-map)
                                 (for [[doc-id doc] docs-map]
-                                  [doc-id (update doc :contents byte-array)]))]))))))
+                                  [doc-id #?(:clj (update doc :contents byte-array)
+                                             :cljs doc)]))]))))))
 
 (def fixture-state (memoize fixture-state*))
 
 (s/fdef fixture-state
-        :args (s/cat)
-        :ret ::state)
+  :args (s/cat)
+  :ret ::state)
 
+(defn form-encode [params]
+  #?(:clj (codec/form-encode params)
+     :cljs (.stringify qs (clj->js params))))
+
+(defn json-string [x]
+  #?(:clj (json/write-str x)
+     :cljs (.stringify js/JSON (clj->js x))))
 
 (defprotocol DumpableMemoryLRS
   (dump [_] "Return the LRS's state in EDN"))
@@ -527,7 +549,8 @@
                 (into []
                       (map #(get % "id")
                            prepared-statements))})
-             (catch clojure.lang.ExceptionInfo exi
+             (catch #?(:clj clojure.lang.ExceptionInfo
+                       :cljs ExceptionInfo) exi
                {:error exi})))
       (-get-statements [_ {:keys [statementId
                                   voidedStatementId
@@ -579,13 +602,13 @@
                                      more? (assoc :more
                                                   (str xapi-path-prefix
                                                        "/xapi/statements?"
-                                                       (codec/form-encode
+                                                       (form-encode
                                                         (cond-> (assoc params :from
                                                                        (-> statements
                                                                            last
                                                                            (get "id")))
                                                           ;; Re-encode the agent if present
-                                                          agent (assoc :agent (json/write-str agent)))))))]
+                                                          agent (assoc :agent (json-string agent)))))))]
               {:statement-result statement-result
                :attachments (into []
                                   (when attachments
@@ -593,7 +616,7 @@
                                      (:state/attachments @state)
                                      (ss/all-attachment-hashes statements))))}))))
       (-consistent-through [_ _]
-        (.toString ^Instant (Instant/now)))
+        (ss/now-stamp))
       p/StatementsResourceAsync
       (-store-statements-async [lrs statements attachments]
         (a/go
@@ -645,11 +668,11 @@
                   (a/>! result-chan
                         (str xapi-path-prefix
                              "/xapi/statements?"
-                             (codec/form-encode
+                             (form-encode
                               (cond-> (assoc params :from
                                              last-id)
                                 ;; Re-encode the agent if present
-                                agent (assoc :agent (json/write-str agent))))))
+                                agent (assoc :agent (json-string agent))))))
                     (recur (list)
                            nil
                            0
@@ -672,7 +695,7 @@
             (a/close! result-chan))
           result-chan))
       (-consistent-through-async [_ _]
-        (a/go (.toString ^Instant (Instant/now))))
+        (a/go (ss/now-stamp)))
       p/DocumentResource
       (-set-document [lrs params document merge?]
         (try (swap! state update :state/documents transact-document params document merge?)

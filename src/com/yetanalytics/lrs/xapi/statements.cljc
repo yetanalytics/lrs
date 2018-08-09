@@ -7,8 +7,9 @@
    [xapi-schema.spec :as xs]
    [com.yetanalytics.lrs.util.hash :refer [sha-256]]
    [clojure.walk :as w]
-   #?@(:clj [[clojure.data.priority-map :as pm]
-             [clojure.java.io :as io]]))
+   [#?(:clj clojure.data.priority-map
+       :cljs tailrecursion.priority-map) :as pm]
+   #?@(:clj [[clojure.java.io :as io]]))
   #?(:clj (:import [java.time Instant]
                    [clojure.data.priority_map PersistentPriorityMap]
                    [java.io File])))
@@ -34,27 +35,24 @@
     "attachments"]))
 
 (defn statements-priority-map [& key-vals]
-  #?(:clj (apply
-           pm/priority-map-keyfn-by
-           #(get % "stored")
-           #(compare %2 %1)
-           key-vals)
-     :cljs (apply hash-map key-vals)))
+  (apply
+   pm/priority-map-keyfn-by
+   #(get % "stored")
+   #(compare %2 %1)
+   key-vals))
 
 (defn s-pm-gen-fn []
-  (sgen/return #?(:clj (pm/priority-map-keyfn-by
-                        #(get % "stored")
-                        #(compare %2 %1))
-                  :cljs {})))
+  (sgen/return (pm/priority-map-keyfn-by
+                #(get % "stored")
+                #(compare %2 %1))))
 
 (s/def ::statements-priority-map
-  #?(:clj (s/with-gen (s/and #(instance? PersistentPriorityMap %)
-                             ;; It's a map of statement id to statement
-                             (s/map-of :statement/id
-                                       ::xs/lrs-statement))
-            s-pm-gen-fn)
-     :cljs (s/map-of :statement/id
-                     ::xs/lrs-statement)))
+  (s/with-gen (s/and #(instance? #?(:clj PersistentPriorityMap
+                                    :cljs pm/PersistentPriorityMap) %)
+                     ;; It's a map of statement id to statement
+                     (s/map-of :statement/id
+                               ::xs/lrs-statement))
+    s-pm-gen-fn))
 
 (s/fdef statements-priority-map
         :args (s/* (s/cat :id :statement/id

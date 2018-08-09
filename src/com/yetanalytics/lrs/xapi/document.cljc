@@ -5,8 +5,9 @@
              :refer [string-ascii-not-empty
                      string-alphanumeric-not-empty]]
             [xapi-schema.spec :as xs]
+            [#?(:clj clojure.data.priority-map
+                :cljs tailrecursion.priority-map) :as pm]
             #?@(:clj [[cheshire.core :as json]
-                      [clojure.data.priority-map :as pm]
                       [clojure.java.io :as io]]))
   #?(:clj (:import [java.time Instant]
                    [java.io ByteArrayOutputStream]
@@ -92,21 +93,19 @@
                     (json-document-gen-fn)]))))
 
 (defn documents-priority-map [& key-vals]
-  #?(:clj (apply
-           pm/priority-map-keyfn-by
-           #(get % :updated)
-           #(compare %2 %1)
-           key-vals)
-     :cljs (apply hash-map key-vals)))
+  (apply
+   pm/priority-map-keyfn-by
+   #(get % :updated)
+   #(compare %2 %1)
+   key-vals))
 
 (s/def ::documents-priority-map
-  #?(:clj (s/with-gen (s/and #(instance? PersistentPriorityMap %)
-                             ;; It's a map of statement id to statement
-                             (s/map-of ::id
-                                       :com.yetanalytics.lrs.xapi/document))
-            (partial sgen/return (documents-priority-map)))
-     :cljs (s/map-of ::id
-                     :com.yetanalytics.lrs.xapi/document)))
+  (s/with-gen (s/and #(instance? #?(:clj PersistentPriorityMap
+                                    :cljs pm/PersistentPriorityMap) %)
+                     ;; It's a map of statement id to statement
+                     (s/map-of ::id
+                               :com.yetanalytics.lrs.xapi/document))
+    (partial sgen/return (documents-priority-map))))
 
 (s/fdef documents-priority-map
         :args (s/* (s/cat :id ::id

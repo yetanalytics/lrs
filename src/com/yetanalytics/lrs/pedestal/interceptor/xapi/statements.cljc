@@ -74,7 +74,8 @@
 
 (s/def ::ctype-boundary
   #(re-matches
-    #".*boundary\s*=\s*([a-zA-Z0-9\'\+\-\_]+|\"[a-zA-Z0-9'\(\)\+\_\,\-\.\/\:\=\?\s]+(?<!\s)\")"
+    #?(:clj #".*boundary\s*=\s*([a-zA-Z0-9\'\+\-\_]+|\"[a-zA-Z0-9'\(\)\+\_\,\-\.\/\:\=\?\s]+(?<!\s)\")"
+       :cljs #".*") ;; TODO: fix this regex in cljs
     %))
 
 ;; TODO: figure out how to give back good errors to user here
