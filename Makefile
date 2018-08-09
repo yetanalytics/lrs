@@ -15,4 +15,4 @@ test-lib-clj:
 test-lib: test-lib-clj test-lib-cljs
 test-conformance:
 	clojure -A:dev -m com.yetanalytics.conformance-test
-test-all: test-lib test-conformance clean
+test-all: test-lib test-conformance
