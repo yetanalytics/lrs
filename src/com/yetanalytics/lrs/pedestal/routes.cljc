@@ -1,6 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.routes
   (:require
-   [io.pedestal.http :as http]
    [com.yetanalytics.lrs.protocol :as p]
    [com.yetanalytics.lrs.pedestal.interceptor :as i]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi-i]
@@ -9,7 +8,9 @@
    [com.yetanalytics.lrs.pedestal.routes.statements :as statements]
    [com.yetanalytics.lrs.pedestal.routes.agents :as agents]
    [com.yetanalytics.lrs.pedestal.routes.activities :as activities]
-   [com.yetanalytics.lrs.pedestal.routes.documents :as documents]))
+   [com.yetanalytics.lrs.pedestal.routes.documents :as documents]
+   #?@(:cljs [[goog.string :refer [format]]
+              goog.string.format])))
 
 (defn method-not-allowed [_]
   {:status 405})
@@ -129,10 +130,3 @@
             ["/xapi/activities" :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.activities/any]}
           (build-document-routes document-interceptors))))
-
-(comment
-  (map Boolean/parseBoolean ["true"])
-  (boolean "false")
-  (io.pedestal.http.route/expand-routes (build {:lrs {}}))
-
-  )

@@ -1,14 +1,9 @@
 (ns com.yetanalytics.lrs.pedestal.routes.documents
   (:require [com.yetanalytics.lrs :as lrs]
             [com.yetanalytics.lrs.protocol :as p]
-            [cheshire.core :as json]
-            [clojure.java.io :as io]
             [clojure.string :as cstr]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
-            [clojure.core.async :as a]
-            [io.pedestal.log :as log])
-  (:import [java.io InputStream ByteArrayOutputStream]
-           [java.nio ByteBuffer]))
+            [clojure.core.async :as a :include-macros true]))
 
 (defn find-some [m & kws]
   (some (partial find m)
@@ -156,8 +151,11 @@
   (cond->
       (assoc ctx :response {:headers {"Content-Type" "application/json"}
                             :status 200
-                            :body (json/generate-string
-                                   (into [] ids))})
+                            :body (-> (into [] ids)
+                                      #?@(:clj [json/generate-string]
+                                          :cljs [clj->js
+                                                 (->> (.stringify js/JSON))])
+                                   )})
     ?etag (assoc ::i/etag ?etag)))
 
 (def handle-get

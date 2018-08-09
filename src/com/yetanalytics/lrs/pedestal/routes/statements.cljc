@@ -4,7 +4,7 @@
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
              :as att-resp]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
-            [clojure.core.async :as a]))
+            [clojure.core.async :as a :include-macros true]))
 
 (defn error-response
   "Define error responses for statement resource errors"

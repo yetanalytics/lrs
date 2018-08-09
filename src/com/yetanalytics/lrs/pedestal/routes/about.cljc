@@ -1,7 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.routes.about
   (:require [com.yetanalytics.lrs :as lrs]
             [com.yetanalytics.lrs.protocol :as p]
-            [clojure.core.async :as a]))
+            [clojure.core.async :as a :include-macros true]))
 
 (defn get-response [{:keys [com.yetanalytics/lrs] :as ctx}
                     {body :body
