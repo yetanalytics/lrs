@@ -154,7 +154,8 @@
                 res ;; response callback fn
                 raise ;; error callback fn
                 ]
-             (let [context (merge default-context
+             (let [req (assoc req :path-info (:uri req))
+                   context (merge default-context
                                   {:request req
                                    :node/response-fn res
                                    :node/raise-fn raise})]
