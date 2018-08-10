@@ -25,8 +25,10 @@
   {:name ::handle-put
    :enter (fn [{:keys [xapi
                        request
-                       com.yetanalytics/lrs] :as ctx}]
-            (if (p/document-resource-async? lrs)
+                       com.yetanalytics/lrs
+                       com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
+            (if (and (not force-sync)
+                     (p/document-resource-async? lrs))
               (a/go
                 (let [{:keys [body content-type content-length headers]} request]
                   (if-let [[_ params] (find xapi :xapi.activities.state.PUT.request/params)]
@@ -103,13 +105,14 @@
   {:name ::handle-post
    :enter (fn [{:keys [xapi
                        request
-                       com.yetanalytics/lrs] :as ctx}]
+                       com.yetanalytics/lrs
+                       com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
             (let [[params-spec params] (find-some xapi
                                                   :xapi.activities.state.POST.request/params
                                                   :xapi.activities.profile.POST.request/params
                                                   :xapi.agents.profile.POST.request/params)
                   {:keys [body content-type content-length]} request]
-              (if (p/document-resource-async? lrs)
+              (if (and (not force-sync) (p/document-resource-async? lrs))
                 (a/go
                   (post-response ctx (a/<! (lrs/set-document-async
                                             lrs params
@@ -164,13 +167,15 @@
    :enter
    (fn [{:keys [xapi
                 request
-                com.yetanalytics/lrs] :as ctx}]
+                com.yetanalytics/lrs
+                com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
      (let [[params-spec [params-type params]]
            (find-some xapi
                       :xapi.activities.state.GET.request/params
                       :xapi.activities.profile.GET.request/params
                       :xapi.agents.profile.GET.request/params)
-           async? (p/document-resource-async? lrs)]
+           async? (and (not force-sync)
+                       (p/document-resource-async? lrs))]
        (case params-type
          :id
          (if async?
@@ -186,8 +191,9 @@
   {:name ::handle-delete
    :enter (fn [{:keys [xapi
                        request
-                       com.yetanalytics/lrs] :as ctx}]
-            (if (p/document-resource-async? lrs)
+                       com.yetanalytics/lrs
+                       com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
+            (if (and (not force-sync) (p/document-resource-async? lrs))
               (a/go
                 (if-let [[params-spec params] (find-some xapi
                                                          :xapi.activities.profile.DELETE.request/params

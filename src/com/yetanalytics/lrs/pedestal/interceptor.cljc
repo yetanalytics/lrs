@@ -163,7 +163,8 @@
   "Force pre-routing execution to handle the last enter interceptor
    Synchronously."
   [ctx]
-  (let [{{route-interceptors :interceptors
+  (let [ctx (assoc ctx ::force-sync true)
+        {{route-interceptors :interceptors
           :as route} :route
          :as routed-ctx}
         (chain/execute-only (chain/terminate-when ctx :route) :enter)
@@ -207,7 +208,8 @@
                                         :request-method]
                                        :get)))
                         (catch #?(:clj Exception
-                                  :cljs js/Error) _
+                                  :cljs js/Error) e
+                          #_(.error js/console e)
                           (merge ctx
                                  {:request (assoc request :request-method :get)
                                   :response {:status 400
