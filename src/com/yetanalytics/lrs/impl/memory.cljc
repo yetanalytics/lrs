@@ -715,7 +715,8 @@
       (-set-document [lrs params document merge?]
         (try (swap! state update :state/documents transact-document params document merge?)
              nil
-             (catch clojure.lang.ExceptionInfo exi
+             (catch #?(:clj clojure.lang.ExceptionInfo
+                       :cljs ExceptionInfo) exi
                {:error exi})))
       (-get-document [_ params]
         {:document (get-document @state params)})
