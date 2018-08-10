@@ -48,7 +48,7 @@
                   (assoc (chain/terminate ctx)
                          :response
                          {:status 400
-                          :body {:error {:message "xAPI Alternate Syntax does not allow extra params."}}})
+                          :body {:error {:message "xAPI Alternate Syntax does not allow extra query params."}}})
                   (let [{:keys [params form-params]} request
                         {:strs [content-type
                                 content-length]
@@ -99,7 +99,8 @@
                       #?(:clj (execute-next (body-params/body-params
                                              (body-params/default-parser-map
                                               :json-options {:key-fn str})))
-                         :cljs identity)))))
+                         :cljs (execute-next (body-params/body-params
+                                              (body-params/default-parser-map))))))))
               ctx))})
 
 (defn conform-cheshire [spec-kw x]
