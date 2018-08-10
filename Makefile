@@ -4,11 +4,11 @@ clean:
 repl:
 	clj -A:dev -r
 repl-cljs:
-	clj -A:dev -m cljs.main -re node -r
+	clj -A:dev:cljs -m cljs.main -re node -r
 run-dev:
 	clojure -A:dev -m mem-lrs.server
 test-lib-cljs:
-	clojure -A:dev -m cljs.main -t nodejs -o out/test.js -c com.yetanalytics.test-runner
+	clojure -A:dev:cljs:test-cljs -c com.yetanalytics.test-runner
 	node out/test.js
 test-lib-clj:
 	clojure -A:dev -m com.yetanalytics.test-runner
