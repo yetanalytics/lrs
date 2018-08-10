@@ -151,7 +151,7 @@
                            c))}
                  {:status 200
                   :body s-data}))
-             {:status 404})
+             {:status 404 :body ""})
            (catch clojure.lang.ExceptionInfo exi
              (error-response exi)))))
 
@@ -188,7 +188,7 @@
                                 c))}
                             {:status 200
                              :body ?statement})
-                          {:status 404}))
+                          {:status 404 :body ""}))
                       (:attachments params)
                       {:status 200
                        :headers {"Content-Type" att-resp/content-type}
