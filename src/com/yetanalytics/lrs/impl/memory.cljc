@@ -15,11 +15,11 @@
             [clojure.walk :as w]
             [clojure.string :as cstr]
             [clojure.core.async :as a :include-macros true]
-            #?@(:clj [[cljs.nodejs :as node]
-                      [clojure.data.json :as json]
+            #?@(:clj [[clojure.data.json :as json]
                       [clojure.java.io :as io]
                       [ring.util.codec :as codec]]
-                :cljs [[qs]
+                :cljs [[cljs.nodejs :as node]
+                       [qs]
                        [fs]
                        [cljs.reader :refer [read-string]]])
 
@@ -299,7 +299,8 @@
                 :state/activities
                 :state/agents
                 :state/attachments
-                :state/documents]))
+                :state/documents
+                ]))
 
 (defn empty-state
   []
@@ -484,7 +485,10 @@
       (update :state/attachments
               #(reduce-kv (fn [m sha2 a]
                             (assoc m sha2
-                                   #?(:cljs a
+                                   #?(:cljs (assoc a :content
+                                                    (-> js/String
+                                                        .-fromCharCode
+                                                        (.apply nil (clj->js (:content a)))))
                                       :clj (update a :content byte-array))))
                           {}
                           %))
@@ -496,7 +500,10 @@
                  [ctx-key (into (doc/documents-priority-map)
                                 (for [[doc-id doc] docs-map]
                                   [doc-id #?(:clj (update doc :contents byte-array)
-                                             :cljs doc)]))]))))))
+                                             :cljs (assoc doc :contents
+                                                          (-> js/String
+                                                              .-fromCharCode
+                                                              (.apply nil (clj->js (:contents doc))))))]))]))))))
 
 (def fixture-state (memoize fixture-state*))
 
