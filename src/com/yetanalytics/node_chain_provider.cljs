@@ -171,7 +171,11 @@
                 raise ;; error callback fn
                 ]
              (let [req (merge {:path-info (:uri req)}
-                              (assoc req :params (or (:params req) {})))
+                              (-> req
+                                  ;; Make sure there is something there for params
+                                  (assoc :params (or (:params req) {}))
+                                  ;; Make sure content-length is a number
+                                  (update :content-length js/parseInt)))
                    context (merge default-context
                                   {:request req
                                    :node/response-fn res
