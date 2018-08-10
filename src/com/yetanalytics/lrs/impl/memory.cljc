@@ -532,7 +532,13 @@
                      init-state (empty-state)}}]
   (let [state (atom init-state
                     :validator (fn [s]
-                                 (or (s/valid? ::state s)
+                                 (if (s/valid? ::state s)
+                                   true
+                                   (do
+                                     (println "\n Invalid Memory LRS State\n\n")
+                                     (s/explain ::state s)
+                                     false))
+                                 #_(or (s/valid? ::state s)
                                      (s/explain ::state s)
                                      #_(clojure.pprint/pprint (:state/documents s))
                                      #_(clojure.pprint/pprint s))))]
