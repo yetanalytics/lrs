@@ -15,14 +15,16 @@
       {:status 409
        :body
        {:error
-        (merge {:message (.getMessage exi)}
+        (merge {:message (#?(:clj .getMessage
+                             :cljs .-message) exi)}
                (select-keys exd [:statement
                                  :extant-statement]))}}
       ::p/invalid-voiding-statement
       {:status 400
        :body
        {:error
-        (merge {:message (.getMessage exi)}
+        (merge {:message (#?(:clj .getMessage
+                             :cljs .-message) exi)}
                (select-keys exd [:statement]))}}
       (throw exi))))
 
