@@ -160,13 +160,13 @@
                 res ;; response callback fn
                 raise ;; error callback fn
                 ]
-             (let [req (merge {:path-info (:uri req)
-                               :params {}}
-                              req)
+             (let [req (merge {:path-info (:uri req)}
+                              (assoc req :params (or (:params req) {})))
                    context (merge default-context
                                   {:request req
                                    :node/response-fn res
                                    :node/raise-fn raise})]
+               #_(println (:path-info req) (:request-method req) (:params req))
                (chain/execute context (concat [terminator-injector
                                                stylobate
                                                ring-response]
