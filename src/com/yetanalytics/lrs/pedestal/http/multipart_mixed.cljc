@@ -41,18 +41,19 @@
                          :headers headers
                          :input-stream (ByteArrayInputStream. body-bytes)})))
          :cljs
-         (into []
-               (for [file-chunk (cs/split (cs/trim in) boundary-pattern)
-                     :when (not-empty file-chunk)
-                     ;; Using cs/split in cljs leaves extra crlfs around content
-                     ;; so we remove them with trim
-                     :let [file-chunk (cs/trim file-chunk)
-                           [headers-str body-str] (cs/split file-chunk #"\r\n\r\n")
-                           headers (parse-body-headers headers-str)]]
-                 {:content-type (get headers "Content-Type")
-                  :content-length (.-length body-str)
-                  :headers headers
-                  :input-stream body-str}))))
+         (let [chunks (cs/split (cs/trim in) boundary-pattern)]
+           (assert (= "" (first chunks)))
+           (into []
+                 (for [file-chunk (rest chunks)
+                       ;; Using cs/split in cljs leaves extra crlfs around content
+                       ;; so we remove them with trim
+                       :let [file-chunk (cs/trim file-chunk)
+                             [headers-str body-str] (cs/split file-chunk #"\r\n\r\n")
+                             headers (parse-body-headers headers-str)]]
+                   {:content-type (get headers "Content-Type")
+                    :content-length (.-length body-str)
+                    :headers headers
+                    :input-stream body-str})))))
     #?@(:clj [(catch AssertionError ae
                 (throw (ex-info "Invalid Multipart Body"
                                 {:type ::invalid-multipart-body})))
