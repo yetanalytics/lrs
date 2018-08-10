@@ -402,7 +402,7 @@
   #?(:clj (s/with-gen #(satisfies? clojure.java.io/IOFactory
                                    %)
             sgen/bytes)
-     :cljs string?))
+     :cljs object?))
 
 (s/def ::attachment
   (s/with-gen (s/keys :req-un [:attachment/content
