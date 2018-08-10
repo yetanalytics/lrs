@@ -9,7 +9,8 @@
    [clojure.walk :as w]
    [#?(:clj clojure.data.priority-map
        :cljs tailrecursion.priority-map) :as pm]
-   #?@(:clj [[clojure.java.io :as io]]))
+   #?@(:clj [[clojure.java.io :as io]]
+       :cljs [[fs][tmp]]))
   #?(:clj (:import [java.time Instant]
                    [clojure.data.priority_map PersistentPriorityMap]
                    [java.io File])))
@@ -402,7 +403,9 @@
   #?(:clj (s/with-gen #(satisfies? clojure.java.io/IOFactory
                                    %)
             sgen/bytes)
-     :cljs object?))
+     :cljs (s/with-gen object?
+             (fn []
+               (sgen/return #js {:name "/foo/bar"})))))
 
 (s/def ::attachment
   (s/with-gen (s/keys :req-un [:attachment/content
@@ -415,7 +418,8 @@
              content-type]]
          {:content content
           :contentType content-type
-          :length (count content)
+          :length #?(:clj (count content)
+                     :cljs (rand-int 100))
           :sha2 (sha-256 content)})
        (sgen/tuple
         (s/gen :attachment/content)
