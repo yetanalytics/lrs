@@ -9,6 +9,7 @@
    [com.yetanalytics.lrs.pedestal.routes.agents :as agents]
    [com.yetanalytics.lrs.pedestal.routes.activities :as activities]
    [com.yetanalytics.lrs.pedestal.routes.documents :as documents]
+   [io.pedestal.interceptor :refer [interceptor]]
    #?@(:cljs [[goog.string :refer [format]]
               goog.string.format])))
 
@@ -62,6 +63,11 @@
                      :delete documents/handle-delete)))
            :route-name (keyword route-name-ns (name method))])))
 
+(def health
+  (interceptor
+   {:name ::health
+    :enter (fn [ctx]
+             (assoc ctx :response {:status 200 :body ""}))}))
 
 (defn build [{:keys [lrs]}]
   (let [lrs-i (i/lrs-interceptor lrs)
@@ -72,7 +78,9 @@
         document-interceptors (into (conj i/doc-interceptors-base
                                           lrs-i)
                                     i/xapi-protected-interceptors)]
-    (into #{;; xapi
+    (into #{["/health" :get (conj global-interceptors
+                                  health)]
+            ;; xapi
             ["/xapi/about" :get (conj global-interceptors
                                       about/handle-get)]
             ["/xapi/about" :any method-not-allowed
