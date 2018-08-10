@@ -258,7 +258,8 @@
          {?since :since} :query} (param-keys-query params)]
     (mapv :id
           (cond->> (some-> (get-in state [:state/documents context-key])
-                           vals)
+                           #?(:clj vals
+                              :cljs (->> (map second))))
            ?since (drop-while (fn [{:keys [updated]}]
                                 (< -1 (compare ?since updated))))))))
 
@@ -403,7 +404,8 @@
               (= "ids" format-type)
               ss/format-statement-ids))
       (list))
-    (cond->> (or (vals (:state/statements state))
+    (cond->> (or #?(:cljs (map second (:state/statements state))
+                    :clj (vals (:state/statements state)))
                  (list))
       ascending reverse
       ;; paging from
