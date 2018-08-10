@@ -3,8 +3,9 @@
             [xapi-schema.spec.resources :as xsr]
             [io.pedestal.interceptor.chain :as chain]
             [clojure.string :as cstr]
-            #?@(:clj [[io.pedestal.http.body-params :as body-params]
-                      [cheshire.core :as json]
+            [io.pedestal.http.body-params :as body-params]
+            [com.yetanalytics.lrs.util.log :as log]
+            #?@(:clj [[cheshire.core :as json]
                       [clojure.java.io :as io]]
                 :cljs [[goog.string :refer [format]]
                        [goog.string.format]]))
