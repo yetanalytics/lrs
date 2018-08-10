@@ -249,6 +249,7 @@
      :enter (fn [{:keys [request] :as ctx}]
               (cond
                 (nil? (:body request)) ctx
+                (empty? (:body request)) ctx
                 (string? (:body request))
                 (assoc ctx :request (parse-content-type parser-map request))
                 :else (let [ctx-chan (a/promise-chan)
