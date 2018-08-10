@@ -172,7 +172,7 @@
   {:name (let [[k-ns k-name] ((juxt namespace name) spec-kw)]
            (keyword k-ns (str k-name "-interceptor")))
    :enter (fn [{:keys [request] :as ctx}]
-            (let [raw-params (:params request {})
+            (let [raw-params (or (:params request) {})
                   params (conform-cheshire spec-kw raw-params)
                   {:keys [path-info request-method]} request]
               (if-not (or (= ::s/invalid params)
