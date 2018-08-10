@@ -14,7 +14,7 @@
   (-write-response [chan node-server-response raise]
     (a/go-loop []
       (if-let [datum (a/<! chan)]
-        (do (mhttp/-write-response datum node-server-response raise)
+        (do (.write node-server-response datum)
             (recur))
         (.end node-server-response)))))
 
