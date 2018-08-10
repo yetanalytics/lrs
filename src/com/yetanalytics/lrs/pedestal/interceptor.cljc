@@ -15,7 +15,10 @@
             [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [com.yetanalytics.lrs.spec.common :as cs]
-            [clojure.core.async :as a :include-macros true]))
+            [clojure.core.async :as a :include-macros true]
+            #?@(:cljs [[cljs.nodejs :as node]
+                       [cljs.pprint :refer [pprint]]
+                       [concat-stream]])))
 
 ;; Enter
 (defn lrs-interceptor
@@ -337,6 +340,31 @@
 
 ;; Combined interceptors
 
+#?(:cljs (def ppman
+           (i/interceptor
+            {:name ::pp
+             :enter (fn [ctx]
+                      (pprint ctx)
+                      ctx)
+             :leave (fn [ctx]
+                      (pprint ctx)
+                      ctx)})))
+
+#?(:cljs (def body-string-interceptor
+           (i/interceptor
+            {:name ::body-string
+             :enter (fn [{{body :body} :request :as ctx}]
+                      (if (string? body)
+                        ctx
+                        (let [ctx-chan (a/promise-chan)]
+                          (.pipe body
+                                 (concat-stream. (fn [body-buffer]
+                                                   (a/go (a/>! ctx-chan
+                                                               (assoc-in ctx
+                                                                         [:request :body]
+                                                                         (.toString body-buffer)))))))
+                          ctx-chan)))})))
+
 (defn xapi-default-interceptors
           "Like io.pedestal.http/default-interceptors, but includes support for xapi alt
    request syntax, etc."
@@ -375,7 +403,10 @@
                                                          {:routes routes})))]
             (if-not interceptors
               (assoc service-map ::http/interceptors
-                     (cond-> []
+                     ;; TODO: remove these debugs
+                     (cond-> [#?@(:cljs [body-string-interceptor
+                                         #_ppman])
+                              ]
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
                        (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
