@@ -1,8 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements
   (:require
    #?@(:clj [[cheshire.core :as json]
-             [clojure.java.io :as io]
-             [io.pedestal.log :as log]]
+             [clojure.java.io :as io]]
        :cljs [[goog.string :as gstring]
               goog.string.format])
    [io.pedestal.interceptor.chain :as chain]
@@ -11,6 +10,7 @@
    [com.yetanalytics.lrs.xapi.statements :as ss]
    [com.yetanalytics.lrs :as lrs]
    [com.yetanalytics.lrs.protocol :as lrsp]
+   [com.yetanalytics.lrs.util.log :as log]
    [clojure.spec.alpha :as s :include-macros true]
    [xapi-schema.spec :as xs]
    [clojure.walk :as w]
@@ -193,12 +193,12 @@
                                                       :statement-data statement-data
                                                       :spec-error (s/explain-str single-or-multiple-statement-spec
                                                                                  statement-data)}}}))
-                             (catch clojure.lang.ExceptionInfo exi
+                             (catch #?(:clj clojure.lang.ExceptionInfo
+                                       :cljs ExceptionInfo) exi
                                (assoc (chain/terminate ctx)
                                       :response
                                       (let [exd (ex-data exi)]
-                                        (#?@(:clj [log/debug]
-                                             :cljs [.log js/console]) :msg "Statement Validation Exception" :exd exd)
+                                        (log/debug :msg "Statement Validation Exception" :exd exd)
                                         {:status (if (= ::attachment/attachment-save-failure (:type exd))
                                                    500
                                                    400)
@@ -260,7 +260,7 @@
             :more
             (do (a/>! body-chan
                       (fmt "],\"more\":\"%s\"}"
-                              (a/<! statement-result-chan)))
+                           (a/<! statement-result-chan)))
                 (recur :more s-count))
 
             (do
