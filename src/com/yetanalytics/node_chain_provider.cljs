@@ -1,5 +1,6 @@
 (ns com.yetanalytics.node-chain-provider
   (:require [cljs.nodejs :as node]
+            [fs]
             [macchiato.server :as server]
             [macchiato.http :as mhttp]
             [io.pedestal.http :as http]
@@ -14,7 +15,16 @@
   (-write-response [chan node-server-response raise]
     (a/go-loop []
       (if-let [datum (a/<! chan)]
-        (do (.write node-server-response datum)
+        (do (try (.write node-server-response datum)
+                 (catch js/TypeError e
+                   (if (object? datum)
+                     ;; TODO: allow these to stream
+                     (.write node-server-response (.readFileSync fs (.-name datum)))
+                     (throw (ex-info "Could not write datum!"
+                                     {:type ::datum-write-fail
+                                      :datum datum
+                                      :resp node-server-response}
+                                     e)))))
             (recur))
         (.end node-server-response)))))
 
@@ -166,7 +176,7 @@
                                   {:request req
                                    :node/response-fn res
                                    :node/raise-fn raise})]
-               #_(println (:path-info req) (:request-method req) (:params req))
+               (println (:path-info req) (:request-method req) (:params req))
                (chain/execute context (concat [terminator-injector
                                                stylobate
                                                ring-response]
