@@ -21,6 +21,7 @@
                 :cljs [[cljs.nodejs :as node]
                        [qs]
                        [fs]
+                       [tmp]
                        [cljs.reader :refer [read-string]]])
 
             )
@@ -488,9 +489,12 @@
               #(reduce-kv (fn [m sha2 a]
                             (assoc m sha2
                                    #?(:cljs (assoc a :content
-                                                    (-> js/String
-                                                        .-fromCharCode
-                                                        (.apply nil (clj->js (:content a)))))
+                                                   (let [f (.fileSync tmp)]
+                                                     (.writeFileSync fs (.-name f)
+                                                                     (-> js/String
+                                                                         .-fromCharCode
+                                                                         (.apply nil (clj->js (:content a)))))
+                                                     f))
                                       :clj (update a :content byte-array))))
                           {}
                           %))
