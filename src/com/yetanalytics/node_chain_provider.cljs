@@ -90,6 +90,12 @@
     :leave leave-stylobate
     :error error-stylobate}))
 
+(defn- ensure-body
+  "Make sure the body is at least an empty string, otherwise node
+  Doesn't seem to like it"
+  [resp]
+  (assoc resp :body (or (:body resp) "")))
+
 (defn- leave-ring-response
   [{{body :body :as response} :response
     response-fn :node/response-fn
@@ -104,7 +110,7 @@
     #_(satisfies? WriteableBodyAsync body) #_(let [chan (::resume-channel context (async/chan))]
                                            (send-response (assoc context ::resume-channel chan))
                                            chan)
-    :else (do (response-fn response)
+    :else (do (response-fn (ensure-body response))
              context)))
 
 (defn- error-ring-response
