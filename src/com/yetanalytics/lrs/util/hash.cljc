@@ -83,7 +83,7 @@
            [bs]
            (bytes->hex
             (.digest
-             (doto (goog.crypt.Sha256) (.update bs))))))
+             (doto (goog.crypt.Sha256.) (.update bs))))))
 
 (defmulti sha-256 #?(:clj class
                      :cljs type))
