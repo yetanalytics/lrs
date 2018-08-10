@@ -25,7 +25,8 @@
             [cljs.reader :refer [read-string]]
             [io.pedestal.interceptor :as i]
             [clojure.core.async :as a :include-macros true]
-            [concat-stream])
+            [concat-stream]
+            [clojure.walk :as w])
   #_(:import [java.util.regex Pattern]))
 
 (defn body-string-chan
@@ -193,8 +194,11 @@
     ;; Async body and interceptor
     (a/go (let [pec (::parse-error-chan request)
                 body-str (a/<! (body-string-chan (:body request)))]
-            (try (let [parsed-req (assoc (params/assoc-form-params
-                                          (assoc request :body body-str))
+            (try (let [parsed-req (assoc (update
+                                          (params/assoc-form-params
+                                           (assoc request :body body-str))
+                                          :form-params
+                                          (fnil w/keywordize-keys {}))
                                          ;; keep the body intact
                                          :body (:body request))]
                    (a/>! prc parsed-req))
@@ -203,8 +207,10 @@
                                       {:type ::form-parse-error}
                                       e))))))
     ;; Sync body
-    (params/assoc-form-params
-     request))
+    (update (params/assoc-form-params
+             request)
+            :form-params
+            (fnil w/keywordize-keys {})))
 
   #_(let [encoding (or (:character-encoding request) "UTF-8")
         request  (params/assoc-form-params request encoding)]
