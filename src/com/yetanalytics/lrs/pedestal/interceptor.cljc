@@ -4,15 +4,7 @@
             [io.pedestal.interceptor :as i]
             [io.pedestal.interceptor.chain :as chain]
             [io.pedestal.http :as http]
-            #?@(:clj [[io.pedestal.http.route :as route]
-                      [io.pedestal.http.cors :as cors]
-
-                      [io.pedestal.http.params :refer [keyword-params
-                                                       keyword-body-params
-                                                       ]]
-
-
-
+            #?@(:clj [[io.pedestal.http.cors :as cors]
                       [io.pedestal.http.csrf :as csrf]
                       [io.pedestal.http.secure-headers :as sec-headers]
                       [io.pedestal.log :as log]])
