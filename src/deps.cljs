@@ -11,5 +11,4 @@
             "url" "0.11.0"
             "ws" "5.1.1"
             "source-map-support" "0.5.8"}
- :externs ["resources/lrs/externs.js"]
- }
+ :externs ["resources/lrs/externs.js"]}
