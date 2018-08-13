@@ -180,7 +180,7 @@
                                   {:request req
                                    :node/response-fn res
                                    :node/raise-fn raise})]
-               (println (:path-info req) (:request-method req) (:params req))
+               #_(println (:path-info req) (:request-method req) (:params req))
                (chain/execute context (concat [terminator-injector
                                                stylobate
                                                ring-response]
