@@ -9,6 +9,7 @@
             com.yetanalytics.lrs.xapi.statements-test
             com.yetanalytics.lrs.impl.memory-test
             com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
+            com.yetanalytics.lrs.auth-test
             ))
 
 (defmethod clojure.test/report #?(:cljs [::test/default :begin-test-ns]
@@ -43,7 +44,8 @@
               'com.yetanalytics.lrs.xapi.document-test
               'com.yetanalytics.lrs.xapi.statements-test
               'com.yetanalytics.lrs.impl.memory-test
-              'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test)]
+              'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
+              'com.yetanalytics.lrs.auth-test)]
     #?(:clj (if (= 0 fail error)
               (System/exit 0)
               (System/exit 1))
