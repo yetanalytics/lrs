@@ -5,7 +5,7 @@
             [xapi-schema.spec.resources :as xsr]
             [com.yetanalytics.lrs.xapi.statements :as ss]
             [com.yetanalytics.lrs.xapi.document :as doc]
-            ))
+            [com.yetanalytics.lrs.auth :as auth]))
 
 (defn lrs-gen-fn
   "Generate a full LRS for specs"
@@ -292,5 +292,50 @@
                :ctx map?)
   :ret ::p/consistent-through-async-ret)
 
+;; Auth
 
-;; TODO: auth
+(defn authenticate
+  "Given the LRS and context, return an identity or nil (401)"
+  [lrs ctx]
+  (p/-authenticate lrs ctx))
+
+(s/fdef authenticate
+  :args (s/cat :lrs (s/with-gen ::p/lrs-auth-instance
+                      lrs-gen-fn)
+               :ctx map?)
+  :ret ::p/authenticate-ret)
+
+(defn authorize
+  "Given the LRS and context, return true if the user is allowed to do a given thing."
+  [lrs ctx auth-identity]
+  (p/-authorize lrs ctx auth-identity))
+
+(s/fdef auth
+  :args (s/cat :lrs (s/with-gen ::p/lrs-auth-instance
+                      lrs-gen-fn)
+               :ctx map?
+               :auth-identity ::auth/identity)
+  :ret ::p/authorize-ret)
+
+(defn authenticate-async
+  "Given the LRS and context, return an identity or nil (401), on a promise channel"
+  [lrs ctx]
+  (p/-authenticate-async lrs ctx))
+
+(s/fdef authenticate-async
+  :args (s/cat :lrs (s/with-gen ::p/lrs-auth-async-instance
+                      lrs-gen-fn)
+               :ctx map?)
+  :ret ::p/authenticate-async-ret)
+
+(defn authorize-async
+  "Given the LRS and context, return true if the user is allowed to do a given thing, on a promise-channel"
+  [lrs ctx auth-identity]
+  (p/-authorize-async lrs ctx auth-identity))
+
+(s/fdef authorize-async
+  :args (s/cat :lrs (s/with-gen ::p/lrs-auth-async-instance
+                      lrs-gen-fn)
+               :ctx map?
+               :auth-identity ::auth/identity)
+  :ret ::p/authorize-async-ret)

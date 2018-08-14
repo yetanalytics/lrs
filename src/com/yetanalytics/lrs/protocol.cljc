@@ -6,7 +6,8 @@
             [com.yetanalytics.lrs.xapi :as xapi]
             [com.yetanalytics.lrs.spec.common :as sc]
             [com.yetanalytics.lrs.xapi.statements :as ss]
-            [com.yetanalytics.lrs.xapi.document :as doc]))
+            [com.yetanalytics.lrs.xapi.document :as doc]
+            [com.yetanalytics.lrs.auth :as auth]))
 
 #?(:clj (set! *warn-on-reflection* true))
 
@@ -395,22 +396,44 @@
 ;; Auth
 (defprotocol LRSAuth
   "Protocol for an authenticatable LRS"
-  (-authenticate-credentials [this api-key api-key-secret]
-    "Authenticate for access to the LRS with key/secret credentials.")
-  (-authenticate-token [this token]
-    "Authenticate to the LRS with a token."))
+  (-authenticate [this ctx]
+    "Given the context, return an identity or ::auth/forbidden (401)")
+  (-authorize [this ctx auth-identity]
+    "Given the context and auth identity, return truthy if the user is allowed to do a given thing."))
+
+(defn lrs-auth-instance? [x]
+  (satisfies? LRSAuth x))
 
 (s/def ::lrs-auth-instance
-  #(satisfies? LRSAuth %))
+  lrs-auth-instance?)
 
-(s/def ::api-key
-  string?)
+(s/def ::authenticate-ret
+  ::auth/authenticate-result)
 
-(s/def ::api-key-secret
-  string?)
+(s/def ::authorize-ret
+  boolean?)
 
-(s/def ::token
-  string?)
+(defprotocol LRSAuthAsync
+  "Protocol for an authenticatable LRS"
+  (-authenticate-async [this ctx]
+    "Given the context, return an identity or ::auth/forbidden (401) on a promise channel")
+  (-authorize-async [this ctx auth-identity]
+    "Given the context and auth-identity, return true if the user is allowed to do a given thing, on a promise-channel"))
+
+(defn lrs-auth-async-instance? [x]
+  (satisfies? LRSAuthAsync x))
+
+(s/def ::lrs-auth-async-instance
+  lrs-auth-async-instance?)
+
+(s/def ::authenticate-async-ret
+  (sc/from-port
+   ::auth/authenticate-result))
+
+(s/def ::authorize-async-ret
+  (sc/from-port
+   boolean?))
+
 
 ;; Spec for the whole LRS
 (s/def ::lrs ;; A minimum viable LRS
@@ -419,4 +442,15 @@
          ::activity-info-resource-instance
          ::agent-info-resource-instance
          ::document-resource-instance
+         ::lrs-auth-instance
+         ))
+
+;; The same, all async
+(s/def ::lrs ;; A minimum viable LRS
+  (s/and ::about-resource-async-instance
+         ::statements-resource-async-instance
+         ::activity-info-resource-async-instance
+         ::agent-info-resource-async-instance
+         ::document-resource-async-instance
+         ::lrs-auth-async-instance
          ))

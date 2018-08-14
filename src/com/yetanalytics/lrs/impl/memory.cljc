@@ -770,6 +770,22 @@
       (-get-activity-async [lrs params]
         (a/go
           (p/-get-activity lrs params)))
+      p/LRSAuth
+      (-authenticate [lrs ctx]
+        ;; Authenticate is a no-op right now, just returns a dummy
+        {:scopes #{:scope/all}
+         :prefix ""
+         :auth {:no-op {}}})
+      (-authorize [lrs ctx auth-identity]
+        ;; Auth
+        true)
+      p/LRSAuthAsync
+      (-authenticate-async [lrs ctx]
+        (a/go {:scopes #{:scope/all}
+               :prefix ""
+               :auth {:no-op {}}}))
+      (-authorize-async [lrs ctx auth-identity]
+        (a/go true))
       DumpableMemoryLRS
       (dump [_]
         @state))))

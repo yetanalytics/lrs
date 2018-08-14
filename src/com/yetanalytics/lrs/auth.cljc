@@ -1,5 +1,6 @@
 (ns com.yetanalytics.lrs.auth
   (:require [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec :as xs]))
 
 ;; From https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#42-oauth-10-authorization-scope
@@ -84,7 +85,8 @@
   (s/and string? not-empty))
 
 (s/def ::no-op
-  #{true})
+  (s/with-gen identity
+    #(sgen/return {})))
 
 (s/def ::auth
   (s/keys :req-un [(or ::basic
@@ -98,5 +100,8 @@
           :opt-un [::xs/agent ;; xapi representation of a person
                    ]))
 
-;; The authenticate method will return identity or nil (401)
-;; The other methods need a way to 403
+(s/def ::forbidden #{::forbidden})
+
+(s/def ::authenticate-result
+  (s/or :authenticated ::identity
+        :forbidden ::forbidden))
