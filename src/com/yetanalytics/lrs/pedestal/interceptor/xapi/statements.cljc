@@ -15,7 +15,8 @@
    [xapi-schema.spec :as xs]
    [clojure.walk :as w]
    [clojure.core.async :as a :include-macros true]
-   [clojure.string :as cs])
+   [clojure.string :as cs]
+   [com.yetanalytics.lrs.auth :as auth])
   #?(:clj (:import [java.time Instant]
                    [java.io InputStream OutputStream ByteArrayOutputStream]
                    [javax.servlet ServletOutputStream])))
@@ -213,15 +214,16 @@
 
 (def set-consistent-through
   {:name ::set-consistent-through
-   :leave (fn [{:keys [com.yetanalytics/lrs] :as ctx}]
+   :leave (fn [{auth-identity ::auth/identity
+                :keys [com.yetanalytics/lrs] :as ctx}]
             (cond
               (lrsp/statements-resource-async? lrs)
               (a/go
                 (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
-                          (a/<! (lrs/consistent-through-async lrs ctx))))
+                          (a/<! (lrs/consistent-through-async lrs ctx auth-identity))))
               (lrsp/statements-resource? lrs)
               (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
-                        (lrs/consistent-through lrs ctx))
+                        (lrs/consistent-through lrs ctx auth-identity))
               :else
               (assoc-in ctx [:response :headers "X-Experience-API-Consistent-Through"]
                         (ss/now-stamp))))})
