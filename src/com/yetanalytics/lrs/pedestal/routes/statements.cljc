@@ -4,7 +4,8 @@
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
              :as att-resp]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
-            [clojure.core.async :as a :include-macros true]))
+            [clojure.core.async :as a :include-macros true]
+            [com.yetanalytics.lrs.auth :as auth]))
 
 (defn error-response
   "Define error responses for statement resource errors"
@@ -41,7 +42,8 @@
 (def handle-put
   {:name ::handle-put
    :enter
-   (fn [{:keys [xapi
+   (fn [{auth-identity ::auth/identity
+         :keys [xapi
                 com.yetanalytics/lrs] :as ctx}]
      (let [{params :xapi.statements.PUT.request/params
             statement :xapi-schema.spec/statement
@@ -59,14 +61,16 @@
          (a/go (if (or (nil? (get statement "id"))
                        (= s-id (get statement "id")))
                  (put-response ctx (a/<! (lrs/store-statements-async
-                                          lrs [(assoc statement "id" s-id)]
+                                          lrs auth-identity
+                                          [(assoc statement "id" s-id)]
                                           attachments)))
                  bad-params-response))
 
          (if (or (nil? (get statement "id"))
                  (= s-id (get statement "id")))
            (put-response ctx (lrs/store-statements
-                              lrs [(assoc statement "id" s-id)]
+                              lrs auth-identity
+                              [(assoc statement "id" s-id)]
                               attachments))
            bad-params-response))))})
 
@@ -84,7 +88,8 @@
 (def handle-post
   {:name ::handle-post
    :enter
-   (fn [{:keys [xapi
+   (fn [{auth-identity ::auth/identity
+         :keys [xapi
                 com.yetanalytics/lrs] :as ctx}]
      (let [{?statements :xapi-schema.spec/statements
             ?statement :xapi-schema.spec/statement
@@ -94,10 +99,12 @@
          (a/go
            (post-response ctx (a/<! (lrs/store-statements-async
                                      lrs
+                                     auth-identity
                                      statements
                                      attachments))))
          (post-response ctx (lrs/store-statements
                              lrs
+                             auth-identity
                              statements
                              attachments)))))})
 
@@ -158,13 +165,15 @@
 (def handle-get
   {:name ::handle-get
    :enter
-   (fn [{:keys [xapi
+   (fn [{auth-identity ::auth/identity
+         :keys [xapi
                 com.yetanalytics/lrs] :as ctx}]
      (let [params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
            ltags (get ctx :xapi/ltags [])]
        (if (p/statements-resource-async? lrs)
          (let [r-chan (lrs/get-statements-async
                        lrs
+                       auth-identity
                        params
                        ltags)]
            (a/go
@@ -203,5 +212,6 @@
                         r-chan)}))))
          (get-response ctx (lrs/get-statements
                             lrs
+                            auth-identity
                             params
                             ltags)))))})

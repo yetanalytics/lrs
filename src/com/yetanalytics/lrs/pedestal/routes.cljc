@@ -9,6 +9,7 @@
    [com.yetanalytics.lrs.pedestal.routes.agents :as agents]
    [com.yetanalytics.lrs.pedestal.routes.activities :as activities]
    [com.yetanalytics.lrs.pedestal.routes.documents :as documents]
+   [com.yetanalytics.lrs.pedestal.interceptor.auth :as auth-i]
    [io.pedestal.interceptor :refer [interceptor]]
    #?@(:cljs [[goog.string :refer [format]]
               goog.string.format])))
@@ -72,11 +73,17 @@
 (defn build [{:keys [lrs]}]
   (let [lrs-i (i/lrs-interceptor lrs)
         global-interceptors (conj i/common-interceptors
-                                  lrs-i)
+                                  lrs-i
+                                  auth-i/lrs-authenticate
+                                  auth-i/lrs-authorize
+                                  )
         protected-interceptors (into global-interceptors
                                      i/xapi-protected-interceptors)
         document-interceptors (into (conj i/doc-interceptors-base
-                                          lrs-i)
+                                          lrs-i
+                                          auth-i/lrs-authenticate
+                                          auth-i/lrs-authorize
+                                          )
                                     i/xapi-protected-interceptors)]
     (into #{["/health" :get (conj global-interceptors
                                   health)]

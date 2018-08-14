@@ -1,7 +1,8 @@
 (ns com.yetanalytics.lrs.pedestal.routes.about
   (:require [com.yetanalytics.lrs :as lrs]
             [com.yetanalytics.lrs.protocol :as p]
-            [clojure.core.async :as a :include-macros true]))
+            [clojure.core.async :as a :include-macros true]
+            [com.yetanalytics.lrs.auth :as auth]))
 
 (defn get-response [{:keys [com.yetanalytics/lrs] :as ctx}
                     {body :body
@@ -14,7 +15,9 @@
 
 (def handle-get
   {:name ::handle-get
-   :enter (fn [{:keys [com.yetanalytics/lrs] :as ctx}]
+   :enter (fn [{auth-identity ::auth/identity
+                :keys [com.yetanalytics/lrs] :as ctx}]
             (if (p/about-resource-async? lrs)
-              (a/go (get-response ctx (a/<! (lrs/get-about-async lrs))))
-              (get-response ctx (a/<! (lrs/get-about lrs)))))})
+              (a/go (get-response ctx
+                                  (a/<! (lrs/get-about-async lrs auth-identity))))
+              (get-response ctx (a/<! (lrs/get-about lrs auth-identity)))))})

@@ -4,6 +4,7 @@
             [clojure.string :as cstr]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [clojure.core.async :as a :include-macros true]
+            [com.yetanalytics.lrs.auth :as auth]
             #?(:clj [cheshire.core :as json])))
 
 (defn find-some [m & kws]
@@ -23,7 +24,8 @@
 ;; TODO: better handling of sync/async, dedupe
 (def handle-put
   {:name ::handle-put
-   :enter (fn [{:keys [xapi
+   :enter (fn [{auth-identity ::auth/identity
+                :keys [xapi
                        request
                        com.yetanalytics/lrs
                        com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
@@ -34,7 +36,7 @@
                   (if-let [[_ params] (find xapi :xapi.activities.state.PUT.request/params)]
                     (do
                       (a/<! (lrs/set-document-async
-                             lrs params
+                             lrs auth-identity params
                              {:content-type content-type
                               :content-length content-length
                               :contents body}
@@ -46,14 +48,15 @@
                           {:strs [if-match if-none-match]} headers]
                       (if (or if-match if-none-match)
                         (do (a/<! (lrs/set-document-async
-                                   lrs params
+                                   lrs auth-identity params
                                    {:content-type content-type
                                     :content-length content-length
                                     :contents body}
                                    false))
                             (assoc ctx :response {:status 204}))
                         ;; if neither header is present
-                        (if (:document (a/<! (lrs/get-document-async lrs params)))
+                        (if (:document (a/<! (lrs/get-document-async
+                                              lrs auth-identity params)))
                           (assoc ctx :response {:status 409
                                                 :headers {"Content-Type" "text/plain"}
                                                 :body "If-Match or If-None-Match header is required for existing document."})
@@ -62,7 +65,7 @@
                   (if-let [[_ params] (find xapi :xapi.activities.state.PUT.request/params)]
                     (do
                       (lrs/set-document
-                       lrs params
+                       lrs auth-identity params
                        {:content-type content-type
                         :content-length content-length
                         :contents body}
@@ -74,14 +77,14 @@
                           {:strs [if-match if-none-match]} headers]
                       (if (or if-match if-none-match)
                         (do (lrs/set-document
-                             lrs params
+                             lrs auth-identity params
                              {:content-type content-type
                               :content-length content-length
                               :contents body}
                              false)
                             (assoc ctx :response {:status 204}))
                         ;; if neither header is present
-                        (if (:document (a/<! (lrs/get-document lrs params)))
+                        (if (:document (a/<! (lrs/get-document lrs auth-identity params)))
                           (assoc ctx :response {:status 409
                                                 :headers {"Content-Type" "text/plain"}
                                                 :body "If-Match or If-None-Match header is required for existing document."})
@@ -103,7 +106,8 @@
 
 (def handle-post
   {:name ::handle-post
-   :enter (fn [{:keys [xapi
+   :enter (fn [{auth-identity ::auth/identity
+                :keys [xapi
                        request
                        com.yetanalytics/lrs
                        com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
@@ -115,13 +119,13 @@
               (if (and (not force-sync) (p/document-resource-async? lrs))
                 (a/go
                   (post-response ctx (a/<! (lrs/set-document-async
-                                            lrs params
+                                            lrs auth-identity params
                                             {:content-type content-type
                                              :content-length content-length
                                              :contents body}
                                             true))))
                 (post-response ctx (lrs/set-document
-                                    lrs params
+                                    lrs auth-identity params
                                     {:content-type content-type
                                      :content-length content-length
                                      :contents body}
@@ -165,7 +169,8 @@
 (def handle-get
   {:name ::handle-get
    :enter
-   (fn [{:keys [xapi
+   (fn [{auth-identity ::auth/identity
+         :keys [xapi
                 request
                 com.yetanalytics/lrs
                 com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
@@ -179,17 +184,24 @@
        (case params-type
          :id
          (if async?
-           (a/go (get-single-response ctx (a/<! (lrs/get-document-async lrs params))))
-           (get-single-response ctx (lrs/get-document lrs params)))
+           (a/go (get-single-response ctx (a/<! (lrs/get-document-async
+                                                 lrs auth-identity params))))
+           (get-single-response ctx (lrs/get-document lrs auth-identity params)))
          :query
          (if async?
-           (a/go (get-multiple-response ctx (a/<! (lrs/get-document-ids-async lrs params))))
-           (get-multiple-response ctx (lrs/get-document-ids lrs params)))
+           (a/go (get-multiple-response ctx
+                                        (a/<!
+                                         (lrs/get-document-ids-async
+                                          lrs auth-identity params))))
+           (get-multiple-response ctx (lrs/get-document-ids lrs
+                                                            auth-identity
+                                                            params)))
          (assoc ctx :response {:status 400}))))})
 
 (def handle-delete
   {:name ::handle-delete
-   :enter (fn [{:keys [xapi
+   :enter (fn [{auth-identity ::auth/identity
+                :keys [xapi
                        request
                        com.yetanalytics/lrs
                        com.yetanalytics.lrs.pedestal.interceptor/force-sync] :as ctx}]
@@ -198,19 +210,21 @@
                 (if-let [[params-spec params] (find-some xapi
                                                          :xapi.activities.profile.DELETE.request/params
                                                          :xapi.agents.profile.DELETE.request/params)]
-                  (a/<! (lrs/delete-document-async lrs params))
+                  (a/<! (lrs/delete-document-async lrs auth-identity params))
                   (let [[params-type params] (:xapi.activities.state.DELETE.request/params xapi)]
                     (case params-type
-                      :id (a/<! (lrs/delete-document-async lrs params))
-                      :context (a/<! (lrs/delete-documents-async lrs params)))))
+                      :id (a/<! (lrs/delete-document-async
+                                 lrs auth-identity params))
+                      :context (a/<! (lrs/delete-documents-async
+                                      lrs auth-identity params)))))
                 (assoc ctx :response {:status 204}))
               (do
                 (if-let [[params-spec params] (find-some xapi
                                                          :xapi.activities.profile.DELETE.request/params
                                                          :xapi.agents.profile.DELETE.request/params)]
-                  (lrs/delete-document lrs params)
+                  (lrs/delete-document lrs auth-identity params)
                   (let [[params-type params] (:xapi.activities.state.DELETE.request/params xapi)]
                     (case params-type
-                      :id (lrs/delete-document lrs params)
-                      :context (lrs/delete-documents lrs params))))
+                      :id (lrs/delete-document lrs auth-identity params)
+                      :context (lrs/delete-documents lrs auth-identity params))))
                 (assoc ctx :response {:status 204}))))})

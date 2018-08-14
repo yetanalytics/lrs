@@ -29,7 +29,7 @@
 
 (defprotocol AboutResource
   "Protocol for retrieving LRS info"
-  (-get-about [this]
+  (-get-about [this auth-identity]
     "Return information about the LRS"))
 
 (defn about-resource?
@@ -46,7 +46,7 @@
 
 (defprotocol AboutResourceAsync
   "AsyncProtocol for retrieving LRS info."
-  (-get-about-async [this]
+  (-get-about-async [this auth-identity]
     "Return information about the LRS. Returns response in a promise channel."))
 
 (defn about-resource-async?
@@ -67,15 +67,15 @@
 (defprotocol DocumentResource
   "Protocol for storing/retrieving documents.
    See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#23-state-resource"
-  (-set-document [this params document merge?]
+  (-set-document [this auth-identity params document merge?]
     "Store a document, merges.")
-  (-get-document [this params]
+  (-get-document [this auth-identity params]
     "Get a single document.")
-  (-get-document-ids [this params]
+  (-get-document-ids [this auth-identity params]
     "Get multiple document ids.")
-  (-delete-document [this params]
+  (-delete-document [this auth-identity params]
     "Delete a single document.")
-  (-delete-documents [this params]
+  (-delete-documents [this auth-identity params]
     "Delete multiple documents."))
 
 (defn document-resource? [lrs]
@@ -160,16 +160,16 @@
 (defprotocol DocumentResourceAsync
   "Async protocol for storing/retrieving documents.
    See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#23-state-resource"
-  (-set-document-async [this params document merge?]
+  (-set-document-async [this auth-identity params document merge?]
     "Store a document, merges. Returns a promise channel")
-  (-get-document-async [this params]
+  (-get-document-async [this auth-identity params]
     "Get a single document. Returns a promise channel")
-  (-get-document-ids-async [this params]
+  (-get-document-ids-async [this auth-identity params]
     "Get multiple document ids.
      Returns a channel which will receive document ids and close.")
-  (-delete-document-async [this params]
+  (-delete-document-async [this auth-identity params]
     "Delete a single document. Returns a promise channel.")
-  (-delete-documents-async [this params]
+  (-delete-documents-async [this auth-identity params]
     "Delete multiple documents. Returns a promise channel."))
 
 (defn document-resource-async? [lrs]
@@ -205,7 +205,7 @@
 ;; /xapi/activities
 (defprotocol ActivityInfoResource
   "Protocol for retrieving activity info."
-  (-get-activity [this params]
+  (-get-activity [this auth-identity params]
     "Get an xapi activity object."))
 
 (defn activity-info-resource? [lrs]
@@ -223,7 +223,7 @@
 
 (defprotocol ActivityInfoResourceAsync
   "Async protocol for retrieving activity info."
-  (-get-activity-async [this params]
+  (-get-activity-async [this auth-identity params]
     "Get an xapi activity object. Returns a promise channel."))
 
 (defn activity-info-resource-async? [lrs]
@@ -242,7 +242,7 @@
 
 (defprotocol AgentInfoResource
   "Protocol for retrieving information on agents."
-  (-get-person [this params]
+  (-get-person [this auth-identity params]
     "Get an xapi person object. Throws only on invalid params."))
 
 (defn agent-info-resource?
@@ -262,7 +262,7 @@
 
 (defprotocol AgentInfoResourceAsync
   "Async protocol for retrieving information on agents."
-  (-get-person-async [this params]
+  (-get-person-async [this auth-identity params]
     "Get an xapi person object. Throws only on invalid params."))
 
 (defn agent-info-resource-async?
@@ -286,14 +286,14 @@
 
 (defprotocol StatementsResource
   "Protocol for storing/retrieving statements, activities, agents."
-  (-store-statements [this statements attachments]
+  (-store-statements [this auth-identity statements attachments]
     "Store and persist validated statements and possibly attachments in the LRS,
      throwing if there's a conflict, and returning a vector of IDs.
      It is expected that the ID param will be included in statements that are PUT.")
-  (-get-statements [this params ltags]
+  (-get-statements [this auth-identity params ltags]
     "Retrieve statement or statements from the LRS given params and optionally ltags.
      Returns a statement result object or a single statement.")
-  (-consistent-through [this ctx]
+  (-consistent-through [this ctx auth-identity]
     "Given the ctx map, return an ISO 8601 stamp for the
      X-Experience-API-Consistent-Through header"))
 
@@ -341,17 +341,17 @@
 
 (defprotocol StatementsResourceAsync
   "Async Protocol for storing/retrieving statements, activities, agents."
-  (-store-statements-async [this statements attachments]
+  (-store-statements-async [this auth-identity statements attachments]
     "Store and persist validated statements and possibly attachments in the LRS,
      throwing if there's a conflict, and returning a channel of ids.
      It is expected that the ID param will be included in statements that are PUT.")
-  (-get-statements-async [this params ltags]
+  (-get-statements-async [this auth-identity params ltags]
     "Retrieve statement or statements from the LRS given params and optionally ltags.
      For singular params, returns a promise channel with a single statement.
      For multiple statements GET returns a channel that will get, in order:
      Statements (if present), a more link if one is appropriate, and possibly
      n attachments for the statements.")
-  (-consistent-through-async [this ctx]
+  (-consistent-through-async [this ctx auth-identity]
     "Given the ctx map, returns a promise channel that will get an ISO 8601
      stamp for the X-Experience-API-Consistent-Through"))
 

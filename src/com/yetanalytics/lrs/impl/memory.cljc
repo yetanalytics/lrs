@@ -549,18 +549,18 @@
 
     (reify
       p/AboutResource
-      (-get-about [_]
+      (-get-about [_ _]
         {:etag (sha-1 @state)
          :body {:version ["1.0.0",
                           "1.0.1",
                           "1.0.2",
                           "1.0.3"]}})
       p/AboutResourceAsync
-      (-get-about-async [lrs]
+      (-get-about-async [lrs auth-identity]
         (a/go
-          (p/-get-about lrs)))
+          (p/-get-about lrs auth-identity)))
       p/StatementsResource
-      (-store-statements [_ statements attachments]
+      (-store-statements [_ _ statements attachments]
         (try (let [prepared-statements (map ss/prepare-statement
                                             statements)]
                (swap! state transact-statements prepared-statements attachments)
@@ -571,31 +571,32 @@
              (catch #?(:clj clojure.lang.ExceptionInfo
                        :cljs ExceptionInfo) exi
                {:error exi})))
-      (-get-statements [_ {:keys [statementId
-                                  voidedStatementId
-                                  verb
-                                  activity
-                                  registration
-                                  related_activities
-                                  related_agents
-                                  since
-                                  until
-                                  limit
-                                  attachments
-                                  ascending
-                                  page
-                                  agent
-                                  from ;; Like "Exclusive Start Key"
-                                  ]
-                           format-type :format
-                           :as params
-                           :or {related_activities false
-                                related_agents false
-                                limit 50
-                                attachments false
-                                ascending false
-                                page 0
-                                format-type "exact"}} ltags]
+      (-get-statements [_ _
+                        {:keys [statementId
+                                voidedStatementId
+                                verb
+                                activity
+                                registration
+                                related_activities
+                                related_agents
+                                since
+                                until
+                                limit
+                                attachments
+                                ascending
+                                page
+                                agent
+                                from ;; Like "Exclusive Start Key"
+                                ]
+                         format-type :format
+                         :as params
+                         :or {related_activities false
+                              related_agents false
+                              limit 50
+                              attachments false
+                              ascending false
+                              page 0
+                              format-type "exact"}} ltags]
         (let [results (statements-seq @state params ltags)]
           (if (or statementId voidedStatementId) ;; single statement
             (let [statement (first results)]
@@ -634,37 +635,38 @@
                                     (keep
                                      (:state/attachments @state)
                                      (ss/all-attachment-hashes statements))))}))))
-      (-consistent-through [_ _]
+      (-consistent-through [_ _ _]
         (ss/now-stamp))
       p/StatementsResourceAsync
-      (-store-statements-async [lrs statements attachments]
+      (-store-statements-async [lrs auth-identity statements attachments]
         (a/go
-          (p/-store-statements lrs statements attachments)))
-      (-get-statements-async [_ {:keys [statementId
-                                  voidedStatementId
-                                  verb
-                                  activity
-                                  registration
-                                  related_activities
-                                  related_agents
-                                  since
-                                  until
-                                  limit
-                                  attachments
-                                  ascending
-                                  page
-                                  agent
-                                  from ;; Like "Exclusive Start Key"
-                                  ]
-                           format-type :format
-                           :as params
-                           :or {related_activities false
-                                related_agents false
-                                limit 50
-                                attachments false
-                                ascending false
-                                page 0
-                                format-type "exact"}} ltags]
+          (p/-store-statements lrs auth-identity statements attachments)))
+      (-get-statements-async [_ _
+                              {:keys [statementId
+                                      voidedStatementId
+                                      verb
+                                      activity
+                                      registration
+                                      related_activities
+                                      related_agents
+                                      since
+                                      until
+                                      limit
+                                      attachments
+                                      ascending
+                                      page
+                                      agent
+                                      from ;; Like "Exclusive Start Key"
+                                      ]
+                               format-type :format
+                               :as params
+                               :or {related_activities false
+                                    related_agents false
+                                    limit 50
+                                    attachments false
+                                    ascending false
+                                    page 0
+                                    format-type "exact"}} ltags]
         (let [single? (or statementId voidedStatementId)
               result-chan (a/chan)]
           (a/go
@@ -713,43 +715,43 @@
                       (a/>! result-chan att))))))
             (a/close! result-chan))
           result-chan))
-      (-consistent-through-async [_ _]
+      (-consistent-through-async [_ _ _]
         (a/go (ss/now-stamp)))
       p/DocumentResource
-      (-set-document [lrs params document merge?]
+      (-set-document [lrs _ params document merge?]
         (try (swap! state update :state/documents transact-document params document merge?)
              nil
              (catch #?(:clj clojure.lang.ExceptionInfo
                        :cljs ExceptionInfo) exi
                {:error exi})))
-      (-get-document [_ params]
+      (-get-document [_ _ params]
         {:document (get-document @state params)})
-      (-get-document-ids [_ params]
+      (-get-document-ids [_ _ params]
         {:document-ids (get-document-ids @state params)})
-      (-delete-document [lrs params]
+      (-delete-document [lrs _ params]
         (swap! state update :state/documents delete-document params)
         nil)
-      (-delete-documents [lrs params]
+      (-delete-documents [lrs _ params]
         (swap! state update :state/documents delete-documents params)
         nil)
       p/DocumentResourceAsync
-      (-set-document-async [lrs params document merge?]
+      (-set-document-async [lrs auth-identity params document merge?]
         (a/go
-          (p/-set-document lrs params document merge?)))
-      (-get-document-async [lrs params]
+          (p/-set-document lrs auth-identity params document merge?)))
+      (-get-document-async [lrs auth-identity params]
         (a/go
-          (p/-get-document lrs params)))
-      (-get-document-ids-async [lrs params]
+          (p/-get-document lrs auth-identity params)))
+      (-get-document-ids-async [lrs auth-identity params]
         (a/go
-          (p/-get-document-ids lrs params)))
-      (-delete-document-async [lrs params]
+          (p/-get-document-ids lrs auth-identity params)))
+      (-delete-document-async [lrs auth-identity params]
         (a/go
-          (p/-delete-document lrs params)))
-      (-delete-documents-async [lrs params]
+          (p/-delete-document lrs auth-identity params)))
+      (-delete-documents-async [lrs auth-identity params]
         (a/go
-          (p/-delete-documents lrs params)))
+          (p/-delete-documents lrs auth-identity params)))
       p/AgentInfoResource
-      (-get-person [_ params]
+      (-get-person [_ _ params]
         {:person
          (let [ifi-lookup (ag/find-ifi (:agent params))]
            ;; TODO: extract this fn
@@ -758,18 +760,18 @@
                     ifi-lookup]
                    (ag/person (:agent params))))})
       p/AgentInfoResourceAsync
-      (-get-person-async [lrs params]
+      (-get-person-async [lrs auth-identity params]
         (a/go
-          (p/-get-person lrs params)))
+          (p/-get-person lrs auth-identity params)))
       p/ActivityInfoResource
-      (-get-activity [_ params]
+      (-get-activity [_ _ params]
         {:activity (get-in @state
                            [:state/activities
                             (:activityId params)])})
       p/ActivityInfoResourceAsync
-      (-get-activity-async [lrs params]
+      (-get-activity-async [lrs auth-identity params]
         (a/go
-          (p/-get-activity lrs params)))
+          (p/-get-activity lrs auth-identity params)))
       p/LRSAuth
       (-authenticate [lrs ctx]
         ;; Authenticate is a no-op right now, just returns a dummy

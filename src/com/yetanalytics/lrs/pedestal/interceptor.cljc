@@ -239,7 +239,9 @@
           ctx
           (let [{{route-interceptors :interceptors
                   :as route} :route
-                 :as after-route-ctx} (chain/execute-only (chain/terminate-when ctx :route) :enter)]
+                 :as after-route-ctx} (chain/execute-only
+                                       (chain/terminate-when (assoc ctx ::force-sync true) :route)
+                                       :enter)]
             (-> ctx
                 ;; Run the leave stuff
                 (dissoc ::chain/queue)
@@ -260,6 +262,7 @@
                                            (dissoc ::chain/queue)
                                            (chain/enqueue (into []
                                                                 (butlast route-interceptors)))
+                                           (assoc ::force-sync true)
                                            (chain/execute-only :enter)
                                            :response
                                            )]
