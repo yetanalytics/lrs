@@ -4,17 +4,17 @@
   com.yetanalytics/xapi-schema {:mvn/version "1.0.0-alpha18-SNAPSHOT"
                                 :exclusions [org.clojure/clojurescript]}
   io.pedestal/pedestal.service {:mvn/version "0.5.4"}
+  org.clojure/clojurescript {:mvn/version "1.10.339"}
+  macchiato/core {:mvn/version "0.1.5"}
+  com.cognitect/transit-cljs {:mvn/version "0.8.256"}
+  com.taoensso/timbre {:mvn/version "4.10.0"}
+  org.clojure/data.priority-map {:mvn/version "0.1.10"}
+  tailrecursion/cljs-priority-map {:mvn/version "1.2.1"
+                                   :exclusions [org.clojure/clojure
+                                                org.clojure/clojurescript]}
   }
  :aliases
- {:cljs
-  {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.339"}
-                macchiato/core {:mvn/version "0.1.5"}
-                com.cognitect/transit-cljs {:mvn/version "0.8.256"}
-                com.taoensso/timbre {:mvn/version "4.10.0"}
-                tailrecursion/cljs-priority-map {:mvn/version "1.2.1"
-                                                 :exclusions [org.clojure/clojure
-                                                              org.clojure/clojurescript]}}}
-  :test-cljs
+ {:test-cljs
   {:main-opts ["-m" "cljs.main" "-t" "nodejs" "-o" "out/test.js"]}
   :dev
   {:extra-paths ["test" "dev" "dev-resources"]
