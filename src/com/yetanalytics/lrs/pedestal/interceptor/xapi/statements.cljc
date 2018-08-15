@@ -2,7 +2,8 @@
   (:require
    #?@(:clj [[cheshire.core :as json]
              [clojure.java.io :as io]]
-       :cljs [[goog.string :as gstring]
+       :cljs [cljs.nodejs
+              [goog.string :as gstring]
               goog.string.format])
    [io.pedestal.interceptor.chain :as chain]
    [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart]
