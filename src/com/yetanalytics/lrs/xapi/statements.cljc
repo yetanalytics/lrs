@@ -10,7 +10,8 @@
    [#?(:clj clojure.data.priority-map
        :cljs tailrecursion.priority-map) :as pm]
    #?@(:clj [[clojure.java.io :as io]]
-       :cljs [[fs][tmp]]))
+       :cljs [cljs.nodejs
+              [fs][tmp]]))
   #?(:clj (:import [java.time Instant]
                    [clojure.data.priority_map PersistentPriorityMap]
                    [java.io File])))
