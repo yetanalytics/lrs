@@ -1,17 +1,19 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements
   (:require
    #?@(:clj [[cheshire.core :as json]
-             [clojure.java.io :as io]]
+             [clojure.java.io :as io]
+             [io.pedestal.log :as log]]
        :cljs [cljs.nodejs
               [goog.string :as gstring]
-              goog.string.format])
+              goog.string.format
+              [com.yetanalytics.lrs.util.log :as log]])
    [io.pedestal.interceptor.chain :as chain]
    [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment :as attachment]
    [com.yetanalytics.lrs.xapi.statements :as ss]
    [com.yetanalytics.lrs :as lrs]
    [com.yetanalytics.lrs.protocol :as lrsp]
-   [com.yetanalytics.lrs.util.log :as log]
+
    [clojure.spec.alpha :as s :include-macros true]
    [xapi-schema.spec :as xs]
    [clojure.walk :as w]
@@ -102,7 +104,7 @@
                                    :body
                                    {:error
                                     {:message "Invalid Multipart Request"
-                                     ;; :spec-error (pr-str error)
+
                                      }}})
                            (-> ctx
                                (assoc-in [:request :json-params]
@@ -205,8 +207,8 @@
                                                    500
                                                    400)
                                          :body
-                                         {:error {:message (#?(:clj .getMessage
-                                                               :cljs .-message) exi)}}})))
+                                         {:error {:message #?(:clj (.getMessage exi)
+                                                              :cljs (.-message exi))}}})))
                              (finally (attachment/close-multiparts! multiparts)))
                         (assoc (chain/terminate ctx)
                                :response

@@ -4,11 +4,12 @@
             [io.pedestal.interceptor.chain :as chain]
             [clojure.string :as cstr]
             [io.pedestal.http.body-params :as body-params]
-            [com.yetanalytics.lrs.util.log :as log]
             #?@(:clj [[cheshire.core :as json]
-                      [clojure.java.io :as io]]
+                      [clojure.java.io :as io]
+                      [io.pedestal.log :as log]]
                 :cljs [[goog.string :refer [format]]
-                       [goog.string.format]]))
+                       [goog.string.format]
+                       [com.yetanalytics.lrs.util.log :as log]]))
   #?(:clj (:import [java.io InputStream ByteArrayInputStream])))
 
 
