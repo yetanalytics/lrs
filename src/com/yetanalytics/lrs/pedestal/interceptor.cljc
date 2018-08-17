@@ -166,8 +166,7 @@
   "Force pre-routing execution to handle the last enter interceptor
    Synchronously."
   [ctx]
-  (let [ctx #?(:clj ctx
-               :cljs (assoc ctx ::force-sync true))
+  (let [ctx (assoc ctx ::force-sync true)
         {{route-interceptors :interceptors
           :as route} :route
          :as routed-ctx}
@@ -241,8 +240,7 @@
           (let [{{route-interceptors :interceptors
                   :as route} :route
                  :as after-route-ctx} (chain/execute-only
-                                       (chain/terminate-when #?(:clj ctx
-                                                                :cljs (assoc ctx ::force-sync true)) :route)
+                                       (chain/terminate-when (assoc ctx ::force-sync true) :route)
                                        :enter)]
             (-> ctx
                 ;; Run the leave stuff
@@ -264,7 +262,7 @@
                                            (dissoc ::chain/queue)
                                            (chain/enqueue (into []
                                                                 (butlast route-interceptors)))
-                                           #?(:cljs (assoc ::force-sync true))
+                                           (assoc ::force-sync true)
                                            (chain/execute-only :enter)
                                            :response
                                            )]
