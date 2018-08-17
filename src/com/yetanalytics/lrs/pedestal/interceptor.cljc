@@ -162,6 +162,12 @@
 
 #_(defn tap [x] (clojure.pprint/pprint x) x)
 
+#?(:clj (defn syncify [x]
+          (if (cs/read-port? x)
+            (a/<!! x)
+            x)))
+;; TODO: Fix this, it breaks in clj if there are async enter interceptors
+;; before the handler
 (defn execute-sync
   "Force pre-routing execution to handle the last enter interceptor
    Synchronously."
@@ -173,6 +179,7 @@
          :as routed-ctx}
         (chain/execute-only (chain/terminate-when ctx :route) :enter)
         last-interceptor (last route-interceptors)
+        ;; _ (clojure.pprint/pprint [:ri route-interceptors])
         butlast-ctx (chain/execute-only
                      (chain/terminate-when
                       ctx
@@ -196,7 +203,7 @@
           response-ctx)))))
 
 (declare etag-leave)
-
+;; TODO: Fix this, see todo above
 (defn etag-enter [{:keys [request] :as ctx}]
   (let [{{:strs [if-match if-none-match]} :headers
          method :request-method} request]
