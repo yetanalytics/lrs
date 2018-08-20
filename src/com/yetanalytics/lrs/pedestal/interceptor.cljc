@@ -160,70 +160,29 @@
   [etag-header]
   (into #{} (re-seq etag-string-pattern etag-header)))
 
-#_(defn tap [x] (clojure.pprint/pprint x) x)
-
-#?(:clj (defn syncify [x]
-          (if (cs/read-port? x)
-            (a/<!! x)
-            x)))
-;; TODO: Fix this, it breaks in clj if there are async enter interceptors
-;; before the handler
-(defn execute-sync
-  "Force pre-routing execution to handle the last enter interceptor
-   Synchronously."
-  [ctx]
-  (let [ctx #?(:cljs (assoc ctx ::force-sync true)
-               :clj ctx)
-        {{route-interceptors :interceptors
-          :as route} :route
-         :as routed-ctx}
-        (chain/execute-only (chain/terminate-when ctx :route) :enter)
-        last-interceptor (last route-interceptors)
-        ;; _ (clojure.pprint/pprint [:ri route-interceptors])
-        butlast-ctx (chain/execute-only
-                     (chain/terminate-when
-                      ctx
-                      (fn [ctx]
-                        ;; Post routing, when there is a terminal interceptor
-                        (when (:route ctx)
-                          ;; When we're down to the last one
-                          (some-> ctx
-                                  ::chain/queue
-                                  peek
-                                  (= last-interceptor))))) :enter)]
-    (if (get-in butlast-ctx [:response :status])
-      butlast-ctx
-      (let [last-i-enter-fn (:enter last-interceptor)
-            response-ctx (last-i-enter-fn butlast-ctx)]
-        (if (cs/read-port? response-ctx)
-          #?(:clj (a/<!! response-ctx)
-             :cljs (throw (ex-info "Cannot force sync execution in cljs!!!"
-                                   {:type ::cljs-sync-execution
-                                    :ctx response-ctx})))
-          response-ctx)))))
-
 (declare etag-leave)
 
-;; :io.pedestal.http.impl.servlet-interceptor/ring-response
-
-(defn de-servlet-chan [ctx]
+(defn de-servlet-chan
+  "Remove any servlet/response interceptors, and add one that returns async context."
+  [ctx]
   (let [out (a/promise-chan)]
-    [out (-> ctx
-             (assoc :enter-async [])
-             (update ::chain/stack
-                     #(apply list
-                             (concat (take-while (fn [i]
-                                                   (not= (:name i)
-                                                         :io.pedestal.http.impl.servlet-interceptor/ring-response))
-                                                 %)
-                                     (list
-                                      (i/interceptor
-                                       {:leave (fn [ctx]
-                                                 ;; return the promise
-                                                 (a/go (a/>! out ctx)
-                                                       ctx))}))))))]))
+    [out
+     (-> ctx
+         (assoc :enter-async [])
+         (update ::chain/stack
+                 #(apply list
+                         (concat (take-while (fn [i]
+                                               (not= (:name i)
+                                                     #?(:clj :io.pedestal.http.impl.servlet-interceptor/ring-response
+                                                        :cljs :com.yetanalytics.node-chain-provider/ring-response)))
+                                             %)
+                                 (list
+                                  (i/interceptor
+                                   {:leave (fn [ctx]
+                                             ;; return the promise
+                                             (a/go (a/>! out ctx)
+                                                   ctx))}))))))]))
 
-;; TODO: Fix this, see todo above
 (defn etag-enter [{:keys [request] :as ctx}]
   (let [{{:strs [if-match if-none-match]} :headers
          method :request-method} request]
@@ -236,7 +195,6 @@
                                    (assoc-in [:request
                                               :request-method]
                                              :get)))
-              ;; _ (clojure.pprint/pprint @get-ctx)
               if-match-ok? (case if-match
                              nil true
                              "*" (= 200
@@ -260,8 +218,7 @@
                     :as route} :route
                    :as after-route-ctx} (chain/execute-only
                                          (chain/terminate-when
-                                          #?(:clj ctx
-                                             :cljs (assoc ctx ::force-sync true))
+                                          ctx
                                           :route)
                                          :enter)]
               (-> ctx
@@ -285,9 +242,7 @@
                                            (dissoc ::chain/queue)
                                            (chain/enqueue (into []
                                                                 (butlast route-interceptors)))
-                                           #?(:cljs (assoc ::force-sync true))
-                                           (chain/execute-only :enter)
-                                           )
+                                           (chain/execute-only :enter))
                                        (:response (a/<! p)))]
                             (when (= 400 (:status error-response))
                               error-response))
