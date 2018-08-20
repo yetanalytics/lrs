@@ -230,41 +230,30 @@
     (if (and (#{:put :post :delete} method)
              (or if-match if-none-match))
       (a/go
-        (let [[p ctx'] (de-servlet-chan ctx)
-              get-ctx (delay
-                       (chain/execute (-> ctx'
-                                          (update :request dissoc :body)
-                                          (assoc-in [:request
-                                                     :request-method]
-                                                    :get)))
-                       (a/<!! p)
-                       #_(etag-leave
-                        (try
-                          (a/<!! p)
-                          (catch #?(:clj Exception
-                                    :cljs js/Error) e
-                            (merge ctx
-                                   {:request (assoc request :request-method :get)
-                                    :response {:status 400
-                                               :body ""}})))))
+        (let [[get-ctx ctx'] (de-servlet-chan ctx)
+              _ (chain/execute (-> ctx'
+                                   (update :request dissoc :body)
+                                   (assoc-in [:request
+                                              :request-method]
+                                             :get)))
               ;; _ (clojure.pprint/pprint @get-ctx)
               if-match-ok? (case if-match
                              nil true
                              "*" (= 200
-                                    (get-in @get-ctx
+                                    (get-in (a/<! get-ctx)
                                             [:response
                                              :status]))
                              (contains? (etag-header->etag-set if-match)
-                                        (::etag @get-ctx)))
+                                        (::etag (a/<! get-ctx))))
 
               if-none-match-ok? (case if-none-match
                                   nil true
                                   "*" (= 404
-                                         (get-in @get-ctx
+                                         (get-in (a/<! get-ctx)
                                                  [:response
                                                   :status]))
                                   (not (contains? (etag-header->etag-set if-none-match)
-                                                  (::etag @get-ctx))))]
+                                                  (::etag (a/<! get-ctx)))))]
           (if (and if-match-ok? if-none-match-ok?)
             ctx
             (let [{{route-interceptors :interceptors
@@ -275,7 +264,6 @@
                                              :cljs (assoc ctx ::force-sync true))
                                           :route)
                                          :enter)]
-              #_(clojure.pprint/pprint route-interceptors)
               (-> ctx
                   ;; Run the leave stuff
                   (dissoc ::chain/queue)
@@ -286,7 +274,7 @@
                          (or
                           ;; If the params are not valid for the GET
                           ;; then the status is contagious
-                          (let [get-response (:response @get-ctx)]
+                          (let [get-response (:response (a/<! get-ctx))]
                             (when (= 400 (:status get-response))
                               {:status 400}))
                           ;; If the enter interceptors (except the handler)
@@ -300,7 +288,7 @@
                                            #?(:cljs (assoc ::force-sync true))
                                            (chain/execute-only :enter)
                                            )
-                                       (:response (a/<!! p)))]
+                                       (:response (a/<! p)))]
                             (when (= 400 (:status error-response))
                               error-response))
                           ;; Otherwise, it's a precon fail
