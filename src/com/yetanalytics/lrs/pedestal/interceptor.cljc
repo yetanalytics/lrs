@@ -203,83 +203,108 @@
           response-ctx)))))
 
 (declare etag-leave)
+
+;; :io.pedestal.http.impl.servlet-interceptor/ring-response
+
+(defn de-servlet-chan [ctx]
+  (let [out (a/promise-chan)]
+    [out (-> ctx
+             (assoc :enter-async [])
+             (update ::chain/stack
+                     #(apply list
+                             (concat (take-while (fn [i]
+                                                   (not= (:name i)
+                                                         :io.pedestal.http.impl.servlet-interceptor/ring-response))
+                                                 %)
+                                     (list
+                                      (i/interceptor
+                                       {:leave (fn [ctx]
+                                                 ;; return the promise
+                                                 (a/go (a/>! out ctx)
+                                                       ctx))}))))))]))
+
 ;; TODO: Fix this, see todo above
 (defn etag-enter [{:keys [request] :as ctx}]
   (let [{{:strs [if-match if-none-match]} :headers
          method :request-method} request]
     (if (and (#{:put :post :delete} method)
              (or if-match if-none-match))
-      (let [get-ctx (delay
-                     (etag-leave
-                      (try
-                        (execute-sync
-                         (-> ctx
-                             (update :request dissoc :body)
-                             (assoc-in [:request
-                                        :request-method]
-                                       :get)))
-                        (catch #?(:clj Exception
-                                  :cljs js/Error) e
-                          #_(.error js/console e)
-                          (merge ctx
-                                 {:request (assoc request :request-method :get)
-                                  :response {:status 400
-                                             :body ""}})))))
-            ;; _ (clojure.pprint/pprint @get-ctx)
-            if-match-ok? (case if-match
-                           nil true
-                           "*" (= 200
-                                  (get-in @get-ctx
-                                          [:response
-                                           :status]))
-                           (contains? (etag-header->etag-set if-match)
-                                      (::etag @get-ctx)))
+      (a/go
+        (let [[p ctx'] (de-servlet-chan ctx)
+              get-ctx (delay
+                       (chain/execute (-> ctx'
+                                          (update :request dissoc :body)
+                                          (assoc-in [:request
+                                                     :request-method]
+                                                    :get)))
+                       (a/<!! p)
+                       #_(etag-leave
+                        (try
+                          (a/<!! p)
+                          (catch #?(:clj Exception
+                                    :cljs js/Error) e
+                            (merge ctx
+                                   {:request (assoc request :request-method :get)
+                                    :response {:status 400
+                                               :body ""}})))))
+              ;; _ (clojure.pprint/pprint @get-ctx)
+              if-match-ok? (case if-match
+                             nil true
+                             "*" (= 200
+                                    (get-in @get-ctx
+                                            [:response
+                                             :status]))
+                             (contains? (etag-header->etag-set if-match)
+                                        (::etag @get-ctx)))
 
-            if-none-match-ok? (case if-none-match
-                                nil true
-                                "*" (= 404
-                                       (get-in @get-ctx
-                                               [:response
-                                                :status]))
-                                (not (contains? (etag-header->etag-set if-none-match)
-                                                (::etag @get-ctx))))]
-        (if (and if-match-ok? if-none-match-ok?)
-          ctx
-          (let [{{route-interceptors :interceptors
-                  :as route} :route
-                 :as after-route-ctx} (chain/execute-only
-                                       (chain/terminate-when
-                                        #?(:clj ctx
-                                           :cljs (assoc ctx ::force-sync true)) :route)
-                                       :enter)]
-            (-> ctx
-                ;; Run the leave stuff
-                (dissoc ::chain/queue)
-                (chain/enqueue (mapv #(assoc % :enter nil)
-                                     route-interceptors))
-                ;; Set the error response
-                (assoc :response
-                       (or
-                        ;; If the params are not valid for the GET
-                        ;; then the status is contagious
-                        (let [get-response (:response @get-ctx)]
-                          (when (= 400 (:status get-response))
-                            {:status 400}))
-                        ;; If the enter interceptors (except the handler)
-                        ;; for this request would return a 400
-                        (when-let [error-response
-                                   (some-> ctx
+              if-none-match-ok? (case if-none-match
+                                  nil true
+                                  "*" (= 404
+                                         (get-in @get-ctx
+                                                 [:response
+                                                  :status]))
+                                  (not (contains? (etag-header->etag-set if-none-match)
+                                                  (::etag @get-ctx))))]
+          (if (and if-match-ok? if-none-match-ok?)
+            ctx
+            (let [{{route-interceptors :interceptors
+                    :as route} :route
+                   :as after-route-ctx} (chain/execute-only
+                                         (chain/terminate-when
+                                          #?(:clj ctx
+                                             :cljs (assoc ctx ::force-sync true))
+                                          :route)
+                                         :enter)]
+              #_(clojure.pprint/pprint route-interceptors)
+              (-> ctx
+                  ;; Run the leave stuff
+                  (dissoc ::chain/queue)
+                  (chain/enqueue (mapv #(assoc % :enter nil)
+                                       route-interceptors))
+                  ;; Set the error response
+                  (assoc :response
+                         (or
+                          ;; If the params are not valid for the GET
+                          ;; then the status is contagious
+                          (let [get-response (:response @get-ctx)]
+                            (when (= 400 (:status get-response))
+                              {:status 400}))
+                          ;; If the enter interceptors (except the handler)
+                          ;; for this request would return a 400
+                          (when-let [error-response
+                                     (let [[p ctx'] (de-servlet-chan ctx)]
+                                       (-> ctx'
                                            (dissoc ::chain/queue)
                                            (chain/enqueue (into []
                                                                 (butlast route-interceptors)))
                                            #?(:cljs (assoc ::force-sync true))
                                            (chain/execute-only :enter)
-                                           :response
-                                           )]
-                          (when (= 400 (:status error-response))
-                            error-response))
-                        ;; Otherwise, it's a precon fail
-                        {:status 412}))))))
+                                           )
+                                       (:response (a/<!! p)))]
+                            (when (= 400 (:status error-response))
+                              error-response))
+                          ;; Otherwise, it's a precon fail
+                          {:status 412})))))))
       ctx)))
 
 (defn- quote-etag [etag]
