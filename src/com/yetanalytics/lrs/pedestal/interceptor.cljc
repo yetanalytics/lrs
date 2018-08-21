@@ -44,11 +44,13 @@
                  (assoc (chain/terminate ctx)
                         :response
                         {:status 400
+                         :headers {"Content-Type" "application/json"}
                          :body
                          {:error {:message "X-Experience-API-Version header invalid!"}}}))
                (assoc (chain/terminate ctx)
                       :response
                       {:status 400
+                       :headers {"Content-Type" "application/json"}
                        :body
                        {:error {:message "X-Experience-API-Version header required!"}}})))}))
 
