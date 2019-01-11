@@ -1,4 +1,4 @@
-.phony: clean repl -cljs run-dev run-dev-cljs run-dev-cljs-simple test-lib test-lib-cljs test-lib-clj test-conformance test-all
+.phony: clean repl repl-cljs run-dev run-dev-cljs run-dev-cljs-simple test-lib test-lib-cljs test-lib-clj test-conformance test-all
 lrs-conformance-test-suite:
 	git clone --depth 1 https://github.com/adlnet/lrs-conformance-test-suite
 	cd lrs-conformance-test-suite; npm install
