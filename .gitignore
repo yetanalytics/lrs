@@ -16,4 +16,4 @@ pom.xml.asc
 /lrs-conformance-test-suite
 npm-debug.log
 /node_modules
-
+.rebel_readline_history
