@@ -7,17 +7,17 @@ clean:
 repl:
 	clj -A:dev -r
 repl-cljs:
-	clj -A:dev -m cljs.main -re node -r
+	clj -A:dev -m cljs.main -re node -co "{:npm-deps,true}" -r
 run-dev:
 	clojure -A:dev -m mem-lrs.server
 run-dev-cljs:
-	clojure -A:dev -m cljs.main -t nodejs -c mem-lrs.server
+	clojure -A:dev -m cljs.main -t nodejs -co "{:npm-deps,true}" -c mem-lrs.server
 	node out/main.js
 run-dev-cljs-simple:
-	clojure -A:dev -m cljs.main -t nodejs -O simple -c mem-lrs.server
+	clojure -A:dev -m cljs.main -t nodejs -O simple -co "{:npm-deps,true}" -c mem-lrs.server
 	node out/main.js
 test-lib-cljs:
-	clojure -A:dev:test-cljs -c com.yetanalytics.test-runner
+	clojure -A:dev:test-cljs -co "{:npm-deps,true}" -c com.yetanalytics.test-runner
 	node out/test.js
 test-lib-clj:
 	clojure -A:dev -m com.yetanalytics.test-runner

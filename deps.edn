@@ -1,11 +1,11 @@
 {:paths ["src" "resources"]
  :deps
- {org.clojure/clojure {:mvn/version "1.9.0"}
-  com.yetanalytics/xapi-schema {:mvn/version "1.0.0-alpha18-SNAPSHOT"
+ {org.clojure/clojure {:mvn/version "1.10.0"}
+  com.yetanalytics/xapi-schema {:mvn/version "1.0.0-alpha19-SNAPSHOT"
                                 :exclusions [org.clojure/clojurescript]}
   io.pedestal/pedestal.service {:mvn/version "0.5.5"}
-  org.clojure/clojurescript {:mvn/version "1.10.339"}
-  macchiato/core {:mvn/version "0.1.5"}
+  org.clojure/clojurescript {:mvn/version "1.10.439"}
+  macchiato/core {:mvn/version "0.2.14"}
   com.cognitect/transit-cljs {:mvn/version "0.8.256"}
   com.taoensso/timbre {:mvn/version "4.10.0"}
   org.clojure/data.priority-map {:mvn/version "0.0.10"}
@@ -19,7 +19,7 @@
   :dev
   {:extra-paths ["test" "dev" "dev-resources"]
    :extra-deps
-   {cider/piggieback {:mvn/version "0.3.8"}
+   {;; cider/piggieback {:mvn/version "0.3.8"}
     org.clojure/test.check {:mvn/version "0.10.0-alpha3"}
     io.pedestal/pedestal.jetty {:mvn/version "0.5.5"}
     ch.qos.logback/logback-classic {:mvn/version "1.2.3"
