@@ -43,10 +43,20 @@
                  ctx
                  (assoc (chain/terminate ctx)
                         :response
-                        {:status 400
-                         :headers {"Content-Type" "application/json"}
-                         :body
-                         {:error {:message "X-Experience-API-Version header invalid!"}}}))
+                        #?(:cljs {:status 400
+                                  :headers {"Content-Type" "application/json"}
+                                  :body
+                                  {:error {:message "X-Experience-API-Version header invalid!"}}}
+                           ;; TODO: Figure this out and dix
+                           ;; this is odd. For some reason, the conformance
+                           ;; tests intermittently fail when this error response
+                           ;; comes in w/o content-length. So we string it out
+                           ;; and set it. Who knows.
+                           :clj
+                           {:status 400
+                            :headers {"Content-Type" "application/json"
+                                      "Content-Length" "66"}
+                            :body "{\"error\": {\"message\": \"X-Experience-API-Version header invalid!\"}}"})))
                (assoc (chain/terminate ctx)
                       :response
                       {:status 400
