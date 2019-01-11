@@ -9,6 +9,5 @@
             "random-bytes" "1.0.0"
             "simple-encryptor" "1.2.0"
             "url" "0.11.0"
-            "ws" "5.1.1"
-            "source-map-support" "0.5.8"}
+            "ws" "5.1.1"}
  :externs ["resources/lrs/externs.js"]}
