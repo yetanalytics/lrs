@@ -33,7 +33,7 @@
                         "No initial multipart boundary.")
                 (into []
                       (for [file-chunk (iterator-seq (.useDelimiter scanner boundary-pattern))
-                            :let [[headers-str body-str] (cs/split file-chunk #"\R\R")
+                            :let [[headers-str body-str] (cs/split file-chunk #"\R{2}")
                                   headers (parse-body-headers headers-str)
                                   body-bytes (.getBytes ^String body-str "UTF-8")]]
                         {:content-type (get headers "Content-Type")
