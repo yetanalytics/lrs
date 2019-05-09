@@ -380,11 +380,16 @@
   (some-> s (get-in ["verb" "id"]) (= "http://adlnet.gov/expapi/verbs/voided")))
 
 (defn all-attachment-hashes
-  "For each statement, get any attachment hashes"
-  [statements]
+  "For each statement, get any attachment hashes. If skip-file-urls is true,
+   will only return sha2s from attachments w/o fileURL."
+  [statements & [skip-file-urls]]
   (distinct
    (keep
-    #(get % "sha2")
+    (fn [{:strs [sha2 fileUrl]:as attachment}]
+      (if skip-file-urls
+        (when-not fileUrl
+          sha2)
+        sha2))
     (mapcat
      (fn [{:strs [attachments
                   object]
@@ -395,7 +400,9 @@
 
 (s/fdef all-attachment-hashes
         :args (s/cat :statements
-                     (s/coll-of ::xs/statement))
+                     (s/coll-of ::xs/statement)
+                     :skip-file-urls
+                     (s/? boolean?))
         :ret (s/coll-of :attachment/sha2))
 
 ;; A representation of a stored attachment
