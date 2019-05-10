@@ -7,7 +7,6 @@
   org.clojure/clojurescript {:mvn/version "1.10.439"}
   macchiato/core {:mvn/version "0.2.14"}
   com.cognitect/transit-cljs {:mvn/version "0.8.256"}
-  com.taoensso/timbre {:mvn/version "4.10.0"}
   org.clojure/data.priority-map {:mvn/version "0.0.10"}
   tailrecursion/cljs-priority-map {:mvn/version "1.2.1"
                                    :exclusions [org.clojure/clojure
