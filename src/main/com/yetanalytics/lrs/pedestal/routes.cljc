@@ -72,6 +72,9 @@
 
 (defn build [{:keys [lrs]}]
   (let [lrs-i (i/lrs-interceptor lrs)
+        global-interceptors-no-auth
+        (conj i/common-interceptors
+              lrs-i)
         global-interceptors (conj i/common-interceptors
                                   lrs-i
                                   auth-i/lrs-authenticate
@@ -85,10 +88,10 @@
                                           auth-i/lrs-authorize
                                           )
                                     i/xapi-protected-interceptors)]
-    (into #{["/health" :get (conj global-interceptors
+    (into #{["/health" :get (conj global-interceptors-no-auth
                                   health)]
             ;; xapi
-            ["/xapi/about" :get (conj global-interceptors
+            ["/xapi/about" :get (conj global-interceptors-no-auth
                                       about/handle-get)]
             ["/xapi/about" :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.about/any]
