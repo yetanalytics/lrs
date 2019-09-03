@@ -1,4 +1,4 @@
-.phony: clean repl repl-cljs run-dev run-dev-cljs run-dev-cljs-simple test-lib test-lib-cljs test-lib-clj test-conformance test-all
+.phony: clean repl repl-cljs run-dev run-dev-cljs run-dev-cljs-simple test-lib test-lib-cljs test-lib-clj test-conformance test-all ci
 lrs-conformance-test-suite:
 	git clone --depth 1 https://github.com/adlnet/lrs-conformance-test-suite
 	cd lrs-conformance-test-suite; npm install
@@ -25,3 +25,5 @@ test-lib: test-lib-clj test-lib-cljs
 test-conformance:
 	clojure -A:dev -m com.yetanalytics.conformance-test
 test-all: test-lib test-conformance
+
+ci: test-all
