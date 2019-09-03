@@ -2,21 +2,23 @@
 lrs-conformance-test-suite:
 	git clone --depth 1 https://github.com/adlnet/lrs-conformance-test-suite
 	cd lrs-conformance-test-suite; npm install
+node_modules:
+	npm install
 clean:
-	rm -rf target lrs-conformance-test-suite pom.xml.asc logs out
+	rm -rf target lrs-conformance-test-suite pom.xml.asc logs out node_modules
 repl:
 	clj -A:dev -r
-repl-cljs:
+repl-cljs: node_modules
 	clj -A:dev -m cljs.main -re node -co "{:npm-deps,true}" -r
 run-dev:
 	clojure -A:dev -m mem-lrs.server
-run-dev-cljs:
+run-dev-cljs: node_modules
 	clojure -A:dev -m cljs.main -t nodejs -co "{:npm-deps,true}" -c mem-lrs.server
 	node out/main.js
-run-dev-cljs-simple:
+run-dev-cljs-simple: node_modules
 	clojure -A:dev -m cljs.main -t nodejs -O simple -co "{:npm-deps,true}" -c mem-lrs.server
 	node out/main.js
-test-lib-cljs:
+test-lib-cljs: node_modules
 	clojure -A:dev:test-cljs -co "{:npm-deps,true}" -c com.yetanalytics.test-runner
 	node out/test.js
 test-lib-clj:
