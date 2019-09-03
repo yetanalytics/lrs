@@ -24,7 +24,7 @@ test-lib-cljs: node_modules
 test-lib-clj:
 	clojure -A:dev -m com.yetanalytics.test-runner
 test-lib: test-lib-clj test-lib-cljs
-test-conformance:
+test-conformance: lrs-conformance-test-suite
 	clojure -A:dev -m com.yetanalytics.conformance-test
 test-all: test-lib test-conformance
 

@@ -82,7 +82,7 @@
           []
           ;; Attempt Clone
           (log/info :msg "Ensuring LRS Tests...")
-          (let [{clone-exit :exit :as clone-result} (sh "git" "clone" "https://github.com/adlnet/lrs-conformance-test-suite.git")]
+          #_(let [{clone-exit :exit :as clone-result} (sh "git" "clone" "https://github.com/adlnet/lrs-conformance-test-suite.git")]
             (report-sh-result clone-result)
             ;; Whatever we do, let's pull master
             (log/info :msg "Getting latest master...")
@@ -109,7 +109,7 @@
           "Completely remove the tests."
           []
           (log/info :msg "Deleting test suite...")
-          (report-sh-result (sh "rm" "-rf" "lrs-conformance-test-suite"))))
+          #_(report-sh-result (sh "rm" "-rf" "lrs-conformance-test-suite"))))
 
 #?(:clj (defrecord RequestLog [out-str]))
 
@@ -154,7 +154,7 @@
           (log/info :msg "Running Tests...")
           (let [{:keys [exit out err] :as test-result}
                 (apply sh
-                       "bash" "../script/with_node.bash"
+                       ;; "bash" "../script/with_node.bash"
                        "node" "bin/console_runner.js" "-e" "http://localhost:8080/xapi" "-b" "-z"
                        (concat
                         args
