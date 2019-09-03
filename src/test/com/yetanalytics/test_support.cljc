@@ -82,6 +82,7 @@
           []
           ;; Attempt Clone
           (log/info :msg "Ensuring LRS Tests...")
+          ;; TODO: Just check state, otherwise remove completely.
           #_(let [{clone-exit :exit :as clone-result} (sh "git" "clone" "https://github.com/adlnet/lrs-conformance-test-suite.git")]
             (report-sh-result clone-result)
             ;; Whatever we do, let's pull master
@@ -109,6 +110,7 @@
           "Completely remove the tests."
           []
           (log/info :msg "Deleting test suite...")
+          ;; TODO: remove this (and usage) completely
           #_(report-sh-result (sh "rm" "-rf" "lrs-conformance-test-suite"))))
 
 #?(:clj (defrecord RequestLog [out-str]))
