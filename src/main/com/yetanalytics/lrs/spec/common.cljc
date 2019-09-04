@@ -67,16 +67,16 @@
                             a/close!)
                           fn1))))))))
 
-(defn conform-promise-port
-  [x]
-  (if (satisfies? FakeChan x)
-    (state x)
-    (a/<!! x)))
+#?(:clj (defn conform-promise-port
+          [x]
+          (if (satisfies? FakeChan x)
+            (state x)
+            (a/<!! x))))
 
-(defn conform-coll-port [x]
-  (if (satisfies? FakeChan x)
-    (state x)
-    (a/<!! (a/into [] x))))
+#?(:clj (defn conform-coll-port [x]
+          (if (satisfies? FakeChan x)
+            (state x)
+            (a/<!! (a/into [] x)))))
 
 (defmacro from-port [spec]
   `(s/with-gen
