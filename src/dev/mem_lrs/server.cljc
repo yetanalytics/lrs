@@ -6,7 +6,9 @@
    [io.pedestal.http.route :as route]
    [mem-lrs.service :as service]
    [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
-   [com.yetanalytics.lrs.pedestal.interceptor :as i]))
+   [com.yetanalytics.lrs.pedestal.interceptor :as i]
+   [#?(:clj io.pedestal.log
+       :cljs com.yetanalytics.lrs.util.log) :as log]))
 
 ;; This is an adapted service map, that can be started and stopped
 ;; From the REPL you can call server/start and server/stop on this service
@@ -19,7 +21,7 @@
              lrs]
       :or {reload-routes? true
            lrs (new-lrs {})}}]
-  (println "\nCreating your [DEV] server...")
+  (log/info :msg "Creating your [DEV] server...")
   (-> service/service ;; start with production configuration
       (merge {:env :dev
               ::lrs lrs
@@ -45,7 +47,7 @@
 (defn ^:export -main
   "The entry-point for 'lein run'"
   [& args]
-  (println "\nCreating your server...")
+  (log/info :msg "Creating your server...")
   (run-dev :reload-routes? false))
 
 #?(:cljs (set! *main-cli-fn* -main))
