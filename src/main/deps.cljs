@@ -9,5 +9,6 @@
             "random-bytes" "1.0.0"
             "simple-encryptor" "1.2.0"
             "url" "0.11.0"
-            "ws" "5.1.1"}
+            "ws" "5.1.1"
+            "log4js" "5.1.0"}
  :externs ["resources/lrs/externs.js"]}
