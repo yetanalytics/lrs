@@ -12,6 +12,9 @@
                      "INFO"))
            new-logger)))
 
+(defn configure! [config-or-path]
+  (log/configure (clj->js config-or-path)))
+
 
 (defn trace [& kvs]
   (assert (even? (count kvs)) "Log function requires an even number of keys/vals")
