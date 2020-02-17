@@ -33,7 +33,7 @@
                                 #(route/expand-routes (service/new-routes lrs))
                                 (service/new-routes lrs))
               ;; all origins are allowed in dev mode
-              ;; ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
+              ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
               ;; Content Security Policy (CSP) is mostly turned off in dev mode
               ;; ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}
               })
