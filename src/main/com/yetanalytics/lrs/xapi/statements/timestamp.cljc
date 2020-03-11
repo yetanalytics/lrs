@@ -14,6 +14,23 @@
 #?(:clj (def ^DateTimeFormatter in-formatter DateTimeFormatter/ISO_DATE_TIME))
 #?(:clj (def ^DateTimeFormatter out-formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")))
 
+;; parse xAPI timestamps
+(s/fdef parse
+  :args (s/cat :timestamp ::xs/timestamp)
+  :ret inst?)
+
+(defn parse
+  "Parse an xAPI timestamp string"
+  [#?@(:clj [^String timestamp]
+       :cljs [timestamp])]
+  #?(:clj (-> (.parse in-formatter timestamp)
+              (Instant/from)
+              (.atZone UTC)
+              .toInstant)
+     ;; In cljs, just rely on the behavior of Date#toISOString
+     :cljs (js/Date. (.parse js/Date timestamp))))
+
+
 ;; inst/date to normalized string
 (s/fdef normalize-inst
   :args (s/cat :inst inst?)
@@ -44,6 +61,4 @@
   [#?@(:clj [^String timestamp]
        :cljs [timestamp])]
   (normalize-inst
-   #?(:clj (.parse in-formatter timestamp)
-      ;; In cljs, just rely on the behavior of Date#toISOString
-      :cljs (js/Date. (.parse js/Date timestamp)))))
+   (parse timestamp)))
