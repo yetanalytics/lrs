@@ -88,10 +88,11 @@
                                   (into [] (take s-count
                                                  )test-statements)
                                   []))
-          ret-statements
-          (into []
-                (get-in (get-statements lrs auth-id {} #{"en-US"})
-                        [:statement-result :statements]))]
+          get-ss #(into []
+                        (get-in (get-statements lrs auth-id % #{"en-us"})
+                                [:statement-result :statements]))
+          ret-statements (get-ss {})
+          ]
 
       (testing (format "%s valid return statements" (count ret-statements))
         (is (s/valid? (s/every ::xs/statement)
@@ -110,11 +111,7 @@
 
       (testing "ascending"
         (= ret-statements
-           (reverse (get-in (get-statements lrs
-                                            auth-id
-                                            {:ascending true}
-                                            #{"en-US"})
-                            [:statement-result :statements]))))
+           (reverse (get-ss {:ascending true}))))
       (testing "since + until"
         (let [fstored (-> ret-statements
                           last
@@ -124,63 +121,33 @@
                           (get "stored"))]
           (testing "both"
             (is (= 99
-                   (count (get-in
-                           (get-statements lrs
-                                           auth-id
-                                           {:since fstored
-                                            :until lstored
-                                            :limit 100}
-                                           #{"en-US"})
-                           [:statement-result :statements]))))
+                   (count (get-ss {:since fstored
+                                   :until lstored
+                                   :limit 100}))))
             (testing "ascending"
               (is (= 99
-                     (count (get-in
-                             (get-statements lrs
-                                             auth-id
-                                             {:ascending true
-                                              :since fstored
-                                              :until lstored
-                                              :limit 100}
-                                             #{"en-US"})
-                             [:statement-result :statements]))))))
+                     (count (get-ss {:ascending true
+                                     :since fstored
+                                     :until lstored
+                                     :limit 100}))))))
           (testing "just since"
             (is (= 99
-                   (count (get-in
-                           (get-statements lrs
-                                           auth-id
-                                           {:since fstored
-                                            :limit 100}
-                                           #{"en-US"})
-                           [:statement-result :statements]))))
+                   (count (get-ss {:since fstored
+                                   :limit 100}))))
             (testing "ascending"
               (is (= 99
-                     (count (get-in
-                             (get-statements lrs
-                                             auth-id
-                                             {:ascending true
-                                              :since fstored
-                                              :limit 100}
-                                             #{"en-US"})
-                             [:statement-result :statements]))))))
+                     (count (get-ss {:ascending true
+                                     :since fstored
+                                     :limit 100}))))))
           (testing "just until"
             (is (= 100
-                   (count (get-in
-                           (get-statements lrs
-                                           auth-id
-                                           {:until lstored
-                                            :limit 100}
-                                           #{"en-US"})
-                           [:statement-result :statements]))))
+                   (count (get-ss {:until lstored
+                                   :limit 100}))))
             (testing "ascending"
               (is (= 100
-                     (count (get-in
-                             (get-statements lrs
-                                             auth-id
-                                             {:ascending true
-                                              :until lstored
-                                              :limit 100}
-                                             #{"en-US"})
-                             [:statement-result :statements]))))))
+                     (count (get-ss {:ascending true
+                                     :until lstored
+                                     :limit 100}))))))
 
 
 
