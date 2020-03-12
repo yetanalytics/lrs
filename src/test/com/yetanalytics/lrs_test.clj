@@ -28,65 +28,26 @@
       ;; TODO: use sim-seq when merged https://github.com/yetanalytics/datasim/pull/33
       vals
       (->> (su/seq-sort (comp :timestamp-ms meta))
-           #_(map (fn [{:strs [timestamp] :as s}]
-                  (assoc s "stored" timestamp)))
            (take 100))))
 
 
 
 
-(deftest since-until-test
+(deftest query-test
   (let [auth-id {:auth :com.yetanalytics.lrs.auth/no-op
                  :prefix ""
                  :scopes #{:scope/all}
                  :agent {"mbox" "mailto:lrs@yetanalytics.io"}}]
-
-    ;; The fixture data is scrubbed and only has ms precision, so all of this would pass
-    #_(testing "default fixture thingy"
-        (let [lrs (mem/new-lrs {:statements-result-max 100
-                                :init-state (mem/fixture-state)})
-              ret-statements
-              (into []
-                    (get-in (get-statements lrs auth-id {} #{"en-US"})
-                            [:statement-result :statements]))]
-          (testing (format "%s valid return statements" (count ret-statements))
-            (is (s/valid? (s/every ::xs/statement)
-                          ret-statements)))
-          (testing "default ordering"
-            (let [stored-insts (map (comp t/parse
-                                          #(get % "stored"))
-                                    ret-statements)]
-              #_(clojure.pprint/pprint stored-insts)
-              (is (= stored-insts
-                     (sort (comp #(* % -1) compare)
-                           stored-insts))
-                  )))
-          (testing "timestamp normalization"
-            (let [stamps (filter string?
-                                 (mapcat (juxt #(get % "timestamp")
-                                               #(get % "stored"))
-                                         ret-statements))
-
-                  by-length (group-by count stamps)]
-              (is (and (= 1 (count by-length))
-                       (= 24 (-> by-length first key)))
-                  (format "non-normalized stamps %s ... %s"
-                          (keys (dissoc by-length 24))
-                          (into []
-                                (take 10
-                                      (apply concat
-                                             (vals (dissoc by-length 24)))))))))
-
-          ))
-
+    ;; the serialized state shouldn't be used for this, because we're changing
+    ;; things around.
     ;; the datasim data is not currently normalized, but only happens at a max
     ;; precision of 1 ms. That's timestamps though, looks like we have no
     ;; normalization going on
     (let [s-count 100
           lrs (doto (mem/new-lrs {:statements-result-max s-count})
                 (store-statements auth-id
-                                  (into [] (take s-count
-                                                 )test-statements)
+                                  (into [] (take s-count)
+                                        test-statements)
                                   []))
           get-ss #(into []
                         (get-in (get-statements lrs auth-id % #{"en-us"})
@@ -94,9 +55,18 @@
           ret-statements (get-ss {})
           ]
 
-      (testing (format "%s valid return statements" (count ret-statements))
+      (testing (format "%s valid return statements?" (count ret-statements))
         (is (s/valid? (s/every ::xs/statement)
                       ret-statements)))
+      (testing "preserved?"
+        (is (= (dissoc (first ret-statements)
+                       "authority"
+                       "version"
+                       "stored")
+               (dissoc (last test-statements)
+                       "authority"
+                       "version"
+                       "stored"))))
       (testing "default ordering"
         (let [stored-insts (map (comp t/parse
                                       #(get % "stored"))
@@ -147,37 +117,4 @@
               (is (= 100
                      (count (get-ss {:ascending true
                                      :until lstored
-                                     :limit 100}))))))
-
-
-
-          ))
-
-     #_(testing "timestamp normalization"
-        (let [tss (filter string?
-                          (map #(get % "timestamp")
-                               ret-statements))
-              sts (filter string?
-                          (map #(get % "stored")
-                               ret-statements))
-
-              tss-by-length (group-by count tss)
-              sts-by-length (group-by count sts)]
-          (testing "timestamps"
-            (is (and (= 1 (count tss-by-length))
-                     (= 24 (-> tss-by-length first key)))
-                (format "non-normalized timestamps %s ... %s"
-                        (keys (dissoc tss-by-length 24))
-                        (into []
-                              (take 10
-                                    (apply concat
-                                           (vals (dissoc tss-by-length 24))))))))
-          (testing "storeds"
-            (is (and (= 1 (count sts-by-length))
-                     (= 24 (-> sts-by-length first key)))
-                (format "non-normalized storeds %s ... %s"
-                        (keys (dissoc sts-by-length 24))
-                        (into []
-                              (take 10
-                                    (apply concat
-                                           (vals (dissoc sts-by-length 24)))))))))))))
+                                     :limit 100})))))))))))
