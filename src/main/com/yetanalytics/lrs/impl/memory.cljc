@@ -258,12 +258,13 @@
   [state params]
   (let [{context-key :context-key
          {?since :since} :query} (param-keys-query params)]
-    (mapv :id
-          (cond->> (some-> (get-in state [:state/documents context-key])
-                           #?(:clj vals
-                              :cljs (->> (map second))))
-           ?since (drop-while (fn [{:keys [updated]}]
-                                (< -1 (compare ?since updated))))))))
+    (let [?since-inst (some-> ?since timestamp/parse)]
+      (mapv :id
+            (cond->> (some-> (get-in state [:state/documents context-key])
+                             #?(:clj vals
+                                :cljs (->> (map second))))
+              ?since (drop-while (fn [{:keys [updated] :as doc}]
+                                   (< -1 (compare ?since-inst (doc/updated-inst doc))))))))))
 
 (s/fdef get-document-ids
         :args (s/cat :state ::state
