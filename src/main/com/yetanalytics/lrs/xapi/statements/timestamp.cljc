@@ -6,16 +6,24 @@
                    [java.time.format DateTimeFormatter])
      :cljs (:import [goog.date DateTime]
                     ;; for cljs repro
-                    [goog.i18n DateTimeFormat])))
+                    [goog.i18n DateTimeFormat TimeZone])))
 
 #?(:clj (set! *warn-on-reflection* true))
 
-;; TODO: CLJS mem normz
 ;; Strict normalization of timestamp strings.
 ;; Intended for storage + consistency, but may be used for sortable stamp strings
-#?(:clj (def ^ZoneId UTC (ZoneId/of "UTC")))
+(def #?@(:clj [^ZoneId UTC]
+         :cljs [^TimeZone UTC])
+  #?(:clj (ZoneId/of "UTC")
+     :cljs (.createTimeZone TimeZone 0)))
+
+
 #?(:clj (def ^DateTimeFormatter in-formatter DateTimeFormatter/ISO_DATE_TIME))
-#?(:clj (def ^DateTimeFormatter out-formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'")))
+
+(def #?@(:clj [^DateTimeFormatter out-formatter]
+         :cljs [^DateTimeFormat out-formatter])
+  (#?(:clj DateTimeFormatter/ofPattern
+      :cljs DateTimeFormat.) "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'"))
 
 ;; parse xAPI timestamps
 (s/fdef parse
@@ -50,7 +58,7 @@
               (.atZone UTC)
               (->> (.format out-formatter)))
      ;; In cljs, just rely on the behavior of Date#toISOString
-     :cljs (.toISOString inst)))
+     :cljs (.format out-formatter inst UTC)))
 
 (s/fdef normalize
   :args (s/cat :timestamp ::xs/timestamp)
