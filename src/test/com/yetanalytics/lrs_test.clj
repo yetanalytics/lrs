@@ -52,7 +52,7 @@
           get-ss #(into []
                         (get-in (get-statements lrs auth-id % #{"en-us"})
                                 [:statement-result :statements]))
-          ret-statements (get-ss {})
+          ret-statements (get-ss {:limit 100})
           ]
 
       (testing (format "%s valid return statements?" (count ret-statements))
@@ -81,14 +81,22 @@
 
       (testing "ascending"
         (= ret-statements
-           (reverse (get-ss {:ascending true}))))
+           (reverse (get-ss {:ascending true
+                             :limit 100}))))
       (testing "since + until"
         (let [fstored (-> ret-statements
                           last
                           (get "stored"))
+              s-stored (-> ret-statements
+                           butlast
+                           last
+                           (get "stored"))
               lstored (-> ret-statements
                           first
-                          (get "stored"))]
+                          (get "stored"))
+              s-l-stored (-> ret-statements
+                             second
+                             (get "stored"))]
           (testing "both"
             (is (= 99
                    (count (get-ss {:since fstored
@@ -104,17 +112,31 @@
             (is (= 99
                    (count (get-ss {:since fstored
                                    :limit 100}))))
+            (is (= 98
+                   (count (get-ss {:since s-stored
+                                   :limit 100}))))
             (testing "ascending"
               (is (= 99
                      (count (get-ss {:ascending true
                                      :since fstored
+                                     :limit 100}))))
+              (is (= 98
+                     (count (get-ss {:ascending true
+                                     :since s-stored
                                      :limit 100}))))))
           (testing "just until"
             (is (= 100
                    (count (get-ss {:until lstored
                                    :limit 100}))))
+            (is (= 99
+                   (count (get-ss {:until s-l-stored
+                                   :limit 100}))))
             (testing "ascending"
               (is (= 100
                      (count (get-ss {:ascending true
                                      :until lstored
+                                     :limit 100}))))
+              (is (= 99
+                     (count (get-ss {:ascending true
+                                     :until s-l-stored
                                      :limit 100})))))))))))
