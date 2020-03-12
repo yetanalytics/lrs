@@ -4,15 +4,18 @@
             [xapi-schema.spec :as xs])
   #?(:clj (:import [java.time ZoneId Instant]
                    [java.time.format DateTimeFormatter])
-     :cljs (:import [goog.date DateTime])))
+     :cljs (:import [goog.date DateTime]
+                    ;; for cljs repro
+                    [goog.i18n DateTimeFormat])))
 
 #?(:clj (set! *warn-on-reflection* true))
 
+;; TODO: CLJS mem normz
 ;; Strict normalization of timestamp strings.
 ;; Intended for storage + consistency, but may be used for sortable stamp strings
 #?(:clj (def ^ZoneId UTC (ZoneId/of "UTC")))
 #?(:clj (def ^DateTimeFormatter in-formatter DateTimeFormatter/ISO_DATE_TIME))
-#?(:clj (def ^DateTimeFormatter out-formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")))
+#?(:clj (def ^DateTimeFormatter out-formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'")))
 
 ;; parse xAPI timestamps
 (s/fdef parse
@@ -36,10 +39,10 @@
   :args (s/cat :inst inst?)
   :ret ::xs/timestamp
   :fn (fn [{stamp-after :ret}]
-        (= 24 (count stamp-after))))
+        (= 30 (count stamp-after))))
 
 (defn normalize-inst
-  "Normalize an inst object, ensuring that it is a static length, and UTC."
+  "Normalize an inst object, ensuring that it is a static length (nano), and UTC."
   [#?@(:clj [^Instant inst]
        :cljs [inst])]
   #?(:clj (-> inst
@@ -54,10 +57,10 @@
   :ret ::xs/timestamp
   :fn (fn [{{stamp-before :timestamp} :args
             stamp-after :ret}]
-        (= 24 (count stamp-after))))
+        (= 30 (count stamp-after))))
 
 (defn normalize
-  "Normalize a string timestamp, ensuring that it is a static length, and UTC."
+  "Normalize a string timestamp, ensuring that it is a static length (nano), and UTC."
   [#?@(:clj [^String timestamp]
        :cljs [timestamp])]
   (normalize-inst
