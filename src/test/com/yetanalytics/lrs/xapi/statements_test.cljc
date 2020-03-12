@@ -5,6 +5,12 @@
             [com.yetanalytics.lrs.xapi.statements :as ss]
             ))
 
+(deftest stored-inst-test
+  (is (empty?
+       (failures
+        (stest/check
+         `ss/stored-inst {stc-opts {:num-tests 10 :max-size 3}})))))
+
 (deftest statements-priority-map-test
   (is (empty?
        (failures

@@ -4,6 +4,12 @@
             [com.yetanalytics.test-support :refer [failures stc-opts]]
             [com.yetanalytics.lrs.xapi.document :as doc]))
 
+(deftest updated-inst-test
+  (is (empty?
+       (failures
+        (stest/check
+         `doc/updated-inst {stc-opts {:num-tests 100 :max-size 3}})))))
+
 (deftest documents-priority-map-test
   (is (empty?
        (failures

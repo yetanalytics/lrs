@@ -5,6 +5,7 @@
              :refer [string-ascii-not-empty
                      string-alphanumeric-not-empty]]
             [xapi-schema.spec :as xs]
+            [com.yetanalytics.lrs.xapi.statements.timestamp :as timestamp]
             [#?(:clj clojure.data.priority-map
                 :cljs tailrecursion.priority-map) :as pm]
             #?@(:clj [[cheshire.core :as json]
@@ -16,8 +17,9 @@
 #?(:clj (set! *warn-on-reflection* true))
 
 (defn updated-stamp []
-  #?(:clj (str (Instant/now))
-     :cljs (.toISOString (js/Date.))))
+  (timestamp/normalize-inst
+   #?(:clj (Instant/now)
+      :cljs (js/Date.))))
 
 (s/def ::content-type
   string-ascii-not-empty)
@@ -92,10 +94,23 @@
       (sgen/one-of [(document-gen-fn)
                     (json-document-gen-fn)]))))
 
+(defn updated-inst
+  [document]
+  (timestamp/parse
+   (or
+       (get document :updated)
+       (throw (ex-info "NO UPDATED"
+                       {:type ::no-updated
+                        :document document})))))
+
+(s/fdef updated-inst
+  :args (s/cat :document :com.yetanalytics.lrs.xapi/document)
+  :ret inst?)
+
 (defn documents-priority-map [& key-vals]
   (apply
    pm/priority-map-keyfn-by
-   #(get % :updated)
+   updated-inst
    #(compare %2 %1)
    key-vals))
 
