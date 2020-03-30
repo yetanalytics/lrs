@@ -1,5 +1,6 @@
 (ns com.yetanalytics.lrs.xapi.statements
   (:require
+   [com.yetanalytics.lrs.xapi.statements.timestamp :as timestamp]
    [com.yetanalytics.lrs.xapi.agents :as ag]
    [com.yetanalytics.lrs.xapi.activities :as ac]
    [clojure.spec.alpha :as s :include-macros true]
@@ -36,16 +37,31 @@
     "version"
     "attachments"]))
 
+(defn stored-inst
+  [statement]
+  (timestamp/parse
+   ;; TODO: Not sure why we're seeing multiple types here
+   (or (get statement "stored")
+       (get statement :statement/stored)
+       (get statement :stored)
+       (throw (ex-info "NO STORED?!?"
+                       {:type ::no-stored
+                        :statement statement})))))
+
+(s/fdef stored-inst
+  :args (s/cat :statement ::xs/lrs-statement)
+  :ret inst?)
+
 (defn statements-priority-map [& key-vals]
   (apply
    pm/priority-map-keyfn-by
-   #(get % "stored")
+   stored-inst
    #(compare %2 %1)
    key-vals))
 
 (defn s-pm-gen-fn []
   (sgen/return (pm/priority-map-keyfn-by
-                #(get % "stored")
+                stored-inst
                 #(compare %2 %1))))
 
 (s/def ::statements-priority-map
@@ -63,8 +79,9 @@
 
 
 (defn now-stamp []
-  #?(:clj (str (Instant/now))
-     :cljs (.toISOString (js/Date.))))
+  (timestamp/normalize-inst
+   #?(:clj (Instant/now)
+      :cljs (js/Date.))))
 
 (s/fdef now-stamp
         :args (s/cat)

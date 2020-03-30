@@ -2,6 +2,7 @@
   "A naive LRS implementation in memory"
   (:require [com.yetanalytics.lrs.protocol :as p]
             [com.yetanalytics.lrs.xapi.statements :as ss]
+            [com.yetanalytics.lrs.xapi.statements.timestamp :as timestamp]
             [com.yetanalytics.lrs.xapi.agents :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
             [com.yetanalytics.lrs.xapi.document :as doc]
@@ -257,12 +258,13 @@
   [state params]
   (let [{context-key :context-key
          {?since :since} :query} (param-keys-query params)]
-    (mapv :id
-          (cond->> (some-> (get-in state [:state/documents context-key])
-                           #?(:clj vals
-                              :cljs (->> (map second))))
-           ?since (drop-while (fn [{:keys [updated]}]
-                                (< -1 (compare ?since updated))))))))
+    (let [?since-inst (some-> ?since timestamp/parse)]
+      (mapv :id
+            (cond->> (some-> (get-in state [:state/documents context-key])
+                             #?(:clj vals
+                                :cljs (->> (map second))))
+              ?since (drop-while (fn [{:keys [updated] :as doc}]
+                                   (< -1 (compare ?since-inst (doc/updated-inst doc))))))))))
 
 (s/fdef get-document-ids
         :args (s/cat :state ::state
@@ -405,69 +407,77 @@
               (= "ids" format-type)
               ss/format-statement-ids))
       (list))
-    (cond->> (or #?(:cljs (map second (:state/statements state))
-                    :clj (vals (:state/statements state)))
-                 (list))
-      ascending reverse
-      ;; paging from
-      from (drop-while #(not= from
-                              (get % "id")))
-      from rest
-      (and
-       (not ascending)
-       since) (drop-while #(< -1 (compare since (get % "stored"))))
-      (and
-       (not ascending)
-       until)
-      (take-while #(< -1 (compare until (get % "stored"))))
-      (and
-       ascending
-       until) (drop-while #(< -1 (compare until (get % "stored"))))
-      (and
-       ascending
-       since) (take-while #(< -1 (compare since (get % "stored"))))
+    (let [?since-inst (some-> since timestamp/parse)
+          ?until-inst (some-> until timestamp/parse)]
+      (cond->> (or #?(:cljs (map second (:state/statements state))
+                      :clj (vals (:state/statements state)))
+                   (list))
+        ascending reverse
+        ;; paging from
+        from (drop-while #(not= from
+                                (get % "id")))
+        from rest
+        ;; since + until
+        (and
+         (not ascending)
+         since)
+        (take-while #(neg? (compare ?since-inst (ss/stored-inst %))))
+        (and
+         (not ascending)
+         until)
+        (drop-while #(neg? (compare ?until-inst (ss/stored-inst %))))
 
-      ;; simple filters
-      verb (filter #(or
-                     ;; direct
-                     (= verb (get-in % ["verb" "id"]))
-                     ;; via reference
-                     (and (ss/statement-ref? %)
-                          (let [ref-id (get % "id")
-                                target-id (ss/statement-ref-id %)]
-                            ;; non-void statement
-                            (= verb (get-in state [:state/statements
-                                                   target-id
-                                                   "verb"
-                                                   "id"]))
-                            (= verb (get-in state [:state/voided-statements
-                                                   target-id
-                                                   "verb"
-                                                   "id"]))))))
-      registration (filter #(= registration
-                               (get-in % ["context" "registration"])))
-      ;; complex filters
-      activity (filter
-                (if related_activities
-                  ;; complex activity-filter
-                  (fn [s]
-                    (some (partial = activity)
-                          (ss/statement-related-activity-ids s)))
-                  ;; simple activity filter
-                  #(= activity (get-in % ["object" "id"]))))
-      agent (filter
-             (let [agents-fn (if related_agents
-                               #(ss/statement-agents % true)
-                               #(ss/statement-agents % false))]
-               (fn [s]
-                 (some (partial ag/ifi-match? agent)
-                       (agents-fn s)))))
-      ;; Formatting
-      (= format-type
-         "canonical") (map #(ss/format-canonical % ltags))
-      (= format-type
-         "ids")       (map ss/format-statement-ids)
-      )))
+        (and
+         ascending
+         since)
+        (drop-while #(not (neg? (compare ?since-inst (ss/stored-inst %)))))
+        (and
+         ascending
+         until)
+        (take-while #(not (pos? (compare (ss/stored-inst %) ?until-inst))))
+
+
+        ;; simple filters
+        verb (filter #(or
+                       ;; direct
+                       (= verb (get-in % ["verb" "id"]))
+                       ;; via reference
+                       (and (ss/statement-ref? %)
+                            (let [ref-id (get % "id")
+                                  target-id (ss/statement-ref-id %)]
+                              ;; non-void statement
+                              (= verb (get-in state [:state/statements
+                                                     target-id
+                                                     "verb"
+                                                     "id"]))
+                              (= verb (get-in state [:state/voided-statements
+                                                     target-id
+                                                     "verb"
+                                                     "id"]))))))
+        registration (filter #(= registration
+                                 (get-in % ["context" "registration"])))
+        ;; complex filters
+        activity (filter
+                  (if related_activities
+                    ;; complex activity-filter
+                    (fn [s]
+                      (some (partial = activity)
+                            (ss/statement-related-activity-ids s)))
+                    ;; simple activity filter
+                    #(= activity (get-in % ["object" "id"]))))
+        agent (filter
+               (let [agents-fn (if related_agents
+                                 #(ss/statement-agents % true)
+                                 #(ss/statement-agents % false))]
+                 (fn [s]
+                   (some (partial ag/ifi-match? agent)
+                         (agents-fn s)))))
+        ;; Formatting
+        (= format-type
+           "canonical") (map #(ss/format-canonical % ltags))
+        (= format-type
+           "ids")       (map ss/format-statement-ids)
+        ))))
 
 (s/fdef statements-seq
         :args (s/cat :state ::state
