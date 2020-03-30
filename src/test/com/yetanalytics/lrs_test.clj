@@ -6,7 +6,6 @@
 
             [com.yetanalytics.datasim.input :as sim-input]
             [com.yetanalytics.datasim.sim :as sim]
-            [com.yetanalytics.datasim.util.sequence :as su]
             [clojure.core.async :as a]
             [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
@@ -21,14 +20,9 @@
 ;; internal state
 (def test-statements
   "test statements for datasim, lazy"
-  (-> (sim-input/from-location
-       :input :json "dev-resources/datasim/input/tc3.json")
-
-      sim/build-skeleton
-      ;; TODO: use sim-seq when merged https://github.com/yetanalytics/datasim/pull/33
-      vals
-      (->> (su/seq-sort (comp :timestamp-ms meta))
-           (take 100))))
+  (take 100 (sim/sim-seq
+             (sim-input/from-location
+              :input :json "dev-resources/datasim/input/tc3.json"))))
 
 
 
