@@ -3,7 +3,8 @@
   (:require [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
             #?@(:cljs [[goog.string :as gstring :refer [format]]
-                       [goog.string.format]]))
+                       [goog.string.format]
+                       [cljs.nodejs :as node]]))
   #?(:clj (:import [java.time ZoneId Instant]
                    [java.time.format DateTimeFormatter])
      :cljs (:import [goog.date DateTime]
@@ -146,3 +147,60 @@
                                                    (count ?frac-secs))
                                                 "0"))))
                        normalized))))))))
+
+(s/fdef stamp-now
+  :args (s/cat)
+  :ret ::xs/timestamp)
+
+(declare stamp-seq)
+
+(defn stamp-now
+  "Return a timestamp for the current second"
+  []
+  #?(:clj (normalize-inst (Instant/now))
+     :cljs
+     (first (stamp-seq))))
+
+#?(:cljs (defn hrt-seq
+           "An infinite lazy sequence of hi-res time points"
+           []
+           (lazy-seq
+            (let [hrt-0 (.hrtime node/process)]
+              (repeatedly #(.hrtime node/process hrt-0))))))
+
+(s/fdef stamp-seq
+  :args (s/cat)
+  :ret (s/and (s/every (s/and ::xs/timestamp
+                              (fn normalized?
+                                [^String stamp]
+                                (and (= 30 (count stamp))
+                                     (.endsWith stamp "Z"))))
+                       :distinct true)
+              (fn monotonic? [xs]
+                (= (take 10 xs) (sort (take 10 xs))))))
+
+(defn stamp-seq
+  "Return a monotonically increasing sequence of stamps"
+  []
+  #?(:clj (repeatedly stamp-now)
+     :cljs (let [start-t-nanos (* (.getTime (js/Date.))
+                                  1000000)
+                 hrts (hrt-seq)]
+             (map
+              (fn [[sec nanosec]]
+                (let [t-nanos (+ start-t-nanos
+                                 (* sec 1000000000)
+                                 nanosec)
+                      [t-secs r-nanos] ((juxt quot rem)
+                                        t-nanos
+                                        (* 1000000000))
+                      [_
+                       body
+                       _
+                       offset] (parse-stamp
+                                ;; get a stamp to the second
+                                (normalize-inst
+                                 (js/Date. (* 1000 t-secs))))]
+                  (format "%s.%09dZ"
+                          body r-nanos)))
+              hrts))))

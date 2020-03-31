@@ -47,3 +47,37 @@
       ;; LOUD HMMM
       "19691231T19:00:00-0500"         "1970-01-01T00:00:00.000000000Z"
       )))
+
+#?(:cljs (deftest hrt-seq-test
+           (testing "it's monotonic"
+             (let [hrts (into []
+                              (map (fn [[secs nanos]]
+                                     [secs nanos]))
+                              (take 1000 (timestamp/hrt-seq)))]
+               (is (= hrts (sort hrts)))
+               (is (apply distinct? hrts))))))
+
+(deftest stamp-now-test
+  (testing "generative function tests"
+    (is (empty?
+         (failures
+          (stest/check
+           `timestamp/stamp-now {stc-opts {}})))))
+  #?(:cljs (testing "(cljs) should lag behind the normal clock a little by nanos"
+             (let [[msec-stamp nano-stamp :as stamps] ((juxt #(timestamp/normalize-inst (js/Date.))
+                                                             timestamp/stamp-now))]
+               (is (= (subs msec-stamp 0 23)
+                      (subs nano-stamp 0 23)))
+               (is (= stamps (sort stamps)))))))
+
+(deftest stamp-seq-test
+  (testing "simple expectations"
+    (let [stamps (take 1000 (timestamp/stamp-seq))]
+      (testing "stamps are normalized"
+        (is (every? (fn normalized?
+                      [^String stamp]
+                      (and (= 30 (count stamp))
+                           (.endsWith stamp "Z")))
+                    stamps)))
+      (testing "stamps are monotonic"
+        (is (= stamps (sort stamps)))))))
