@@ -16,10 +16,8 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-(defn updated-stamp []
-  (timestamp/normalize-inst
-   #?(:clj (Instant/now)
-      :cljs (js/Date.))))
+(defn updated-stamp-now []
+  (timestamp/stamp-now))
 
 (s/def ::content-type
   string-ascii-not-empty)
@@ -93,15 +91,22 @@
     (fn []
       (sgen/one-of [(document-gen-fn)
                     (json-document-gen-fn)]))))
+(defn updated-stamp
+  [document]
+  (or
+   (get document :updated)
+   (throw (ex-info "NO UPDATED"
+                   {:type ::no-updated
+                    :document document}))))
+
+(s/fdef updated-stamp
+  :args (s/cat :document :com.yetanalytics.lrs.xapi/document)
+  :ret ::xs/timestamp)
 
 (defn updated-inst
   [document]
   (timestamp/parse
-   (or
-       (get document :updated)
-       (throw (ex-info "NO UPDATED"
-                       {:type ::no-updated
-                        :document document})))))
+   (updated-stamp document)))
 
 (s/fdef updated-inst
   :args (s/cat :document :com.yetanalytics.lrs.xapi/document)
@@ -110,7 +115,7 @@
 (defn documents-priority-map [& key-vals]
   (apply
    pm/priority-map-keyfn-by
-   updated-inst
+   updated-stamp
    #(compare %2 %1)
    key-vals))
 
@@ -176,7 +181,7 @@
                      :contents reserialized-bytes))
             document)
           :updated
-          (updated-stamp)))
+          (updated-stamp-now)))
   ([old-doc new-doc]
    (if old-doc
      (assoc
@@ -205,7 +210,7 @@
                         {:type ::invalid-merge
                          :old-doc old-doc
                          :new-doc new-doc})))
-      :updated (updated-stamp))
+      :updated (updated-stamp-now))
      (merge-or-replace new-doc))))
 
 (s/fdef merge-or-replace
