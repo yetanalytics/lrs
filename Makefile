@@ -26,7 +26,7 @@ test-lib-clj:
 test-lib: test-lib-clj test-lib-cljs
 test-conformance: lrs-conformance-test-suite
 	# Set LANG, otherwise this breaks in Codebuild
-	LANG="en_US.UTF-8" clojure -A:dev -m com.yetanalytics.conformance-test
+	LANG="en_US.UTF-8" LC_ALL="en_US.UTF-8" clojure -A:dev -m com.yetanalytics.conformance-test
 test-all: test-lib test-conformance
 
 ci: test-all
