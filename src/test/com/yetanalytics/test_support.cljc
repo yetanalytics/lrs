@@ -160,7 +160,9 @@
                        "node" "bin/console_runner.js" "-e" "http://localhost:8080/xapi" "-b" "-z"
                        (concat
                         args
-                        [:dir "lrs-conformance-test-suite"]))]
+                        [:dir "lrs-conformance-test-suite"
+                         :env (assoc (into {} (System/getenv))
+                                     "LC_ALL" "en_US.UTF-8")]))]
             (report-sh-result test-result)
             (print-logs)
             (if (= 0 exit)
