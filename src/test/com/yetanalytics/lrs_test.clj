@@ -4,8 +4,8 @@
             [com.yetanalytics.lrs.impl.memory :as mem]
             [com.yetanalytics.lrs :refer :all]
 
-            #_[com.yetanalytics.datasim.input :as sim-input]
-            #_[com.yetanalytics.datasim.sim :as sim]
+            [com.yetanalytics.datasim.input :as sim-input]
+            [com.yetanalytics.datasim.sim :as sim]
             [clojure.core.async :as a]
             [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
@@ -18,7 +18,7 @@
 
 ;; Let's base tests on data from Datasim if we're not sure about the serialized
 ;; internal state
-#_(def test-statements
+(def test-statements
   "test statements for datasim, lazy"
   (take 100 (sim/sim-seq
              (sim-input/from-location
@@ -27,7 +27,7 @@
 
 
 
-#_(deftest query-test
+(deftest query-test
   (let [auth-id {:auth :com.yetanalytics.lrs.auth/no-op
                  :prefix ""
                  :scopes #{:scope/all}

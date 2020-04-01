@@ -27,7 +27,7 @@
     org.slf4j/jcl-over-slf4j {:mvn/version "1.7.25"}
     org.slf4j/log4j-over-slf4j {:mvn/version "1.7.25"}
     io.pedestal/pedestal.service-tools {:mvn/version "0.5.5"}
-    #_com.yetanalytics/datasim #_{:git/url "https://github.com/yetanalytics/datasim.git"
+    com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
                               :sha "c32a3806ac320e2cd2f406d0be7b8cd38dce0257"}
     }}}
  :mvn/repos {"jitpack" {:url "https://jitpack.io"}} ;; for proj. pan/dsim
