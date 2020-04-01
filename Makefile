@@ -25,7 +25,8 @@ test-lib-clj:
 	clojure -A:dev -m com.yetanalytics.test-runner
 test-lib: test-lib-clj test-lib-cljs
 test-conformance: lrs-conformance-test-suite
-	clojure -A:dev -m com.yetanalytics.conformance-test
+	# We need to set this to prevent an error on codebuild
+	LC_ALL=en_US.utf-8 clojure -A:dev -m com.yetanalytics.conformance-test
 test-all: test-lib test-conformance
 
 ci: test-all
