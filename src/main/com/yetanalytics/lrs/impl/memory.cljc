@@ -230,7 +230,7 @@
               (assoc-in documents [context-key document-key] (assoc
                                                               document
                                                               :updated
-                                                              (doc/updated-stamp))))
+                                                              (doc/updated-stamp-now))))
             context-key
             #(conj (doc/documents-priority-map) %))))
 
@@ -258,13 +258,13 @@
   [state params]
   (let [{context-key :context-key
          {?since :since} :query} (param-keys-query params)]
-    (let [?since-inst (some-> ?since timestamp/parse)]
+    (let [?since-inst (some-> ?since timestamp/normalize)]
       (mapv :id
             (cond->> (some-> (get-in state [:state/documents context-key])
                              #?(:clj vals
                                 :cljs (->> (map second))))
               ?since (drop-while (fn [{:keys [updated] :as doc}]
-                                   (< -1 (compare ?since-inst (doc/updated-inst doc))))))))))
+                                   (< -1 (compare ?since-inst (doc/updated-stamp doc))))))))))
 
 (s/fdef get-document-ids
         :args (s/cat :state ::state
@@ -407,8 +407,8 @@
               (= "ids" format-type)
               ss/format-statement-ids))
       (list))
-    (let [?since-inst (some-> since timestamp/parse)
-          ?until-inst (some-> until timestamp/parse)]
+    (let [?since-stamp (some-> since timestamp/normalize)
+          ?until-stamp (some-> until timestamp/normalize)]
       (cond->> (or #?(:cljs (map second (:state/statements state))
                       :clj (vals (:state/statements state)))
                    (list))
@@ -421,20 +421,20 @@
         (and
          (not ascending)
          since)
-        (take-while #(neg? (compare ?since-inst (ss/stored-inst %))))
+        (take-while #(neg? (compare ?since-stamp (ss/stored-stamp %))))
         (and
          (not ascending)
          until)
-        (drop-while #(neg? (compare ?until-inst (ss/stored-inst %))))
+        (drop-while #(neg? (compare ?until-stamp (ss/stored-stamp %))))
 
         (and
          ascending
          since)
-        (drop-while #(not (neg? (compare ?since-inst (ss/stored-inst %)))))
+        (drop-while #(not (neg? (compare ?since-stamp (ss/stored-stamp %)))))
         (and
          ascending
          until)
-        (take-while #(not (pos? (compare (ss/stored-inst %) ?until-inst))))
+        (take-while #(not (pos? (compare (ss/stored-stamp %) ?until-stamp))))
 
 
         ;; simple filters
@@ -571,8 +571,11 @@
           (p/-get-about lrs auth-identity)))
       p/StatementsResource
       (-store-statements [_ _ statements attachments]
-        (try (let [prepared-statements (map ss/prepare-statement
-                                            statements)]
+        (try (let [prepared-statements (map (fn [s stamp]
+                                              (ss/prepare-statement
+                                               (assoc s "stored" stamp)))
+                                            statements
+                                            (timestamp/stamp-seq))]
                (swap! state transact-statements prepared-statements attachments)
                {:statement-ids
                 (into []

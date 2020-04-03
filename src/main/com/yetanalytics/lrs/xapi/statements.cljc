@@ -37,16 +37,24 @@
     "version"
     "attachments"]))
 
+(defn stored-stamp
+  [statement]
+  ;; TODO: Not sure why we're seeing multiple types here
+  (or (get statement "stored")
+      (get statement :statement/stored)
+      (get statement :stored)
+      (throw (ex-info "NO STORED?!?"
+                      {:type ::no-stored
+                       :statement statement}))))
+
+(s/fdef stored-stamp
+  :args (s/cat :statement ::xs/lrs-statement)
+  :ret ::xs/timestamp)
+
 (defn stored-inst
   [statement]
   (timestamp/parse
-   ;; TODO: Not sure why we're seeing multiple types here
-   (or (get statement "stored")
-       (get statement :statement/stored)
-       (get statement :stored)
-       (throw (ex-info "NO STORED?!?"
-                       {:type ::no-stored
-                        :statement statement})))))
+   (stored-stamp statement)))
 
 (s/fdef stored-inst
   :args (s/cat :statement ::xs/lrs-statement)
@@ -55,7 +63,7 @@
 (defn statements-priority-map [& key-vals]
   (apply
    pm/priority-map-keyfn-by
-   stored-inst
+   stored-stamp
    #(compare %2 %1)
    key-vals))
 
@@ -79,9 +87,7 @@
 
 
 (defn now-stamp []
-  (timestamp/normalize-inst
-   #?(:clj (Instant/now)
-      :cljs (js/Date.))))
+  (timestamp/stamp-now))
 
 (s/fdef now-stamp
         :args (s/cat)
@@ -127,10 +133,10 @@
 
 (defn prepare-statement
   "Assign an ID, stored, timestamp, etc prior to storage"
-  [{:strs [id timestamp version] :as statement}]
+  [{:strs [id stored timestamp version] :as statement}]
   (let [id (or id (str #?(:clj (java.util.UUID/randomUUID)
                           :cljs (random-uuid))))
-        stored (now-stamp)
+        stored (or stored (now-stamp))
         timestamp (or timestamp stored)
         authority {"name" "Memory LRS"
                    "objectType" "Agent"
