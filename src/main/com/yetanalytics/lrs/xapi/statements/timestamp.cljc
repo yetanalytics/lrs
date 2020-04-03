@@ -3,8 +3,7 @@
   (:require [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
             #?@(:cljs [[goog.string :as gstring :refer [format]]
-                       [goog.string.format]
-                       [cljs.nodejs :as node]]))
+                       [goog.string.format]]))
   #?(:clj (:import [java.time ZoneId Instant]
                    [java.time.format DateTimeFormatter])
      :cljs (:import [goog.date DateTime]
@@ -15,15 +14,15 @@
 
 ;; Strict normalization of timestamp strings.
 ;; Intended for storage + consistency, but may be used for sortable stamp strings
-(def #?@(:clj [^ZoneId UTC]
+(defonce #?@(:clj [^ZoneId UTC]
          :cljs [^TimeZone UTC])
   #?(:clj (ZoneId/of "UTC")
      :cljs (.createTimeZone TimeZone 0)))
 
 
-#?(:clj (def ^DateTimeFormatter in-formatter DateTimeFormatter/ISO_DATE_TIME))
+#?(:clj (defonce ^DateTimeFormatter in-formatter DateTimeFormatter/ISO_DATE_TIME))
 
-(def #?@(:clj [^DateTimeFormatter out-formatter]
+(defonce #?@(:clj [^DateTimeFormatter out-formatter]
          :cljs [^DateTimeFormat out-formatter])
   (#?(:clj DateTimeFormatter/ofPattern
       :cljs DateTimeFormat.) "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'"))
@@ -152,21 +151,11 @@
   :args (s/cat)
   :ret ::xs/timestamp)
 
-(declare stamp-seq)
-
 (defn stamp-now
-  "Return a timestamp for the current second"
+  "Return a timestamp for the current instant"
   []
-  #?(:clj (normalize-inst (Instant/now))
-     :cljs
-     (first (stamp-seq))))
-
-#?(:cljs (defn hrt-seq
-           "An infinite lazy sequence of hi-res time points"
-           []
-           (lazy-seq
-            (let [hrt-0 (.hrtime node/process)]
-              (repeatedly #(.hrtime node/process hrt-0))))))
+  (normalize-inst #?(:clj (Instant/now)
+                     :cljs (js/Date.))))
 
 (s/fdef stamp-seq
   :args (s/cat)
@@ -179,28 +168,29 @@
               (fn monotonic? [xs]
                 (= (take 10 xs) (sort (take 10 xs))))))
 
+#?(:cljs (defonce sec-format
+           (DateTimeFormat. "yyyy-MM-dd'T'HH:mm:ss")))
+
 (defn stamp-seq
-  "Return a monotonically increasing sequence of stamps"
-  []
-  #?(:clj (repeatedly stamp-now)
-     :cljs (let [start-t-nanos (* (.getTime (js/Date.))
-                                  1000000)
-                 hrts (hrt-seq)]
-             (map
-              (fn [[sec nanosec]]
-                (let [t-nanos (+ start-t-nanos
-                                 (* sec 1000000000)
-                                 nanosec)
-                      [t-secs r-nanos] ((juxt quot rem)
-                                        t-nanos
-                                        (* 1000000000))
-                      [_
-                       body
-                       _
-                       offset] (parse-stamp
-                                ;; get a stamp to the second
-                                (normalize-inst
-                                 (js/Date. (* 1000 t-secs))))]
-                  (format "%s.%09dZ"
-                          body r-nanos)))
-              hrts))))
+  "Return a monotonically increasing sequence of stamps.
+  Monotonicity is ensured by incrementing nanos from an
+  Initial timestamp"
+
+  #?@(:clj [[& [inst]]
+            (lazy-seq
+             (let [^Instant inst (or inst (Instant/now))]
+               (cons (normalize-inst inst)
+                     (stamp-seq (.plusNanos inst 1)))))]
+      :cljs [[& [t-ms nanos]]
+             (lazy-seq
+              (let [nanos (or nanos 0)
+                    [add-ms rem-nanos] ((juxt quot rem)
+                                        nanos
+                                        1000000)
+                    t-ms (+ (or t-ms (.getTime (js/Date.)))
+                            add-ms)]
+                (cons (format "%s.%09dZ"
+                              (.format sec-format (js/Date. t-ms) UTC)
+                              (+ (* (rem t-ms 1000) 1000000)
+                                 rem-nanos))
+                      (stamp-seq t-ms (inc nanos)))))]))
