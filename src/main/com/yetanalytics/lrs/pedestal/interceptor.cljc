@@ -4,8 +4,8 @@
             [io.pedestal.interceptor :as i]
             [io.pedestal.interceptor.chain :as chain]
             [io.pedestal.http :as http]
-            #?@(:clj [[io.pedestal.http.cors :as cors]
-                      [io.pedestal.http.csrf :as csrf]
+            [io.pedestal.http.cors :as cors]
+            #?@(:clj [[io.pedestal.http.csrf :as csrf]
                       [io.pedestal.http.secure-headers :as sec-headers]
                       [io.pedestal.log :as log]])
             [io.pedestal.http.route :as route]
@@ -403,7 +403,7 @@
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
                        (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
-                       #?@(:clj [(some? allowed-origins) (conj (cors/allow-origin allowed-origins))])
+                       (some? allowed-origins) (conj (cors/allow-origin allowed-origins))
                        (some? not-found-interceptor) (conj (io.pedestal.interceptor/interceptor not-found-interceptor))
                        #?@(:clj [(or enable-session enable-csrf) (conj (middlewares/session (or enable-session {})))
                                  (some? enable-csrf) (into [(body-params/body-params (:body-params enable-csrf (body-params/default-parser-map)))
