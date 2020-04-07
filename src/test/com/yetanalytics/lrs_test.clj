@@ -3,7 +3,7 @@
             [com.yetanalytics.test-support :as support :refer [deftest-check-ns]]
             [com.yetanalytics.lrs.impl.memory :as mem]
             [com.yetanalytics.lrs :refer :all]
-
+            [clojure.string :as cs]
             [com.yetanalytics.datasim.input :as sim-input]
             [com.yetanalytics.datasim.sim :as sim]
             [clojure.core.async :as a]
@@ -133,4 +133,9 @@
               (is (= 99
                      (count (get-ss {:ascending true
                                      :until s-l-stored
-                                     :limit 100})))))))))))
+                                     :limit 100}))))))))
+      (testing "IDs ignore capitalization"
+        (let [id (-> ret-statements
+                     first
+                     (get "id"))]
+          (is (not-empty (get-ss {:statementId (cs/upper-case id)}))))))))
