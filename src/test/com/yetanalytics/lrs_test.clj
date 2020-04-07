@@ -44,7 +44,7 @@
                                         test-statements)
                                   []))
           get-ss #(into []
-                        (get-in (get-statements lrs auth-id % #{"en-us"})
+                        (get-in (get-statements lrs auth-id % #{"en-US"})
                                 [:statement-result :statements]))
           ret-statements (get-ss {:limit 100})
           ]
@@ -138,4 +138,13 @@
         (let [id (-> ret-statements
                      first
                      (get "id"))]
-          (is (not-empty (get-ss {:statementId (cs/upper-case id)}))))))))
+          (is (not-empty (get-ss {:statementId (cs/upper-case id)})))))
+      (testing "IDs are normalized"
+        (let [s (first test-statements)
+              id (get s "id")
+              lrs (doto (mem/new-lrs {:statements-result-max s-count})
+                    (store-statements auth-id
+                                      [(update s
+                                        "id" cs/upper-case)]
+                                      []))]
+          (is (not-empty (get-statements lrs auth-id {:statementId id} #{"en-US"}))))))))
