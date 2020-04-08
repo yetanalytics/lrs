@@ -11,6 +11,12 @@
         (stest/check
          `ss/normalize-id {stc-opts {}})))))
 
+(deftest get-id-test
+  (is (empty?
+       (failures
+        (stest/check
+         `ss/get-id {stc-opts {:num-tests 10 :max-size 3}})))))
+
 (deftest stored-inst-test
   (is (empty?
        (failures

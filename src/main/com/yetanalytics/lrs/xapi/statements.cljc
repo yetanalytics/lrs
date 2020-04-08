@@ -30,6 +30,18 @@
      :cljs [id])
   (cs/lower-case id))
 
+(s/fdef get-id
+  :args (s/cat :statement ::xs/statement)
+  :ret (s/nilable :statement/id))
+
+(defn get-id
+  "Return the canonical, normalized ID of this statement if it exists"
+  [statement]
+  (when-let [id (or (get statement "id")
+                    (get statement :statement/id)
+                    (get statement :id))]
+    (normalize-id id)))
+
 (defn select-statement-keys
   "Filter statment attributes to xapi"
   [statement]
