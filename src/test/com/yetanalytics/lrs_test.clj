@@ -142,13 +142,24 @@
            (:statement
             (get-statements lrs auth-id {:statementId (cs/upper-case id)}
                             #{"en-US"})))))
+      (testing "registration param is normalized"
+        (let [reg (-> ret-statements
+                     first
+                     (get-in ["context" "registration"]))]
+          (is reg)
+          (is
+           (not-empty
+            (get-in  (get-statements lrs auth-id {:registration (cs/upper-case reg)}
+                                     #{"en-US"})
+                     [:statement-result :statements])))))
       (testing "ID keys are normalized"
         (let [s (first test-statements)
               id (get s "id")
               lrs (doto (mem/new-lrs {:statements-result-max s-count})
                     (store-statements auth-id
-                                      [(update s
-                                        "id" cs/upper-case)]
+                                      [(-> s
+                                           (update "id" cs/upper-case)
+                                           (update-in ["context" "registration"] cs/upper-case))]
                                       []))]
           (is (:statement (get-statements lrs auth-id {:statementId id} #{"en-US"})))
           ;; This test will pass even w/o normalized IDs, but it makes sure we
@@ -156,6 +167,11 @@
           (is (not-empty (get-in (get-statements lrs auth-id {:verb (get-in s ["verb" "id"])}
                                                  #{"en-US"})
                                  [:statement-result :statements])))
+
+          (testing "reg index"
+            (is (not-empty (get-in (get-statements lrs auth-id {:verb (get-in s ["verb" "id"])}
+                                                   #{"en-US"})
+                                   [:statement-result :statements]))))
 
           (testing "original case is preserved"
             (is (= (cs/upper-case id)
