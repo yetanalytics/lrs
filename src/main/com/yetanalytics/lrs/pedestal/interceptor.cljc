@@ -197,7 +197,7 @@
 ;; TODO: stop using this in favor of only applying the etag interceptor to doc
 ;; routes
 
-(defn- etag-route?
+(defn etag-route?
   [req-uri]
   (some #(.endsWith #?(:cljs req-uri
                        :clj ^String req-uri)
