@@ -3,7 +3,7 @@
             [com.yetanalytics.test-support :as support :refer [deftest-check-ns]]
             [com.yetanalytics.lrs.impl.memory :as mem]
             [com.yetanalytics.lrs :refer :all]
-
+            [clojure.string :as cs]
             [com.yetanalytics.datasim.input :as sim-input]
             [com.yetanalytics.datasim.sim :as sim]
             [clojure.core.async :as a]
@@ -44,7 +44,7 @@
                                         test-statements)
                                   []))
           get-ss #(into []
-                        (get-in (get-statements lrs auth-id % #{"en-us"})
+                        (get-in (get-statements lrs auth-id % #{"en-US"})
                                 [:statement-result :statements]))
           ret-statements (get-ss {:limit 100})
           ]
@@ -133,4 +133,49 @@
               (is (= 99
                      (count (get-ss {:ascending true
                                      :until s-l-stored
-                                     :limit 100})))))))))))
+                                     :limit 100}))))))))
+      (testing "ID params are normalized"
+        (let [id (-> ret-statements
+                     first
+                     (get "id"))]
+          (is
+           (:statement
+            (get-statements lrs auth-id {:statementId (cs/upper-case id)}
+                            #{"en-US"})))))
+      (testing "registration param is normalized"
+        (let [reg (-> ret-statements
+                     first
+                     (get-in ["context" "registration"]))]
+          (is reg)
+          (is
+           (not-empty
+            (get-in  (get-statements lrs auth-id {:registration (cs/upper-case reg)}
+                                     #{"en-US"})
+                     [:statement-result :statements])))))
+      (testing "ID keys are normalized"
+        (let [s (first test-statements)
+              id (get s "id")
+              lrs (doto (mem/new-lrs {:statements-result-max s-count})
+                    (store-statements auth-id
+                                      [(-> s
+                                           (update "id" cs/upper-case)
+                                           (update-in ["context" "registration"] cs/upper-case))]
+                                      []))]
+          (is (:statement (get-statements lrs auth-id {:statementId id} #{"en-US"})))
+          ;; This test will pass even w/o normalized IDs, but it makes sure we
+          ;; don't screw up the rel index
+          (is (not-empty (get-in (get-statements lrs auth-id {:verb (get-in s ["verb" "id"])}
+                                                 #{"en-US"})
+                                 [:statement-result :statements])))
+
+          (testing "reg index"
+            (is (not-empty (get-in (get-statements lrs auth-id {:registration (get-in s ["context"
+                                                                                         "registration"])}
+                                                   #{"en-US"})
+                                   [:statement-result :statements]))))
+
+          (testing "original case is preserved"
+            (is (= (cs/upper-case id)
+                   (get-in (get-statements lrs auth-id {:statementId id}
+                                           #{"en-US"})
+                           [:statement "id"])))))))))

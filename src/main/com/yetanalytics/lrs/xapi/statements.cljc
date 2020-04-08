@@ -8,6 +8,7 @@
    [xapi-schema.spec :as xs]
    [com.yetanalytics.lrs.util.hash :refer [sha-256]]
    [clojure.walk :as w]
+   [clojure.string :as cs]
    [#?(:clj clojure.data.priority-map
        :cljs tailrecursion.priority-map) :as pm]
    #?@(:clj [[clojure.java.io :as io]]
@@ -19,6 +20,27 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
+(s/fdef normalize-id
+  :args (s/cat :id :statement/id)
+  :ret :statement/id)
+
+(defn normalize-id
+  "Normalize statement IDs"
+  #?(:clj ^String [^String id]
+     :cljs [id])
+  (cs/lower-case id))
+
+(s/fdef get-id
+  :args (s/cat :statement ::xs/statement)
+  :ret (s/nilable :statement/id))
+
+(defn get-id
+  "Return the canonical, normalized ID of this statement if it exists"
+  [statement]
+  (when-let [id (or (get statement "id")
+                    (get statement :statement/id)
+                    (get statement :id))]
+    (normalize-id id)))
 
 (defn select-statement-keys
   "Filter statment attributes to xapi"
@@ -397,7 +419,7 @@
   "Return the id of the statement this statement references, if one is present"
   [s]
   (when (statement-ref? s)
-    (get-in s ["object" "id"])))
+    (normalize-id (get-in s ["object" "id"]))))
 
 (defn voiding-statement? [s]
   (some-> s (get-in ["verb" "id"]) (= "http://adlnet.gov/expapi/verbs/voided")))

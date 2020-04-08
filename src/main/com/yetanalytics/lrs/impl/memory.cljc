@@ -327,17 +327,14 @@
                            attachments]
   (reduce
    (fn [state statement]
-     (-> (let [s-id (get statement "id")
+     (-> (let [s-id (ss/normalize-id (get statement "id"))
                ?ref-target-id (ss/statement-ref-id statement)]
            (cond-> (if-let [extant (get-in state [:state/statements s-id])]
                      (if (ss/statements-equal? extant statement)
                        state ;; No change to LRS
                        (p/throw-statement-conflict statement extant))
                      (if (ss/voiding-statement? statement)
-                       (if-let [void-target-id (and (= "StatementRef" (get-in statement
-                                                                              ["object"
-                                                                               "objectType"]))
-                                                    (get-in statement ["object" "id"]))]
+                       (if-let [void-target-id ?ref-target-id]
                          (if-let [extant-target (get-in state [:state/statements void-target-id])]
                            (if (ss/voiding-statement? extant-target)
                              ;; can't void a voiding statement
@@ -398,9 +395,9 @@
   (if (or statementId voidedStatementId)
     (if-let [result (cond
                       statementId
-                      (get-in state [:state/statements statementId])
+                      (get-in state [:state/statements (ss/normalize-id statementId)])
                       voidedStatementId
-                      (get-in state [:state/voided-statements voidedStatementId]))]
+                      (get-in state [:state/voided-statements (ss/normalize-id voidedStatementId)]))]
       (list (cond-> result
               (= "canonical" format-type)
               (ss/format-canonical ltags)
@@ -443,7 +440,7 @@
                        (= verb (get-in % ["verb" "id"]))
                        ;; via reference
                        (and (ss/statement-ref? %)
-                            (let [ref-id (get % "id")
+                            (let [ref-id (ss/normalize-id (get % "id"))
                                   target-id (ss/statement-ref-id %)]
                               ;; non-void statement
                               (= verb (get-in state [:state/statements
@@ -454,8 +451,10 @@
                                                      target-id
                                                      "verb"
                                                      "id"]))))))
-        registration (filter #(= registration
-                                 (get-in % ["context" "registration"])))
+        registration (filter (let [reg-norm (ss/normalize-id registration)]
+                               #(= reg-norm
+                                   (some-> (get-in % ["context" "registration"])
+                                           ss/normalize-id))))
         ;; complex filters
         activity (filter
                   (if related_activities
@@ -579,7 +578,7 @@
                (swap! state transact-statements prepared-statements attachments)
                {:statement-ids
                 (into []
-                      (map #(get % "id")
+                      (map #(ss/normalize-id (get % "id"))
                            prepared-statements))})
              (catch #?(:clj clojure.lang.ExceptionInfo
                        :cljs ExceptionInfo) exi
@@ -639,7 +638,8 @@
                                                         (cond-> (assoc params :from
                                                                        (-> statements
                                                                            last
-                                                                           (get "id")))
+                                                                           (get "id")
+                                                                           ss/normalize-id))
                                                           ;; Re-encode the agent if present
                                                           agent (assoc :agent (json-string agent)))))))]
               {:statement-result statement-result
@@ -715,7 +715,7 @@
                   (do
                     (a/>! result-chan statement)
                     (recur (rest results)
-                           (get statement "id")
+                           (ss/normalize-id (get statement "id"))
                            (inc result-count)
                            (into result-attachments
                                  (when attachments
