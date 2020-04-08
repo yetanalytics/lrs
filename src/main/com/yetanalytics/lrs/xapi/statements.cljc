@@ -407,7 +407,7 @@
   "Return the id of the statement this statement references, if one is present"
   [s]
   (when (statement-ref? s)
-    (get-in s ["object" "id"])))
+    (normalize-id (get-in s ["object" "id"]))))
 
 (defn voiding-statement? [s]
   (some-> s (get-in ["verb" "id"]) (= "http://adlnet.gov/expapi/verbs/voided")))
