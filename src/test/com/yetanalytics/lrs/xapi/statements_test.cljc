@@ -5,6 +5,12 @@
             [com.yetanalytics.lrs.xapi.statements :as ss]
             ))
 
+(deftest normalize-id-test
+  (is (empty?
+       (failures
+        (stest/check
+         `ss/normalize-id {stc-opts {}})))))
+
 (deftest stored-inst-test
   (is (empty?
        (failures

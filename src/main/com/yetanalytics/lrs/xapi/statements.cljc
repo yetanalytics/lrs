@@ -8,6 +8,7 @@
    [xapi-schema.spec :as xs]
    [com.yetanalytics.lrs.util.hash :refer [sha-256]]
    [clojure.walk :as w]
+   [clojure.string :as cs]
    [#?(:clj clojure.data.priority-map
        :cljs tailrecursion.priority-map) :as pm]
    #?@(:clj [[clojure.java.io :as io]]
@@ -19,6 +20,15 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
+(s/fdef normalize-id
+  :args (s/cat :id :statement/id)
+  :ret :statement/id)
+
+(defn normalize-id
+  "Normalize statement IDs"
+  #?(:clj ^String [^String id]
+     :cljs [id])
+  (cs/lower-case id))
 
 (defn select-statement-keys
   "Filter statment attributes to xapi"
