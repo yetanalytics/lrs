@@ -134,12 +134,12 @@
                      (count (get-ss {:ascending true
                                      :until s-l-stored
                                      :limit 100}))))))))
-      (testing "IDs ignore capitalization"
+      (testing "ID params are normalized"
         (let [id (-> ret-statements
                      first
                      (get "id"))]
           (is (not-empty (get-ss {:statementId (cs/upper-case id)})))))
-      (testing "IDs are normalized"
+      (testing "ID keys are normalized"
         (let [s (first test-statements)
               id (get s "id")
               lrs (doto (mem/new-lrs {:statements-result-max s-count})
@@ -147,4 +147,8 @@
                                       [(update s
                                         "id" cs/upper-case)]
                                       []))]
-          (is (not-empty (get-statements lrs auth-id {:statementId id} #{"en-US"}))))))))
+          (is (not-empty (get-statements lrs auth-id {:statementId id} #{"en-US"})))
+          ;; This test will pass even w/o normalized IDs, but it makes sure we
+          ;; don't screw up the rel index
+          (is (not-empty (get-statements lrs auth-id {:verb (get-in s ["verb" "id"])}
+                                         #{"en-US"}))))))))
