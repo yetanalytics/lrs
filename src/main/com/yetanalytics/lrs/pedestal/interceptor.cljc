@@ -194,12 +194,28 @@
                                              ;; return the promise
                                              (a/go (a/>! out ctx)
                                                    ctx))}))))))]))
+;; TODO: stop using this in favor of only applying the etag interceptor to doc
+;; routes
+
+(defn etag-route?
+  [req-uri]
+  (some #(.endsWith #?(:cljs req-uri
+                       :clj ^String req-uri)
+                    %)
+        ["/activities/state"
+         "/activities/profile"
+         "/agents/profile"]))
 
 (defn etag-enter [{:keys [request] :as ctx}]
   (let [{{:strs [if-match if-none-match]} :headers
-         method :request-method} request]
-    (if (and (#{:put :post :delete} method)
-             (or if-match if-none-match))
+         method :request-method
+         req-uri :uri} request]
+    (if (and
+         ;; TODO: This should only be applied to the state + profile routes
+         ;; But we can't move it due to interceptor ordering. Should be fixed.
+         (etag-route? req-uri)
+         (#{:put :post :delete} method)
+         (or if-match if-none-match))
       (a/go
         (let [[get-ctx ctx'] (de-servlet-chan ctx)
               _ (chain/execute (-> ctx'
@@ -267,7 +283,9 @@
 
 (defn etag-leave
   [{:keys [request response] :as ctx}]
-  (if (#{:get :head} (:request-method request))
+  (if (and
+       (etag-route? (:uri request))
+       (#{:get :head} (:request-method request)))
     (let [etag (or
                 (::etag ctx)
                 (get-in response [:headers "etag"])
