@@ -169,7 +169,8 @@
                                  [:statement-result :statements])))
 
           (testing "reg index"
-            (is (not-empty (get-in (get-statements lrs auth-id {:verb (get-in s ["verb" "id"])}
+            (is (not-empty (get-in (get-statements lrs auth-id {:registration (get-in s ["context"
+                                                                                         "registration"])}
                                                    #{"en-US"})
                                    [:statement-result :statements]))))
 

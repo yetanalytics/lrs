@@ -451,8 +451,10 @@
                                                      target-id
                                                      "verb"
                                                      "id"]))))))
-        registration (filter #(= registration
-                                 (get-in % ["context" "registration"])))
+        registration (filter (let [reg-norm (ss/normalize-id registration)]
+                               #(= reg-norm
+                                   (some-> (get-in % ["context" "registration"])
+                                           ss/normalize-id))))
         ;; complex filters
         activity (filter
                   (if related_activities
