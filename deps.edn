@@ -33,6 +33,7 @@
   ;; bench utils for LRS implementations
   :bench
   {:extra-paths ["src/bench"]
-   :extra-deps {hato {:mvn/version "0.5.0"}}}}
+   :extra-deps {hato {:mvn/version "0.5.0"}
+                org.clojure/tools.cli {:mvn/version "1.0.194"}}}}
  :mvn/repos {"jitpack" {:url "https://jitpack.io"}} ;; for proj. pan/dsim
  }

@@ -1,14 +1,16 @@
 (ns com.yetanalytics.lrs.bench
   "Benchmarking + perf for the LRS lib"
+  (:gen-class)
   (:require
    [hato.client :as http]
    [com.yetanalytics.lrs.xapi.statements.timestamp :as ts]
    [com.yetanalytics.datasim.input :as di]
    [com.yetanalytics.datasim.sim :as ds]
    [java-time :as t]
+   [clojure.tools.cli :as cli]
    [clojure.pprint :refer [pprint]])
   (:import
-   [java.time Instant]))
+   [java.time Duration Instant]))
 
 (set! *warn-on-reflection* true)
 
@@ -28,8 +30,9 @@
   "default options for hato client"
   {:connect-timeout 10000
    :redirect-policy :always
-   :authenticator {:user "default"
-                   :pass "123456789"}})
+   #_:authenticator #_{:user "default"
+                       :pass "123456789"}
+   })
 
 (defonce default-client
   ;; "default hato client"
@@ -46,32 +49,32 @@
   Prioritize pushing the statements as fast as possible with minimal
   local calculation, as we will get our perf results through stored time."
   [lrs-endpoint
-   & {:keys
-      [run-id ;; unique string to identify this run of the sim
+   {:keys
+    [run-id ;; unique string to identify this run of the sim
 
-       payload ;; seq of statements
-       payload-input ;; input file for dsim
-       payload-input-path ;; path to dsim input file
-       payload-parameters ;; dsim param overrides
+     payload ;; seq of statements
+     payload-input ;; input file for dsim
+     payload-input-path ;; path to dsim input file
+     payload-parameters ;; dsim param overrides
 
-       size ;; total size of sim
-       batch-size ;; POST batch size
+     size ;; total size of sim
+     batch-size ;; POST batch size
 
-       send-ids?
-       dry-run? ;; don't try to communicate
-       client-options
-       request-options
-       http-client]
-      :or
-      {run-id (.toString ^java.util.UUID (java.util.UUID/randomUUID))
-       payload-parameters {}
-       size 1000
-       batch-size 10
-       send-ids? false
-       dry-run? false
-       }
-      :as options}]
-  (printf "\nSync POST starting at %s\n\nid: %s endpoint: %s\noptions: %s\n"
+     send-ids?
+     dry-run? ;; don't try to communicate
+     client-options
+     request-options
+     http-client]
+    :or
+    {run-id (.toString ^java.util.UUID (java.util.UUID/randomUUID))
+     payload-parameters {}
+     size 1000
+     batch-size 10
+     send-ids? false
+     dry-run? false
+     }
+    :as options}]
+  #_(printf "\nSync POST starting at %s\n\nid: %s endpoint: %s\noptions: %s\n"
           (ts/stamp-now) run-id lrs-endpoint options)
   (let [http-client (or
                      ;; user provides http client
@@ -193,7 +196,7 @@
       :or
       {strategy :get-ids}
       :as options}]
-  (printf "\nSync GET starting at %s\n\nid: %s endpoint: %s\noptions: %s\n"
+  #_(printf "\nSync GET starting at %s\n\nid: %s endpoint: %s\noptions: %s\n"
           (ts/stamp-now) run-id lrs-endpoint options)
 
   (case strategy
@@ -251,39 +254,126 @@
               responses]} :post-report}]
   ;; average POST request throughput
   (let [response-count (count responses)
-        post-time-avg (when-not (= 0 response-count)
-                        (double
-                         (/ (reduce + (map :request-time responses))
-                            response-count)))
+        post-time-avg (double
+                       (/ (reduce + (map :request-time responses))
+                          response-count))
         statement-per-ms-avg
-        (when-not (= 0 response-count)
-          (double
-           (/ (reduce +
-                      (map (comp
-                            #(/ %
-                                batch-size)
-                            :request-time)
-                           responses))
-              (count responses))))]
+        (double
+         (/ (reduce +
+                    (map (comp
+                          #(/ %
+                              batch-size)
+                          :request-time)
+                         responses))
+            (count responses)))]
     {:post-time-avg post-time-avg
      :statement-per-ms-avg statement-per-ms-avg}))
 
-#_(defmethod metric :frequency
-  [_ statements & {:keys [per]
-                   :or {per :second}}]
-  )
+(defmethod metric :frequency ;; metrics based on start, end, stored time
+  [_ {:keys [statements
+             t-zero
+             t-end]}]
+  (let [first-stored (ts/parse (get (first statements) "stored"))
+        last-stored (ts/parse (get (last statements) "stored"))
+        statement-count (count statements)
+        ^Duration span (t/duration t-zero t-end)
+        per-ms (/ (t/as span
+                        :millis)
+                  statement-count)]
+    {:per {:second (double (* 1000 per-ms))
+           :ms (double per-ms)}}))
 
 (defn report
   "Derive metrics from a seq of statements"
   [get-report & {:keys [metrics]
                  :or {metrics {:misc {}
-                               :post-perf {}}}}]
+                               :post-perf {}
+                               :frequency {}}}}]
+  (assert (-> get-report
+              :statements
+              count
+              (> 0)) "No statements returned. No report.")
   (reduce-kv (fn [m k v]
                (assoc m
                       k
                       (apply metric k get-report (mapcat identity v))))
              {}
              metrics))
+
+;; Call from the command line
+(def cli-options
+  [["-s" "--size LONG" "Size"
+    :id :size
+    :parse-fn #(Long/parseLong %)
+    :default 1000
+    :desc "The total number of statements to send"]
+   ["-b" "--batch-size LONG" "Statements per batch"
+    :id :batch-size
+    :parse-fn #(Long/parseLong %)
+    :default 10
+    :desc "The batch size to use for posting statements"]
+   ["-i" "--input URI" "Combined DATASIM Simulation input"
+    :id :input-uri
+    :desc "The location of a JSON file containing a combined simulation input spec."]
+   ["-u" "--user STRING" "LRS User"
+    :id :user
+    :desc "HTTP Basic Auth user"]
+   ["-p" "--pass STRING" "LRS Password"
+    :id :pass
+    :desc "HTTP Basic Auth password"]
+   ["--send-ids BOOLEAN" "Send IDs?"
+    :id :send-ids?
+    :parse-fn #(Boolean/parseBoolean %)
+    :default false
+    :desc "If true, will send IDs with statements, which will affect LRS performance."]
+   ["-h" "--help"]])
+
+(defn bail!
+  "Print error messages to std error and exit."
+  [errors & {:keys [status]
+             :or {status 1}}]
+  (binding [*out* *err*]
+    (doseq [error errors]
+      (println (if (string? error)
+                 error
+                 (ex-message error))))
+    (flush)
+    (System/exit status)))
+
+(defn -main [lrs-endpoint & args]
+  (let [{:keys [arguments
+                summary
+                errors]
+         :as parsed-opts
+         {:keys [size batch-size
+                 input-uri
+                 send-ids?
+                 user pass]} :options} (cli/parse-opts args cli-options)]
+    (if (not-empty errors)
+      (bail! errors)
+      (try (-> (store-payload-sync lrs-endpoint
+                                   (cond-> {:size size
+                                            :batch-size batch-size
+                                            :send-ids? send-ids?}
+                                     input-uri (assoc :payload-input-path input-uri)
+                                     (and user pass)
+                                     (assoc :client-options (merge default-client-opts
+                                                                   {:authenticator
+                                                                    {:user user
+                                                                     :pass pass}}))))
+               ;; => post report
+               get-payload-sync
+               ;; => get report
+               report
+               ;; => {report map}
+               pprint
+               )
+           (flush)
+           (System/exit 0)
+           (catch Exception ex
+             (bail! [ex]))))))
+
+
 
 
 
@@ -302,8 +392,8 @@
   (def ret-report
     (let [stop-svr (run-server!)]
       (try (-> (store-payload-sync "http://localhost:8080/xapi"
-                                   :size 100
-                                   :http-client dev-client)
+                                   {:size 100
+                                    })
                ;; => post report
                get-payload-sync
                ;; => get report
@@ -313,7 +403,15 @@
            (finally
              (stop-svr)))))
 
-  (:post-perf ret-report) ;; => {:ascending? true}
+  (:frequency ret-report)
 
 
+  )
+
+(comment
+  (t/period (t/local-date Instant/EPOCH (t/zone-id "UTC"))
+            (t/local-date-time (Instant/now) (t/zone-id "UTC")))
+
+  (t/as (t/duration (Instant/now) (Instant/now))
+        :seconds)
   )
