@@ -6,6 +6,7 @@
    [com.yetanalytics.datasim.input :as di]
    [com.yetanalytics.datasim.sim :as ds]
    [java-time :as t]
+   [clojure.core.matrix.stats :as stats]
    [clojure.tools.cli :as cli]
    [clojure.pprint :refer [pprint]])
   (:import
@@ -252,21 +253,17 @@
   (let [response-count (count responses)
         request-times (map :request-time responses)
         total-request-time (reduce + request-times)
-        post-time-avg (double
-                       (/ total-request-time
-                          response-count))
-        statement-per-ms-avg
-        (double
-         (/ (reduce +
-                    (map (comp
-                          #(/ %
-                              batch-size)
-                          :request-time)
-                         responses))
-            (count responses)))
         ^Duration span (t/duration t-zero t-end)]
-    {:post-time-avg post-time-avg
-     :statement-per-ms-avg statement-per-ms-avg
+    {:post-stats {:mean (double (stats/mean request-times))
+                  :stddev (stats/sd request-times)
+                  :min (apply min request-times)
+                  :max (apply max request-times)
+                  :variance (stats/variance request-times)
+                  :sum-of-squares (stats/sum-of-squares request-times)}
+     :statement-per-ms-avg (double (stats/mean (map
+                                                #(/ %
+                                                    batch-size)
+                                                request-times)))
      :total-request-time total-request-time
      :overhead-ms (- (t/as span
                            :millis)
