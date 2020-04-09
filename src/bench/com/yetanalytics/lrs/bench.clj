@@ -9,6 +9,8 @@
   (:import
    [java.time Instant]))
 
+(set! *warn-on-reflection* true)
+
 (def default-payload-input
   (update (di/from-location
            :input :json "dev-resources/datasim/input/tc3.json")
@@ -38,7 +40,7 @@
    :as :json-strict-string-keys
    :content-type :json})
 
-(defn store-payload-sync!
+(defn store-payload-sync
   "Synchronously push the payload to the lrs and prepare a report.
   Prioritize pushing the statements as fast as possible with minimal
   local calculation, as we will get our perf results through stored time."
@@ -81,14 +83,9 @@
         ;; the payload is just statements
         payload (doall ;; make sure all gen is complete, preflight
                  (map
-                  ;; tag the sim run
-                  (cond-> #(assoc-in %
-                                    ["context"
-                                     "extensions"
-                                     "https://bench.yetanalytics.io/run#id"]
-                                    run-id)
-                    ;; take off the IDs for new statements on a re-run
-                    (not send-ids?) (comp #(dissoc % "id")))
+                  (if send-ids?
+                    identity
+                    #(dissoc % "id"))
                   ;; obey the size param
                   (take size
                         (or
@@ -111,44 +108,110 @@
                                                   :parameters
                                                   merge payload-parameters)))
                          ;; use the default
-                         default-payload))))]
+                         default-payload))))
+        registrations (into #{} (map #(get-in % ["context" "registration"]) payload))]
     (assert (= size (count payload))
             "Payload is less than desired size! Check DATASIM options")
     ;; We just loop through the statements and POST them in batches.
-    (loop [batches (partition-all batch-size payload)
-           results []]
-      (if-let [batch (first batches)]
+    (let [;; pull these out for the return
+          opts' (merge
+                 default-request-options
+                 request-options
+                 )]
+      (loop [batches (partition-all batch-size payload)
+             results []]
+        (if-let [batch (first batches)]
+          (let [opts (merge
+                      {:http-client http-client}
+                      opts'
+                      {:form-params batch})
+                {:keys [status
+                        body]
+                 :as response} (if dry-run?
+                                 {:status 200
+                                  :body []}
+                                 (http/post
+                                  (format "%s/statements"
+                                          lrs-endpoint)
+                                  opts))]
+            (if (= 200 status)
+              (recur (rest batches)
+                     (conj results
+                           {:response response
+                            :ids body}))
+              (throw (ex-info "LRS ERROR!"
+                              {:type ::lrs-post-error
+                               :request-options opts
+                               :response response}))))
+          (assoc (reduce (fn [m {:keys [response
+                                        ids]}]
+                           (-> m
+                               (update :ids into ids)
+                               (update :responses conj response)
+                               (update :request-time +
+                                       (:request-time response))))
+                         {:responses []
+                          :ids []
+                          :request-time 0}
+                         results)
+                 :registrations registrations
+                 :run-id run-id
+                 :lrs-endpoint lrs-endpoint
+                 :http-client http-client
+                 :request-options opts'
+                 ;; original post options
+                 :post-options
+                 options))))))
+
+(defn get-payload-sync
+  "take a payload post report and any additional options, get statement data for
+   analysis"
+  [{:keys
+    [lrs-endpoint
+     run-id
+
+     request-options
+     http-client
+     responses
+     request-time
+
+     ids
+     registration]
+    :as post-report}
+   & {:keys
+      [strategy ;; how do we retrieve?
+       ]
+      :or
+      {strategy :get-ids}
+      :as options}]
+  (printf "\nSync GET starting at %s\n\nid: %s endpoint: %s\noptions: %s\n"
+          (ts/stamp-now) run-id lrs-endpoint options)
+
+  (case strategy
+    :get-ids
+    (loop [ids-to-get ids
+           statements []]
+      (if-let [id (first ids-to-get)]
         (let [opts (merge
-                    default-request-options
                     {:http-client http-client}
                     request-options
-                    {:form-params batch})
+                    {:query-params {:statementId id}})
               {:keys [status
                       body]
-               :as response} (if dry-run?
-                               {:status 200
-                                :body []}
-                               (http/post
-                                (format "%s/statements"
-                                        lrs-endpoint)
-                                opts))]
+               :as response} (http/get
+                              (format "%s/statements"
+                                      lrs-endpoint)
+                              opts)]
           (if (= 200 status)
-            (recur (rest batches)
-                   (conj results
-                         {:response response
-                          :ids body}))
+            (recur (rest ids-to-get)
+                   (conj statements body))
             (throw (ex-info "LRS ERROR!"
-                            {:type ::lrs-post-error
+                            {:type ::lrs-get-error
                              :request-options opts
                              :response response}))))
-        (reduce (fn [m {:keys [response
-                               ids]}]
-                  (-> m
-                      (update :ids into ids)
-                      (update :responses conj response)))
-                {:responses []
-                 :ids []}
-                results)))))
+        statements))))
+
+
 
 
 (comment
@@ -172,9 +235,15 @@
       :authenticator {:user "default"
                       :pass "123456789"}}))
 
-  (store-payload-sync! "http://localhost:8080/xapi"
-                       :size 100
-                       :http-client dev-client)
+  (def ret
+    (-> (store-payload-sync "http://localhost:8080/xapi"
+                            :size 100
+                            :http-client dev-client)
+        ;; => post report
+        get-payload-sync
+        ;; => statements
+        ))
+
 
   (-> (http/get "http://localhost:8080/xapi/statements"
                 {:http-client dev-client
