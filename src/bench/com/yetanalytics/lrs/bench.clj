@@ -3,7 +3,6 @@
   (:gen-class)
   (:require
    [hato.client :as http]
-   [com.yetanalytics.lrs.xapi.statements.timestamp :as ts]
    [com.yetanalytics.datasim.input :as di]
    [com.yetanalytics.datasim.sim :as ds]
    [java-time :as t]
@@ -74,8 +73,6 @@
      dry-run? false
      }
     :as options}]
-  #_(printf "\nSync POST starting at %s\n\nid: %s endpoint: %s\noptions: %s\n"
-          (ts/stamp-now) run-id lrs-endpoint options)
   (let [http-client (or
                      ;; user provides http client
                      http-client
@@ -196,9 +193,6 @@
       :or
       {strategy :get-ids}
       :as options}]
-  #_(printf "\nSync GET starting at %s\n\nid: %s endpoint: %s\noptions: %s\n"
-          (ts/stamp-now) run-id lrs-endpoint options)
-
   (case strategy
     :get-ids
     (loop [ids-to-get ids
@@ -236,8 +230,8 @@
   [_ {:keys [statements
              t-zero
              t-end]}]
-  (let [first-stored (ts/parse (get (first statements) "stored"))
-        last-stored (ts/parse (get (last statements) "stored"))]
+  (let [first-stored (t/instant (get (first statements) "stored"))
+        last-stored (t/instant (get (last statements) "stored"))]
     {:count (count statements)
      :ascending? (= statements
                     (sort-by #(get % "stored") statements))
@@ -273,9 +267,7 @@
   [_ {:keys [statements
              t-zero
              t-end]}]
-  (let [first-stored (ts/parse (get (first statements) "stored"))
-        last-stored (ts/parse (get (last statements) "stored"))
-        statement-count (count statements)
+  (let [statement-count (count statements)
         ^Duration span (t/duration t-zero t-end)
         per-ms (/ (t/as span
                         :millis)
@@ -406,12 +398,4 @@
   (:frequency ret-report)
 
 
-  )
-
-(comment
-  (t/period (t/local-date Instant/EPOCH (t/zone-id "UTC"))
-            (t/local-date-time (Instant/now) (t/zone-id "UTC")))
-
-  (t/as (t/duration (Instant/now) (Instant/now))
-        :seconds)
   )
