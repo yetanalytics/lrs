@@ -266,6 +266,7 @@
         ^Duration span (t/duration t-zero t-end)]
     {:post-time-avg post-time-avg
      :statement-per-ms-avg statement-per-ms-avg
+     :total-request-time total-request-time
      :overhead-ms (- (t/as span
                            :millis)
                      total-request-time)}))
