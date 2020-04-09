@@ -118,7 +118,8 @@
           opts' (merge
                  default-request-options
                  request-options
-                 )]
+                 )
+          ^Instant t-zero (Instant/now)]
       (loop [batches (partition-all batch-size payload)
              results []]
         (if-let [batch (first batches)]
@@ -144,25 +145,30 @@
                               {:type ::lrs-post-error
                                :request-options opts
                                :response response}))))
-          (assoc (reduce (fn [m {:keys [response
-                                        ids]}]
-                           (-> m
-                               (update :ids into ids)
-                               (update :responses conj response)
-                               (update :request-time +
-                                       (:request-time response))))
-                         {:responses []
-                          :ids []
-                          :request-time 0}
-                         results)
-                 :registrations registrations
-                 :run-id run-id
-                 :lrs-endpoint lrs-endpoint
-                 :http-client http-client
-                 :request-options opts'
-                 ;; original post options
-                 :post-options
-                 options))))))
+          (let [^Instant t-end (Instant/now)]
+            (assoc (reduce (fn [m {:keys [response
+                                          ids]}]
+                             (-> m
+                                 (update :ids into ids)
+                                 (update :responses conj response)
+                                 (update :request-time +
+                                         (:request-time response))))
+                           {:responses []
+                            :ids []
+                            :request-time 0}
+                           results)
+                   :registrations registrations
+                   :run-id run-id
+                   :lrs-endpoint lrs-endpoint
+                   :http-client http-client
+                   :request-options opts'
+                   ;; original post options
+                   :post-options
+                   options
+                   :t-zero t-zero
+                   :t-end t-end
+                   :size size
+                   :batch-size batch-size)))))))
 
 (defn get-payload-sync
   "take a payload post report and any additional options, get statement data for
@@ -177,7 +183,9 @@
      request-time
 
      ids
-     registration]
+     registration
+     t-zero
+     t-end]
     :as post-report}
    & {:keys
       [strategy ;; how do we retrieve?
@@ -210,18 +218,55 @@
                             {:type ::lrs-get-error
                              :request-options opts
                              :response response}))))
-        statements))))
+        {:statements statements
+         :post-report post-report
+         :t-zero t-zero
+         :t-end t-end}))))
 
 ;; metric functions apply to the sequence of statements
 (defmulti metric "multifunction to register metrics on statements"
   (fn [metric-key _ & _]
     metric-key))
 
-;; just a sanity check
-(defmethod metric :integrity
-  [_ statements]
-  {:ascending? (= statements
-                  (sort-by #(get % "stored") statements))})
+;; just a sanity check and some simple results
+(defmethod metric :misc
+  [_ {:keys [statements
+             t-zero
+             t-end]}]
+  (let [first-stored (ts/parse (get (first statements) "stored"))
+        last-stored (ts/parse (get (last statements) "stored"))]
+    {:count (count statements)
+     :ascending? (= statements
+                    (sort-by #(get % "stored") statements))
+     :first-stored first-stored
+     :last-stored last-stored
+     ;; is t-zero before first stored before last-stored before t-end
+     :sane-stored?
+     (= [t-zero first-stored last-stored t-end]
+        (sort [t-zero first-stored last-stored t-end]))}))
+
+(defmethod metric :post-perf
+  [_ {{:keys [size
+              batch-size
+              responses]} :post-report}]
+  ;; average POST request throughput
+  (let [response-count (count responses)
+        post-time-avg (when-not (= 0 response-count)
+                        (double
+                         (/ (reduce + (map :request-time responses))
+                            response-count)))
+        statement-per-ms-avg
+        (when-not (= 0 response-count)
+          (double
+           (/ (reduce +
+                      (map (comp
+                            #(/ %
+                                batch-size)
+                            :request-time)
+                           responses))
+              (count responses))))]
+    {:post-time-avg post-time-avg
+     :statement-per-ms-avg statement-per-ms-avg}))
 
 #_(defmethod metric :frequency
   [_ statements & {:keys [per]
@@ -229,14 +274,15 @@
   )
 
 (defn report
-  "Derive metrics from a "
-  [payload-statements & {:keys [metrics]
-                         :or {metrics {:integrity {}}}}]
+  "Derive metrics from a seq of statements"
+  [get-report & {:keys [metrics]
+                 :or {metrics {:misc {}
+                               :post-perf {}}}}]
   (reduce-kv (fn [m k v]
                (assoc m
                       k
-                      (apply metric k payload-statements (mapcat identity v))))
-             {:statements payload-statements}
+                      (apply metric k get-report (mapcat identity v))))
+             {}
              metrics))
 
 
@@ -260,14 +306,14 @@
                                    :http-client dev-client)
                ;; => post report
                get-payload-sync
-               ;; => statements
+               ;; => get report
                report
                ;; => {report map}
                )
            (finally
              (stop-svr)))))
 
-  (:integrity ret-report) ;; => {:ascending? true}
+  (:post-perf ret-report) ;; => {:ascending? true}
 
 
   )
