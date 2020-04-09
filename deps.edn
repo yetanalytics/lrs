@@ -38,6 +38,8 @@
                 org.clojure/tools.cli {:mvn/version "1.0.194"}
                 com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
                                           :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
-                clojure.java-time {:mvn/version "0.3.2"}}}}
+                clojure.java-time {:mvn/version "0.3.2"}
+                incanter/incanter-core {:mvn/version "1.9.3"}
+                incanter/incanter-charts {:mvn/version "1.9.3"}}}}
  :mvn/repos {"jitpack" {:url "https://jitpack.io"}} ;; for proj. pan/dsim
  }

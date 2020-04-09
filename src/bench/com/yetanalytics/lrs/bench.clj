@@ -250,7 +250,8 @@
               t-end]} :post-report}]
   ;; average POST request throughput
   (let [response-count (count responses)
-        total-request-time (reduce + (map :request-time responses))
+        request-times (map :request-time responses)
+        total-request-time (reduce + request-times)
         post-time-avg (double
                        (/ total-request-time
                           response-count))
