@@ -245,11 +245,14 @@
 (defmethod metric :post-perf
   [_ {{:keys [size
               batch-size
-              responses]} :post-report}]
+              responses
+              t-zero
+              t-end]} :post-report}]
   ;; average POST request throughput
   (let [response-count (count responses)
+        total-request-time (reduce + (map :request-time responses))
         post-time-avg (double
-                       (/ (reduce + (map :request-time responses))
+                       (/ total-request-time
                           response-count))
         statement-per-ms-avg
         (double
@@ -259,9 +262,13 @@
                               batch-size)
                           :request-time)
                          responses))
-            (count responses)))]
+            (count responses)))
+        ^Duration span (t/duration t-zero t-end)]
     {:post-time-avg post-time-avg
-     :statement-per-ms-avg statement-per-ms-avg}))
+     :statement-per-ms-avg statement-per-ms-avg
+     :overhead-ms (- (t/as span
+                           :millis)
+                     total-request-time)}))
 
 (defmethod metric :frequency ;; metrics based on start, end, stored time
   [_ {:keys [statements
