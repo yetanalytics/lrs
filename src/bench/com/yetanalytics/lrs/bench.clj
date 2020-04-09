@@ -5,21 +5,22 @@
    [com.yetanalytics.lrs.xapi.statements.timestamp :as ts]
    [com.yetanalytics.datasim.input :as di]
    [com.yetanalytics.datasim.sim :as ds]
+   [java-time :as t]
    [clojure.pprint :refer [pprint]])
   (:import
    [java.time Instant]))
 
 (set! *warn-on-reflection* true)
 
-(def default-payload-input
+(defonce default-payload-input
   (update (di/from-location
            :input :json "dev-resources/datasim/input/tc3.json")
           :parameters
           #(-> %
                (dissoc :end :from))))
 
-(def default-payload
-  "static payload derived from DATASIM, will be consumed entirely on use"
+(defonce default-payload
+  ;; "static payload derived from DATASIM, will be consumed entirely on use"
   (ds/sim-seq default-payload-input))
 
 
@@ -30,8 +31,8 @@
    :authenticator {:user "default"
                    :pass "123456789"}})
 
-(def default-client
-  "default hato client"
+(defonce default-client
+  ;; "default hato client"
   (http/build-http-client default-client-opts))
 
 (def default-request-options
@@ -211,6 +212,32 @@
                              :response response}))))
         statements))))
 
+;; metric functions apply to the sequence of statements
+(defmulti metric "multifunction to register metrics on statements"
+  (fn [metric-key _ & _]
+    metric-key))
+
+;; just a sanity check
+(defmethod metric :integrity
+  [_ statements]
+  {:ascending? (= statements
+                  (sort-by #(get % "stored") statements))})
+
+#_(defmethod metric :frequency
+  [_ statements & {:keys [per]
+                   :or {per :second}}]
+  )
+
+(defn report
+  "Derive metrics from a "
+  [payload-statements & {:keys [metrics]
+                         :or {metrics {:integrity {}}}}]
+  (reduce-kv (fn [m k v]
+               (assoc m
+                      k
+                      (apply metric k payload-statements (mapcat identity v))))
+             {:statements payload-statements}
+             metrics))
 
 
 
@@ -226,35 +253,21 @@
     (let [svr (lrss/run-dev)]
       #(server/stop svr)))
 
-  (def svr (run-server!)) ;; => stop-fn
+  (def ret-report
+    (let [stop-svr (run-server!)]
+      (try (-> (store-payload-sync "http://localhost:8080/xapi"
+                                   :size 100
+                                   :http-client dev-client)
+               ;; => post report
+               get-payload-sync
+               ;; => statements
+               report
+               ;; => {report map}
+               )
+           (finally
+             (stop-svr)))))
 
-  (def dev-client
-    (http/build-http-client
-     {:connect-timeout 10000
-      :redirect-policy :always
-      :authenticator {:user "default"
-                      :pass "123456789"}}))
-
-  (def ret
-    (-> (store-payload-sync "http://localhost:8080/xapi"
-                            :size 100
-                            :http-client dev-client)
-        ;; => post report
-        get-payload-sync
-        ;; => statements
-        ))
-
-
-  (-> (http/get "http://localhost:8080/xapi/statements"
-                {:http-client dev-client
-                 :headers {"x-experience-api-version" "1.0.3"}
-                 :as :json-strict-string-keys
-                 :query-params
-                 {:limit 1000}})
-      (get-in [:body "statements"])
-      count) ;; => 100
-
-  (svr)
+  (:integrity ret-report) ;; => {:ascending? true}
 
 
   )
