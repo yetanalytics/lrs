@@ -19,39 +19,23 @@ To use the dev profile, which contains all dev/repl/test stuff, use the `:dev` a
 
 ## Deploying New Versions
 
-Use maven and the project's `pom.xml` to build + push the project:
+No need, just refer to it with git deps
 
-* Edit the `pom.xml` to reflect the version you are releasing
-* Run `$ mvn deploy` to build and deploy the artifact to Yaven (releases/snapshots). If you don't want to enter your username and password each time, add a ~/.m2/settings.xml like so:
+## Bench Testing
 
-``` xml
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
-                              <servers>
-                                  <server>
-                                      <id>yaven-snapshots</id>
-                                      <username>milt</username>
-                                      <password>****</password>
-                                  </server>
-                                  <server>
-                                      <id>yaven-releases</id>
-                                      <username>milt</username>
-                                      <password>****</password>
-                                  </server>
-                                  <server>
-                                      <id>clojars</id>
-                                      <username>milt</username>
-                                      <password>****</password>
-                                  </server>
-                              </servers>
-</settings>
-```
+Facilities to bench test any LRS (with `DATASIM`) are available. For instance, to bench the in-memory LRS:
+
+    $ make run-dev
+
+And in another terminal:
+
+    $ clojure -Abench -m com.yetanalytics.lrs.bench http://localhost:8080/xapi -s 1000 -b 100
+
+This will bench the LRS with 1000 statements in POST batches of 10.
 
 ## License
 
-Copyright © 2018 Yet Analytics Inc.
+Copyright © 2018-2020 Yet Analytics Inc.
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
