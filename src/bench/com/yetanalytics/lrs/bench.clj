@@ -349,10 +349,10 @@
                                             :send-ids? send-ids?}
                                      input-uri (assoc :payload-input-path input-uri)
                                      (and user pass)
-                                     (assoc :client-options (merge default-client-opts
-                                                                   {:authenticator
-                                                                    {:user user
-                                                                     :pass pass}}))))
+                                     (assoc :request-options (merge default-request-options
+                                                                    {:basic-auth
+                                                                     {:user user
+                                                                      :pass pass}}))))
                ;; => post report
                get-payload-sync
                ;; => get report
