@@ -230,10 +230,12 @@
 (defmethod metric :misc
   [_ {:keys [statements
              t-zero
-             t-end]}]
+             t-end]
+      {:keys [size batch-size]} :post-report}]
   (let [first-stored (t/instant (get (first statements) "stored"))
         last-stored (t/instant (get (last statements) "stored"))]
     {:count (count statements)
+     :batch-size batch-size
      :ascending? (= statements
                     (sort-by #(get % "stored") statements))
      :first-stored first-stored
