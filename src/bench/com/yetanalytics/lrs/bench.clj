@@ -276,7 +276,12 @@
              t-zero
              t-end]}]
   (let [statement-count (count statements)
-        ^Duration span (t/duration t-zero t-end)
+        ;; we count from t-zero (bench init) to the last stored stamp
+        ^Duration span (t/duration t-zero
+                                   (-> statements
+                                       last
+                                       (get "stored")
+                                       t/instant))
         per-ms (/ (t/as span
                         :millis)
                   statement-count)]
