@@ -89,7 +89,8 @@
      send-ids?
      dry-run? ;; don't try to communicate
      request-options
-     http-client]
+     http-client
+     parallelism]
     :or
     {run-id (.toString ^java.util.UUID (java.util.UUID/randomUUID))
      payload-input-path "dev-resources/datasim/input/tc3.json"
@@ -98,6 +99,7 @@
      batch-size 10
      send-ids? false
      dry-run? false
+     parallelism 1
      }
     :as options}]
   (let [;; the payload is just statements
@@ -140,7 +142,8 @@
                       :dry-run? dry-run?
                       :request-options (merge default-request-options
                                               request-options
-                                              {:http-client http-client})})
+                                              {:http-client http-client})
+                      :parallelism parallelism})
      :payload payload
      :registrations registrations
      :payload-count payload-count}))
@@ -199,6 +202,69 @@
                   :t-zero t-zero
                   :t-end t-end}))))))
 
+;; Async benchmark ops are wrapped in blocking functions
+;; so async on the inside only
+
+(s/fdef store-payload-async
+  :args (s/cat :ctx ::context)
+  :ret ::context)
+
+(defn- post-af
+  [req chan]
+  (http/request (merge req
+                       {:method :post
+                        :async? true})
+                (fn [{:keys [status]
+                      :as resp}]
+                  (a/put! chan resp (fn [_] (a/close! chan))))
+                identity))
+
+(defn store-payload-async
+  "Asynchronously push the payload to the lrs and prepare a report.
+  Concurrency subject to ::options/parallelsim"
+  [{{:keys
+    [lrs-endpoint
+     run-id ;; unique string to identify this run of the sim
+
+     size ;; total size of sim
+     batch-size ;; POST batch size
+
+     dry-run? ;; don't try to communicate
+     request-options
+     parallelism]
+     :as options} :options
+    :keys [payload registrations payload-count]
+    :as ctx}]
+  ;; We just loop through the statements and POST them in batches.
+  (let [
+        batches (partition-all batch-size payload)
+        ;; enter the async zone
+        req-chan (a/chan 1 (map (fn [batch]
+                                  (merge request-options
+                                         {:url (format "%s/statements"
+                                                       lrs-endpoint)
+                                          :form-params batch}))))
+        resp-chan (a/chan)
+        _ (a/pipeline-async parallelism resp-chan post-af req-chan)
+        ^Instant t-zero (Instant/now)
+        _ (a/onto-chan req-chan batches)
+        responses (a/<!! (a/into [] resp-chan))
+        ;; leave the async zone
+        ^Instant t-end (Instant/now)
+        ?errors (not-empty (remove #(= (:status %) 200) responses))]
+    (if-not ?errors
+      (assoc ctx
+             :post
+             {:responses responses
+              :ids (into []
+                         (mapcat :body responses))
+              :t-zero t-zero
+              :t-end t-end})
+      (throw (ex-info "LRS ERROR!"
+                      {:type ::lrs-post-error
+                       :response (first ?errors)})))))
+
+
 (s/fdef get-payload-sync
   :args (s/cat :ctx ::context)
   :ret ::context)
@@ -241,7 +307,10 @@
                           {:type ::lrs-get-error
                            :request-options opts
                            :response response}))))
-      (assoc-in ctx [:get :statements] statements))))
+      (assoc-in ctx [:get :statements]
+                ;; sort the statements, ids may be out of order because async
+                (sort-by #(get % "stored")
+                         statements)))))
 
 
 (s/fdef metric
@@ -261,6 +330,12 @@
       :as ctx}]
   (let [first-stored (t/instant (get (first statements) "stored"))
         last-stored (t/instant (get (last statements) "stored"))]
+    (assert (= statements (sort-by #(get % "stored") statements))
+            "retrieved statements should be in order")
+    (assert (= [t-zero first-stored last-stored t-end]
+               (sort [t-zero first-stored last-stored t-end]))
+            "retrieved statements should be stored during post ops"
+            )
     (assoc-in ctx
               [:report :misc]
               {:count (count statements)
@@ -295,10 +370,12 @@
                                                           #(/ %
                                                               batch-size)
                                                           request-times)))
+               ;; total time of all (possibly concurrent) reqs
                :total-request-time total-request-time
-               :overhead-ms (- (t/as span
-                                     :millis)
-                               total-request-time)})))
+
+               ;; from t-zero to t-end
+               :total-request-span (t/as span
+                                         :millis)})))
 
 (defmethod metric :frequency ;; metrics based on start, end, stored time
   [_ {{:keys [t-zero t-end]} :post
@@ -311,12 +388,15 @@
                                        last
                                        (get "stored")
                                        t/instant))
-        per-ms (/ (t/as span
-                        :millis)
-                  statement-count)]
+        span-ms (t/as span
+                      :millis)
+        per-ms (/ statement-count
+                  span-ms
+                  )]
     (assoc-in ctx
               [:report :frequency]
-              {:per {:second (double (* 1000 per-ms))
+              {:span-ms span-ms
+               :per {:second (double (* 1000 per-ms))
                      :ms (double per-ms)}})))
 
 (defn report
@@ -352,11 +432,21 @@
    ["-p" "--pass STRING" "LRS Password"
     :id :pass
     :desc "HTTP Basic Auth password"]
-   ["--send-ids BOOLEAN" "Send IDs?"
+   ["-d" "--send-ids BOOLEAN" "Send IDs?"
     :id :send-ids?
     :parse-fn #(Boolean/parseBoolean %)
     :default false
     :desc "If true, will send IDs with statements, which will affect LRS performance."]
+   ["-c" "--concurrency LONG" "Async concurrency"
+    :id :parallelism
+    :parse-fn #(Long/parseLong %)
+    :default 8
+    :desc "Async POST concurrency"]
+   ["-f" "--force-sync BOOLEAN" "Force sync ops?"
+    :id :force-sync?
+    :parse-fn #(Boolean/parseBoolean %)
+    :default false
+    :desc "If true, will synchronously post to the LRS"]
    ["-h" "--help"]])
 
 (defn bail!
@@ -379,35 +469,41 @@
          {:keys [size batch-size
                  input-uri
                  send-ids?
-                 user pass]} :options} (cli/parse-opts args cli-options)]
-    (if (not-empty errors)
-      (bail! errors)
-      (try (-> (cond-> {:lrs-endpoint lrs-endpoint
-                        :size size
-                        :batch-size batch-size
-                        :send-ids? send-ids?}
-                 input-uri (assoc :payload-input-path input-uri)
-                 (and user pass)
-                 (assoc :request-options (merge default-request-options
-                                                {:basic-auth
-                                                 {:user user
-                                                  :pass pass}})))
+                 user pass
+                 parallelism
+                 force-sync?]} :options} (cli/parse-opts args cli-options)]
+    (let [store-fn (if force-sync?
+                     store-payload-sync
+                     store-payload-async)]
+      (if (not-empty errors)
+        (bail! errors)
+        (try (-> (cond-> {:lrs-endpoint lrs-endpoint
+                          :size size
+                          :batch-size batch-size
+                          :send-ids? send-ids?
+                          :parallelism parallelism}
+                   input-uri (assoc :payload-input-path input-uri)
+                   (and user pass)
+                   (assoc :request-options (merge default-request-options
+                                                  {:basic-auth
+                                                   {:user user
+                                                    :pass pass}})))
 
-               context-init ;; => context
+                 context-init ;; => context
 
-               store-payload-sync
+                 store-fn
 
-               get-payload-sync
+                 get-payload-sync
 
-               report
+                 report
 
-               ;; output the report
-               :report
-               pprint)
-           (flush)
-           (System/exit 0)
-           (catch Exception ex
-             (bail! [ex]))))))
+                 ;; output the report
+                 (select-keys [:report :options])
+                 pprint)
+             (flush)
+             (System/exit 0)
+             (catch Exception ex
+               (bail! [ex])))))))
 
 
 
@@ -427,22 +523,29 @@
 
   (def ret-ctx
     (let [stop-svr (run-server!)]
-      (try (-> {:lrs-endpoint "http://localhost:8080/xapi"
-                :size 100}
+      (try (let [ctxf ((-> {:lrs-endpoint "http://localhost:8080/xapi"
+                          :size 1000
+                          :parallelism 1}
 
-               context-init
+                         context-init
 
-               store-payload-sync
+                         store-payload-async
 
-               get-payload-sync
+                         get-payload-sync
 
-               report
+                         report
 
-               )
+
+                         ))]
+             (pprint (select-keys ctx [:options :report]))
+             ctx
+             )
            (finally
              (stop-svr)))))
 
-  (:report ret-ctx)
+  (get-in ret-ctx [:report :post-perf])
+
+  (get-in ret-ctx [:report :misc])
 
 
 

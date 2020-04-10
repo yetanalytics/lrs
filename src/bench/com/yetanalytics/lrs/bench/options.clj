@@ -34,6 +34,9 @@
 (s/def ::http-client
   #(instance? HttpClient %))
 
+(s/def ::parallelism ;; how many requests can we have at once?
+  pos-int?)
+
 ;; options passed in
 (def spec
   (s/keys :req-un [::lrs-endpoint
@@ -45,4 +48,5 @@
                    ::send-ids?
                    ::dry-run?
                    ::request-options
-                   ::http-client]))
+                   ::http-client
+                   ::parallelism]))
