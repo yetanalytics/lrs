@@ -216,8 +216,11 @@
                         :async? true})
                 (fn [{:keys [status]
                       :as resp}]
-                  (a/put! chan resp (fn [_] (a/close! chan))))
-                identity))
+                  (a/go (a/>! chan resp)
+                        (a/close! chan)))
+                (fn [ex]
+                  (a/go (a/>! chan ex)
+                        (a/close! chan)))))
 
 (defn store-payload-async
   "Asynchronously push the payload to the lrs and prepare a report.
@@ -236,21 +239,26 @@
     :keys [payload registrations payload-count]
     :as ctx}]
   ;; We just loop through the statements and POST them in batches.
-  (let [
-        batches (partition-all batch-size payload)
+  (let [requests (mapv (fn [batch]
+                         (merge request-options
+                                {:url (format "%s/statements"
+                                              lrs-endpoint)
+                                 :form-params batch}))
+                       (partition-all batch-size payload))
         ;; enter the async zone
-        req-chan (a/chan 1 (map (fn [batch]
-                                  (merge request-options
-                                         {:url (format "%s/statements"
-                                                       lrs-endpoint)
-                                          :form-params batch}))))
-        resp-chan (a/chan)
-        _ (a/pipeline-async parallelism resp-chan post-af req-chan)
+        req-chan (a/to-chan requests)
+        resp-chan (a/chan
+                   ;; buffer enough for all results
+                   (count requests))
+        ;; init time
         ^Instant t-zero (Instant/now)
-        _ (a/onto-chan req-chan batches)
+        ;; do the work and check after
+        ^Instant t-end (do
+                         (a/<!! (a/pipeline-async parallelism resp-chan post-af req-chan))
+                         (Instant/now))
         responses (a/<!! (a/into [] resp-chan))
         ;; leave the async zone
-        ^Instant t-end (Instant/now)
+
         ?errors (not-empty (remove #(= (:status %) 200) responses))]
     (if-not ?errors
       (assoc ctx
@@ -360,7 +368,8 @@
         ^Duration span (t/duration t-zero t-end)]
     (assoc-in ctx
               [:report :post-perf]
-              {:post-stats {:mean (double (stats/mean request-times))
+              {:response-count response-count
+               :post-stats {:mean (double (stats/mean request-times))
                             :stddev (stats/sd request-times)
                             :min (apply min request-times)
                             :max (apply max request-times)
@@ -382,9 +391,12 @@
       {:keys [statements]} :get
       :as ctx}]
   (let [statement-count (count statements)
-        ;; we count from t-zero (bench init) to the last stored stamp
+        storeds (map (comp t/instant #(get % "stored"))
+                     statements)
+        ;; not sure if span should be t-zero to last stored or t-end
         ^Duration span (t/duration t-zero
-                                   (-> statements
+                                   t-end
+                                   #_(-> statements
                                        last
                                        (get "stored")
                                        t/instant))
@@ -522,31 +534,34 @@
       #(server/stop svr)))
 
   (def ret-ctx
-    (let [stop-svr (run-server!)]
-      (try (let [ctxf ((-> {:lrs-endpoint "http://localhost:8080/xapi"
-                          :size 1000
-                          :parallelism 1}
+    (let [stop-svr (run-server!)
+          send-stuff #(time (store-payload-async %))]
+      (try
+        (let [ctx (-> {:lrs-endpoint "http://localhost:8080/xapi"
+                       :size 1000
+                       :batch-size 100
+                       :parallelism 4}
 
-                         context-init
-
-                         store-payload-async
-
-                         get-payload-sync
-
-                         report
+                      context-init
 
 
-                         ))]
-             (pprint (select-keys ctx [:options :report]))
-             ctx
-             )
+                      store-payload-async
+
+                      get-payload-sync
+
+                      report
+
+
+                      )]
+          (pprint (select-keys ctx [:options :report]))
+          ctx
+          )
            (finally
              (stop-svr)))))
 
   (get-in ret-ctx [:report :post-perf])
 
   (get-in ret-ctx [:report :misc])
-
 
 
 
