@@ -136,14 +136,14 @@
     {:options (merge options
                      ;; set by :or
                      {:run-id run-id
-                      ;; :http-client http-client
+                      :http-client http-client
                       :size size
                       :batch-size batch-size
                       :send-ids? send-ids?
                       :dry-run? dry-run?
                       :request-options (merge default-request-options
                                               request-options
-                                              #_{:http-client http-client})
+                                              {:http-client http-client})
                       :parallelism parallelism})
      :payload payload
      :registrations registrations
@@ -217,8 +217,11 @@
                         :async? true})
                 (fn [{:keys [status]
                       :as resp}]
-                  (a/go (a/>! chan resp)
-                        (a/close! chan)))
+                  (let [thread-name (.getName (Thread/currentThread))]
+                    (a/go (a/>! chan (assoc resp
+                                            :thread-name
+                                            thread-name))
+                          (a/close! chan))))
                 (fn [ex]
                   (a/go (a/>! chan ex)
                         (a/close! chan)))))
@@ -385,7 +388,11 @@
 
                ;; from t-zero to t-end
                :total-request-span (t/as span
-                                         :millis)})))
+                                         :millis)
+
+               ;; thread names, for debug
+               :thread-names (mapv :thread-name responses)
+               })))
 
 (defmethod metric :frequency ;; metrics based on start, end, stored time
   [_ {{:keys [t-zero t-end]} :post
@@ -540,7 +547,7 @@
         (let [ctx (-> {:lrs-endpoint "http://localhost:8080/xapi"
                        :size 1000
                        :batch-size 100
-                       :parallelism 4
+                       :parallelism 8
                        }
 
                       context-init
