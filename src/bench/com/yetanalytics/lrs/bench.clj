@@ -489,33 +489,32 @@
                      store-payload-async)]
       (if (not-empty errors)
         (bail! errors)
-        (try (-> (cond-> {:lrs-endpoint lrs-endpoint
-                          :size size
-                          :batch-size batch-size
-                          :send-ids? send-ids?
-                          :parallelism parallelism}
-                   input-uri (assoc :payload-input-path input-uri)
-                   (and user pass)
-                   (assoc :request-options (merge default-request-options
-                                                  {:basic-auth
-                                                   {:user user
-                                                    :pass pass}})))
+        (do
+          (-> (cond-> {:lrs-endpoint lrs-endpoint
+                       :size size
+                       :batch-size batch-size
+                       :send-ids? send-ids?
+                       :parallelism parallelism}
+                input-uri (assoc :payload-input-path input-uri)
+                (and user pass)
+                (assoc :request-options (merge default-request-options
+                                               {:basic-auth
+                                                {:user user
+                                                 :pass pass}})))
 
-                 context-init ;; => context
+              context-init ;; => context
 
-                 store-fn
+              store-fn
 
-                 get-payload-sync
+              get-payload-sync
 
-                 report
+              report
 
-                 ;; output the report
-                 (select-keys [:report :options])
-                 pprint)
-             (flush)
-             (System/exit 0)
-             (catch Exception ex
-               (bail! [ex])))))))
+              ;; output the report
+              (select-keys [:report :options])
+              pprint)
+          (flush)
+          (System/exit 0))))))
 
 
 
