@@ -135,14 +135,14 @@
     {:options (merge options
                      ;; set by :or
                      {:run-id run-id
-                      :http-client http-client
+                      ;; :http-client http-client
                       :size size
                       :batch-size batch-size
                       :send-ids? send-ids?
                       :dry-run? dry-run?
                       :request-options (merge default-request-options
                                               request-options
-                                              {:http-client http-client})
+                                              #_{:http-client http-client})
                       :parallelism parallelism})
      :payload payload
      :registrations registrations
