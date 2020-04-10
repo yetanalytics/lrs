@@ -31,7 +31,8 @@
   (http/build-http-client default-client-opts))
 
 (def default-request-options
-  {:throw-exceptions? false
+  {:version :http-1.1
+   :throw-exceptions? false
    :headers {"x-experience-api-version" "1.0.3"}
    :as :json-strict-string-keys
    :content-type :json})
@@ -539,7 +540,8 @@
         (let [ctx (-> {:lrs-endpoint "http://localhost:8080/xapi"
                        :size 1000
                        :batch-size 100
-                       :parallelism 4}
+                       :parallelism 4
+                       }
 
                       context-init
 
