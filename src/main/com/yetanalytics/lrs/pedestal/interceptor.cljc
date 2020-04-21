@@ -342,7 +342,8 @@
                       :as exd} (ex-data exi)]
                  (assoc ctx
                         :response
-                        {:status 500
+                        {:headers {"content-type" "application/json"}
+                         :status 500
                          :body
                          (merge
                           (when-let [error-ns (namespace exception-type)]
