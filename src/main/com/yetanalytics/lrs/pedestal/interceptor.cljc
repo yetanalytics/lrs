@@ -328,6 +328,25 @@
                              (get-in ctx [:request :request-method])))
                ctx))}))
 
+;; Gracefully handle uncaught errors, deferring to custom responses.
+
+(def error-interceptor
+  (i/interceptor
+   {:name ::error-interceptor
+    :error (fn [{:keys [response]
+                 :as ctx} exi]
+             (if response
+               ;; defer to custom upstream response
+               ctx
+               (let [{:keys [exception-type]
+                      :as exd} (ex-data exi)]
+                 (assoc ctx
+                        :response
+                        {:status 500
+                         :body
+                         {:ns (namespace exception-type)
+                          :name (name exception-type)}}))))}))
+
 ;; Time Requests
 
 (def request-timer
@@ -417,6 +436,7 @@
                      ;; TODO: remove these debugs
                      (cond-> [#?@(:cljs [body-string-interceptor
                                          #_ppman])
+                              error-interceptor
                               ]
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
