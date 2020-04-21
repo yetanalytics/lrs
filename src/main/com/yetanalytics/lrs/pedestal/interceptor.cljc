@@ -344,8 +344,10 @@
                         :response
                         {:status 500
                          :body
-                         {:ns (namespace exception-type)
-                          :name (name exception-type)}}))))}))
+                         (merge
+                          (when-let [error-ns (namespace exception-type)]
+                            {:ns (str error-ns)})
+                          {:name (name exception-type)})}))))}))
 
 ;; Time Requests
 
