@@ -330,26 +330,47 @@
 
 ;; Gracefully handle uncaught errors, deferring to custom responses.
 
+(defn- exi?
+  "Is it an ExceptionInfo?"
+  [x]
+  (instance? clojure.lang.ExceptionInfo x))
+
+(defn- error?
+  "otherwise, is it sufficiently exceptional?"
+  [x]
+  (instance? #?(:clj Exception
+                :cljs js/Error) x))
+
 (def error-interceptor
   (i/interceptor
    {:name ::error-interceptor
     :error (fn [{:keys [response]
-                 :as ctx} exi]
+                 :as ctx} ex]
              (if response
                ;; defer to custom upstream response
                ctx
-               (let [{:keys [exception-type]
-                      :as exd} (ex-data exi)]
-                 (assoc ctx
-                        :response
-                        {:headers {"content-type" "application/json"}
-                         :status 500
-                         :body
-                         {:error
-                          (merge
-                           (when-let [error-ns (namespace exception-type)]
-                             {:ns (str error-ns)})
-                           {:name (name exception-type)})}}))))}))
+               (assoc ctx :response
+                      {:status 500
+                       :headers {"content-type" "application/json"}
+                       :body
+                       {:error
+                        {:type (cond (nil? ex)
+                                     {:name "unknown"}
+                                     (exi? ex)
+                                     (let [{:keys [type exception-type]
+                                            :as exd} (ex-data ex)
+                                           type-k (or exception-type
+                                                      type
+                                                      :unknown/unknown)
+                                           [tns tname] ((juxt namespace name) type-k)]
+                                       (merge (when tns {:ns tns})
+                                              {:name tname}))
+                                     (error? ex)
+                                     {:name (str (type ex))}
+                                     (string? ex)
+                                     {:name ex}
+                                     :else
+                                     {:name "unknown"})}}})))}))
 
 ;; Time Requests
 
