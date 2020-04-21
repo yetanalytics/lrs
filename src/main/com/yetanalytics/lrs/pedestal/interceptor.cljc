@@ -345,10 +345,11 @@
                         {:headers {"content-type" "application/json"}
                          :status 500
                          :body
-                         (merge
-                          (when-let [error-ns (namespace exception-type)]
-                            {:ns (str error-ns)})
-                          {:name (name exception-type)})}))))}))
+                         {:error
+                          (merge
+                           (when-let [error-ns (namespace exception-type)]
+                             {:ns (str error-ns)})
+                           {:name (name exception-type)})}}))))}))
 
 ;; Time Requests
 
