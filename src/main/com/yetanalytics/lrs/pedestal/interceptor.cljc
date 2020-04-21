@@ -440,7 +440,6 @@
                      ;; TODO: remove these debugs
                      (cond-> [#?@(:cljs [body-string-interceptor
                                          #_ppman])
-                              error-interceptor
                               ]
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
@@ -468,7 +467,7 @@
 
 (def common-interceptors [x-forwarded-for-interceptor
                           http/json-body
-
+                          error-interceptor
                           #?(:clj (body-params/body-params
                                    (body-params/default-parser-map
                                     :json-options {:key-fn str}))
