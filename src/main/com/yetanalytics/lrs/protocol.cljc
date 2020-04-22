@@ -36,7 +36,8 @@
 (defn- make-proto-pred
   "Build a memoized predicate for determining protocol satisfaction"
   [protocol]
-  (memoize (partial satisfies? protocol)))
+  (memoize (fn [x]
+             (satisfies? protocol x))))
 
 (def about-resource?
   (make-proto-pred AboutResource))
