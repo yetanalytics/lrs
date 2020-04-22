@@ -333,7 +333,8 @@
 (defn- exi?
   "Is it an ExceptionInfo?"
   [x]
-  (instance? clojure.lang.ExceptionInfo x))
+  (instance? #?(:clj clojure.lang.ExceptionInfo
+                :cljs ExceptionInfo) x))
 
 (defn- error?
   "otherwise, is it sufficiently exceptional?"
