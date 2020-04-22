@@ -33,9 +33,13 @@
   (-get-about [this auth-identity]
     "Return information about the LRS"))
 
-(defn about-resource?
-  [lrs]
-  (satisfies? AboutResource lrs))
+(defn- make-proto-pred
+  "Build a memoized predicate for determining protocol satisfaction"
+  [protocol]
+  (memoize (partial satisfies? protocol)))
+
+(def about-resource?
+  (make-proto-pred AboutResource))
 
 (s/def ::about-resource-instance
   about-resource?)
@@ -50,9 +54,8 @@
   (-get-about-async [this auth-identity]
     "Return information about the LRS. Returns response in a promise channel."))
 
-(defn about-resource-async?
-  [lrs]
-  (satisfies? AboutResourceAsync lrs))
+(def about-resource-async?
+  (make-proto-pred AboutResourceAsync))
 
 (s/def ::about-resource-async-instance
   about-resource-async?)
@@ -79,8 +82,8 @@
   (-delete-documents [this auth-identity params]
     "Delete multiple documents."))
 
-(defn document-resource? [lrs]
-  (satisfies? DocumentResource lrs))
+(def document-resource?
+  (make-proto-pred DocumentResource))
 
 (s/def ::document-resource-instance
   document-resource?)
@@ -173,8 +176,8 @@
   (-delete-documents-async [this auth-identity params]
     "Delete multiple documents. Returns a promise channel."))
 
-(defn document-resource-async? [lrs]
-  (satisfies? DocumentResourceAsync lrs))
+(def document-resource-async?
+  (make-proto-pred DocumentResourceAsync))
 
 (s/def ::document-resource-async-instance
   document-resource-async?)
@@ -209,8 +212,8 @@
   (-get-activity [this auth-identity params]
     "Get an xapi activity object."))
 
-(defn activity-info-resource? [lrs]
-  (satisfies? ActivityInfoResource lrs))
+(def activity-info-resource?
+  (make-proto-pred ActivityInfoResource))
 
 (s/def ::activity-info-resource-instance
   activity-info-resource?)
@@ -227,8 +230,8 @@
   (-get-activity-async [this auth-identity params]
     "Get an xapi activity object. Returns a promise channel."))
 
-(defn activity-info-resource-async? [lrs]
-  (satisfies? ActivityInfoResourceAsync lrs))
+(def activity-info-resource-async?
+  (make-proto-pred ActivityInfoResourceAsync))
 
 (s/def ::activity-info-resource-async-instance
   activity-info-resource-async?)
@@ -246,9 +249,8 @@
   (-get-person [this auth-identity params]
     "Get an xapi person object. Throws only on invalid params."))
 
-(defn agent-info-resource?
-  [lrs]
-  (satisfies? AgentInfoResource lrs))
+(def agent-info-resource?
+  (make-proto-pred AgentInfoResource))
 
 (s/def ::agent-info-resource-instance
   agent-info-resource?)
@@ -266,9 +268,8 @@
   (-get-person-async [this auth-identity params]
     "Get an xapi person object. Throws only on invalid params."))
 
-(defn agent-info-resource-async?
-  [lrs]
-  (satisfies? AgentInfoResourceAsync lrs))
+(def agent-info-resource-async?
+  (make-proto-pred AgentInfoResourceAsync))
 
 (s/def ::agent-info-resource-async-instance
   agent-info-resource-async?)
@@ -298,9 +299,8 @@
     "Given the ctx map, return an ISO 8601 stamp for the
      X-Experience-API-Consistent-Through header"))
 
-(defn statements-resource?
-  [lrs]
-  (satisfies? StatementsResource lrs))
+(def statements-resource?
+  (make-proto-pred StatementsResource))
 
 (s/def ::statements-resource-instance
   statements-resource?)
@@ -357,9 +357,8 @@
     "Given the ctx map, returns a promise channel that will get an ISO 8601
      stamp for the X-Experience-API-Consistent-Through"))
 
-(defn statements-resource-async?
-  [lrs]
-  (satisfies? StatementsResourceAsync lrs))
+(def statements-resource-async?
+  (make-proto-pred StatementsResourceAsync))
 
 (s/def ::statements-resource-async-instance
   statements-resource-async?)
@@ -409,8 +408,8 @@
   (-authorize [this ctx auth-identity]
     "Given the context and auth identity, return truthy if the user is allowed to do a given thing."))
 
-(defn lrs-auth-instance? [x]
-  (satisfies? LRSAuth x))
+(def lrs-auth-instance?
+  (make-proto-pred LRSAuth))
 
 (s/def ::lrs-auth-instance
   lrs-auth-instance?)
@@ -428,8 +427,8 @@
   (-authorize-async [this ctx auth-identity]
     "Given the context and auth-identity, return true if the user is allowed to do a given thing, on a promise-channel"))
 
-(defn lrs-auth-async-instance? [x]
-  (satisfies? LRSAuthAsync x))
+(def lrs-auth-async-instance?
+  (make-proto-pred LRSAuthAsync))
 
 (s/def ::lrs-auth-async-instance
   lrs-auth-async-instance?)
