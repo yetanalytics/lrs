@@ -352,7 +352,6 @@
                ctx
                (assoc ctx :response
                       {:status 500
-                       :headers {"content-type" "application/json"}
                        :body
                        {:error
                         {:type (cond (nil? ex)
