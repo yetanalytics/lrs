@@ -120,6 +120,17 @@
 ;; TODO: wrap ltags
 ;; TODO: wrap alt req. check
 
+(defn- aconcat
+  "Given xs and a chan c, return a new chan with xs at the head and c at the tail"
+  [xs c]
+  (let [out-c (a/chan (count xs))]
+    (a/go-loop [xxs xs]
+      (if-let [x (first xxs)]
+        (do (a/>! out-c x)
+            (recur (rest xxs)))
+        (a/pipe c out-c)))
+    out-c))
+
 (defn get-response
   [{:keys [xapi
            com.yetanalytics/lrs] :as ctx}
@@ -138,30 +149,22 @@
                    :body
                    ;; shim, the protocol will be expected to return this
                    (att-resp/build-multipart-async
-                    (let [c (a/chan)]
-                      (a/onto-chan
-                       c
-                       (if (some? statement)
-                         (concat (list :statement statement)
-                                 (cons :attachments attachments))
-                         (concat (cons :statements
-                                       (:statements statement-result))
-                                 (when-let [more (:more statement-result)]
-                                   (list :more more))
-                                 (cons :attachments attachments))))
-                      c))}
+                    (a/to-chan (if (some? statement)
+                                 (concat (list :statement statement)
+                                         (cons :attachments attachments))
+                                 (concat (cons :statements
+                                               (:statements statement-result))
+                                         (when-let [more (:more statement-result)]
+                                           (list :more more))
+                                         (cons :attachments attachments)))))}
                   (if statement-result
                     {:status 200
                      :headers {"Content-Type" "application/json"}
                      :body (si/lazy-statement-result-async
-                            (let [c (a/chan)]
-                              (a/onto-chan
-                               c
-                               (concat (cons :statements
-                                             (:statements statement-result))
-                                       (when-let [more (:more statement-result)]
-                                         (list :more more))))
-                              c))}
+                            (a/to-chan (concat (cons :statements
+                                                     (:statements statement-result))
+                                               (when-let [more (:more statement-result)]
+                                                 (list :more more)))))}
                     {:status 200
                      :body s-data}))
                 {:status 404 :body ""}))
@@ -184,39 +187,41 @@
                        params
                        ltags)]
            (a/go
-             (assoc ctx :response
-                    (cond ;; Special handling to see if it's a 404
-                      ((some-fn :statementId :voidedStatementId)
-                       params)
-                      (let [_ (a/<! r-chan)
-                            ?statement (a/<! r-chan)
-                            ]
-                        (if (map? ?statement)
-                          (if (:attachments params)
-                            {:status 200
-                             :headers {"Content-Type" att-resp/content-type}
-                             :body
-                             (att-resp/build-multipart-async
-                              (let [c (a/chan)]
-                                (a/onto-chan c (a/<! (a/into [:statement
-                                                              ?statement]
-                                                             r-chan)))
-                                c))}
-                            {:status 200
-                             :body ?statement})
-                          {:status 404 :body ""}))
-                      (:attachments params)
-                      {:status 200
-                       :headers {"Content-Type" att-resp/content-type}
-                       :body
-                       (att-resp/build-multipart-async
-                        r-chan)}
-                      :else
-                      {:status 200
-                       :headers {"Content-Type" "application/json"}
-                       :body
-                       (si/lazy-statement-result-async
-                        r-chan)}))))
+             (let [header (a/<! r-chan)]
+               (case header
+                 :statement
+                 (assoc ctx
+                        :response
+                        (let [?statement (a/<! r-chan)]
+                          (if (map? ?statement)
+                            (if (:attachments params)
+                              {:status 200
+                               :headers {"Content-Type" att-resp/content-type}
+                               :body
+                               (att-resp/build-multipart-async
+                                (aconcat [:statement
+                                          ?statement]
+                                         r-chan))}
+                              {:status 200
+                               :body ?statement})
+                            {:status 404 :body ""})))
+                 :statements
+                 (assoc ctx
+                        :response
+                        (if (:attachments params)
+                          {:status 200
+                           :headers {"Content-Type" att-resp/content-type}
+                           :body
+                           (att-resp/build-multipart-async
+                            (aconcat [:statements] r-chan))}
+                          {:status 200
+                           :headers {"Content-Type" "application/json"}
+                           :body
+                           (si/lazy-statement-result-async
+                            (aconcat [:statements] r-chan))}))
+                 :error
+                 (let [ex (a/<! r-chan)]
+                   (assoc ctx :io.pedestal.interceptor.chain/error ex))))))
          (get-response ctx (lrs/get-statements
                             lrs
                             auth-identity
