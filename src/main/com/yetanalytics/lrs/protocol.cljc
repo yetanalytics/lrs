@@ -323,7 +323,8 @@
                               :req-un [::xs/statement])
         :multiple (s/keys :opt-un [::xapi/etag]
                           :req-un [::ss/attachments
-                                   :xapi.statements.GET.response/statement-result])))
+                                   :xapi.statements.GET.response/statement-result])
+        :error (s/keys :opt-un [:ret/error])))
 
 (s/def ::consistent-through-ret
   ::xs/timestamp)
@@ -379,16 +380,22 @@
 
 (s/def ::get-statements-async-ret
   (sc/from-port-coll
-   (s/cat :result
-          (s/alt :s (s/cat :header #{:statement}
-                           :statement (s/? ::xs/lrs-statement))
-                 :ss (s/cat :statements-header #{:statements}
-                            :statements (s/* ::xs/lrs-statement)
-                            :more (s/? (s/cat :more-header #{:more}
-                                              :more-link :xapi.statements.GET.response.statement-result/more))))
-          :attachments
-          (s/? (s/cat :header #{:attachments}
-                      :attachments (s/* ::ss/attachment))))))
+   (s/alt
+    ;; can return one or more errors
+    :exception
+    (s/cat :header #{:errors}
+           :errors (s/+ :ret/error))
+    :result
+    (s/cat :result
+           (s/alt :s (s/cat :header #{:statement}
+                            :statement (s/? ::xs/lrs-statement))
+                  :ss (s/cat :statements-header #{:statements}
+                             :statements (s/* ::xs/lrs-statement)
+                             :more (s/? (s/cat :more-header #{:more}
+                                               :more-link :xapi.statements.GET.response.statement-result/more))))
+           :attachments
+           (s/? (s/cat :header #{:attachments}
+                       :attachments (s/* ::ss/attachment)))))))
 
 (s/def ::consistent-through-async-ret
   (sc/from-port
