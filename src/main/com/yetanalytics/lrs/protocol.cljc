@@ -11,12 +11,13 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
+;; TODO: multiple error returns
 (s/def :ret/error
   (s/with-gen
-    #(instance? #?(:clj clojure.lang.ExceptionInfo
-                   :cljs cljs.core/ExceptionInfo) %)
+    #(instance? #?(:clj Exception
+                   :cljs js/Error) %)
     (fn []
-      (sgen/fmap ex-info
+      (sgen/fmap #(apply ex-info %)
                  (sgen/tuple
                   (sgen/string-ascii)
                   (s/gen map?))))))
