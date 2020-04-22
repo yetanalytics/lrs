@@ -325,7 +325,7 @@
         :multiple (s/keys :opt-un [::xapi/etag]
                           :req-un [::ss/attachments
                                    :xapi.statements.GET.response/statement-result])
-        :error (s/keys :opt-un [:ret/error])))
+        :error ::error-ret))
 
 (s/def ::consistent-through-ret
   ::xs/timestamp)
@@ -383,8 +383,8 @@
    (s/alt
     ;; can return one or more errors
     :exception
-    (s/cat :header #{:errors}
-           :errors (s/+ :ret/error))
+    (s/cat :header #{:error}
+           :error :ret/error)
     :result
     (s/cat :result
            (s/alt :s (s/cat :header #{:statement}
