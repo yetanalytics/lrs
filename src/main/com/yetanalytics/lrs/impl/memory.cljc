@@ -814,7 +814,8 @@
 (s/def ::init-state ::state)
 
 (s/def ::lrs
-  (s/with-gen ::p/lrs
+  (s/with-gen (s/and ::p/lrs
+                     ::p/lrs-async)
     (fn []
       (sgen/return (new-lrs {:init-state (fixture-state)})))))
 
