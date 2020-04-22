@@ -453,7 +453,7 @@
          ))
 
 ;; The same, all async
-(s/def ::lrs ;; A minimum viable LRS
+(s/def ::lrs-async ;; A minimum viable LRS
   (s/and ::about-resource-async-instance
          ::statements-resource-async-instance
          ::activity-info-resource-async-instance
