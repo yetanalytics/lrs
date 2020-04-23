@@ -99,7 +99,8 @@
              :com.yetanalytics.lrs.xapi.document/invalid-merge}
            (:type exd))
         (assoc ctx :response {:status 400})
-        (throw error)))
+        (assoc ctx :io.pedestal.interceptor.chain/error
+               error)))
     (assoc ctx :response {:status 204})))
 
 (def handle-post

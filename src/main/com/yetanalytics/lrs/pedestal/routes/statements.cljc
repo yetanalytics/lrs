@@ -8,36 +8,42 @@
             [com.yetanalytics.lrs.auth :as auth]))
 
 (defn error-response
-  "Define error responses for statement resource errors"
-  [exi]
+  "Define error responses for statement resource errors. Stick unhandled errors
+  on the context"
+  [ctx exi]
   (let [exd (ex-data exi)]
     (case (:type exd)
       ::p/statement-conflict
-      {:status 409
-       :body
-       {:error
-        (merge {:message (#?(:clj .getMessage
-                             :cljs .-message) exi)}
-               (select-keys exd [:statement
-                                 :extant-statement]))}}
+      (assoc ctx
+             :response
+             {:status 409
+              :body
+              {:error
+               ;; TODO: why are we returning the message here?
+               (merge {:message (#?(:clj .getMessage
+                                    :cljs .-message) exi)}
+                      (select-keys exd [:statement
+                                        :extant-statement]))}})
       ::p/invalid-voiding-statement
-      {:status 400
-       :body
-       {:error
-        (merge {:message (#?(:clj .getMessage
-                             :cljs .-message) exi)}
-               (select-keys exd [:statement]))}}
-      (throw exi))))
+      (assoc ctx
+             :response
+             {:status 400
+              :body
+              {:error
+               (merge {:message (#?(:clj .getMessage
+                                    :cljs .-message) exi)}
+                      (select-keys exd [:statement]))}})
+      (assoc ctx
+             :io.pedestal.interceptor.chain/error
+             exi))))
 
 (defn put-response
   [{:keys [xapi
            com.yetanalytics/lrs] :as ctx}
    {:keys [error] :as lrs-response}]
-  (assoc ctx
-         :response
-         (if error
-           (error-response error)
-           {:status 204})))
+  (if error
+    (error-response ctx error)
+    (assoc ctx :response {:status 204})))
 
 (def handle-put
   {:name ::handle-put
@@ -79,11 +85,10 @@
            com.yetanalytics/lrs] :as ctx}
    {:keys [statement-ids
            error] :as lrs-response}]
-  (assoc ctx :response
-         (if error
-           (error-response error)
-           {:status 200
-            :body statement-ids})))
+  (if error
+    (error-response ctx error)
+    (assoc ctx :response {:status 200
+                          :body statement-ids})))
 
 (def handle-post
   {:name ::handle-post
@@ -97,21 +102,34 @@
            statements (or ?statements [?statement])]
        (if (p/statements-resource-async? lrs)
          (a/go
-           (post-response ctx (a/<! (lrs/store-statements-async
-                                     lrs
-                                     auth-identity
-                                     statements
-                                     attachments))))
-         (post-response ctx (lrs/store-statements
-                             lrs
-                             auth-identity
-                             statements
-                             attachments)))))})
+           (post-response ctx
+                          (a/<! (lrs/store-statements-async
+                                 lrs
+                                 auth-identity
+                                 statements
+                                 attachments))))
+         (post-response ctx
+                        (lrs/store-statements
+                         lrs
+                         auth-identity
+                         statements
+                         attachments)))))})
 
 ;; TODO: wrap attachment response
 ;; TODO: Last modfified https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#requirements-4
 ;; TODO: wrap ltags
 ;; TODO: wrap alt req. check
+
+(defn- aconcat
+  "Given xs and a chan c, return a new chan with xs at the head and c at the tail"
+  [xs c]
+  (let [out-c (a/chan (count xs))]
+    (a/go-loop [xxs xs]
+      (if-let [x (first xxs)]
+        (do (a/>! out-c x)
+            (recur (rest xxs)))
+        (a/pipe c out-c)))
+    out-c))
 
 (defn get-response
   [{:keys [xapi
@@ -120,47 +138,39 @@
            statement
            attachments
            etag]}]
-  (assoc ctx
-         :response
-         (try
-           (if-let [s-data (or statement statement-result)]
-             (if (and (get-in xapi [:xapi.statements.GET.request/params :attachments])
-                      (seq attachments))
-               {:status 200
-                :headers (cond-> {"Content-Type" att-resp/content-type}
-                           etag (assoc "etag" etag))
-                :body
-                ;; shim, the protocol will be expected to return this
-                (att-resp/build-multipart-async
-                 (let [c (a/chan)]
-                   (a/onto-chan
-                    c
-                    (if (some? statement)
-                      (concat (list :statement statement)
-                              (cons :attachments attachments))
-                      (concat (cons :statements
-                                    (:statements statement-result))
-                              (when-let [more (:more statement-result)]
-                                (list :more more))
-                              (cons :attachments attachments))))
-                   c))}
-               (if statement-result
-                 {:status 200
-                  :headers {"Content-Type" "application/json"}
-                  :body (si/lazy-statement-result-async
-                         (let [c (a/chan)]
-                           (a/onto-chan
-                            c
-                            (concat (cons :statements
-                                          (:statements statement-result))
-                                    (when-let [more (:more statement-result)]
-                                      (list :more more))))
-                           c))}
-                 {:status 200
-                  :body s-data}))
-             {:status 404 :body ""})
-           (catch clojure.lang.ExceptionInfo exi
-             (error-response exi)))))
+  (try (assoc ctx
+              :response
+              (if-let [s-data (or statement statement-result)]
+                (if (and (get-in xapi [:xapi.statements.GET.request/params :attachments])
+                         (seq attachments))
+                  {:status 200
+                   :headers (cond-> {"Content-Type" att-resp/content-type}
+                              etag (assoc "etag" etag))
+                   :body
+                   ;; shim, the protocol will be expected to return this
+                   (att-resp/build-multipart-async
+                    (a/to-chan (if (some? statement)
+                                 (concat (list :statement statement)
+                                         (cons :attachments attachments))
+                                 (concat (cons :statements
+                                               (:statements statement-result))
+                                         (when-let [more (:more statement-result)]
+                                           (list :more more))
+                                         (cons :attachments attachments)))))}
+                  (if statement-result
+                    {:status 200
+                     :headers {"Content-Type" "application/json"}
+                     :body (si/lazy-statement-result-async
+                            (a/to-chan (concat (cons :statements
+                                                     (:statements statement-result))
+                                               (when-let [more (:more statement-result)]
+                                                 (list :more more)))))}
+                    {:status 200
+                     :body s-data}))
+                {:status 404 :body ""}))
+       (catch #?(:clj Exception
+                 :cljs js/Error) ex
+         (error-response ctx ex))))
 
 (def handle-get
   {:name ::handle-get
@@ -177,39 +187,41 @@
                        params
                        ltags)]
            (a/go
-             (assoc ctx :response
-                    (cond ;; Special handling to see if it's a 404
-                      ((some-fn :statementId :voidedStatementId)
-                       params)
-                      (let [_ (a/<! r-chan)
-                            ?statement (a/<! r-chan)
-                            ]
-                        (if (map? ?statement)
-                          (if (:attachments params)
-                            {:status 200
-                             :headers {"Content-Type" att-resp/content-type}
-                             :body
-                             (att-resp/build-multipart-async
-                              (let [c (a/chan)]
-                                (a/onto-chan c (a/<! (a/into [:statement
-                                                              ?statement]
-                                                             r-chan)))
-                                c))}
-                            {:status 200
-                             :body ?statement})
-                          {:status 404 :body ""}))
-                      (:attachments params)
-                      {:status 200
-                       :headers {"Content-Type" att-resp/content-type}
-                       :body
-                       (att-resp/build-multipart-async
-                        r-chan)}
-                      :else
-                      {:status 200
-                       :headers {"Content-Type" "application/json"}
-                       :body
-                       (si/lazy-statement-result-async
-                        r-chan)}))))
+             (let [header (a/<! r-chan)]
+               (case header
+                 :statement
+                 (assoc ctx
+                        :response
+                        (let [?statement (a/<! r-chan)]
+                          (if (map? ?statement)
+                            (if (:attachments params)
+                              {:status 200
+                               :headers {"Content-Type" att-resp/content-type}
+                               :body
+                               (att-resp/build-multipart-async
+                                (aconcat [:statement
+                                          ?statement]
+                                         r-chan))}
+                              {:status 200
+                               :body ?statement})
+                            {:status 404 :body ""})))
+                 :statements
+                 (assoc ctx
+                        :response
+                        (if (:attachments params)
+                          {:status 200
+                           :headers {"Content-Type" att-resp/content-type}
+                           :body
+                           (att-resp/build-multipart-async
+                            (aconcat [:statements] r-chan))}
+                          {:status 200
+                           :headers {"Content-Type" "application/json"}
+                           :body
+                           (si/lazy-statement-result-async
+                            (aconcat [:statements] r-chan))}))
+                 :error
+                 (let [ex (a/<! r-chan)]
+                   (assoc ctx :io.pedestal.interceptor.chain/error ex))))))
          (get-response ctx (lrs/get-statements
                             lrs
                             auth-identity

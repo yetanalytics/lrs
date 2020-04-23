@@ -18,7 +18,8 @@
             [clojure.core.async :as a :include-macros true]
             #?@(:cljs [[cljs.nodejs :as node]
                        [cljs.pprint :refer [pprint]]
-                       [concat-stream]])))
+                       [concat-stream]
+                       [com.yetanalytics.lrs.util.log :as log]])))
 
 ;; Enter
 (defn lrs-interceptor
@@ -328,6 +329,55 @@
                              (get-in ctx [:request :request-method])))
                ctx))}))
 
+;; Gracefully handle uncaught errors, deferring to custom responses.
+
+(defn- exi?
+  "Is it an ExceptionInfo?"
+  [x]
+  (instance? #?(:clj clojure.lang.ExceptionInfo
+                :cljs ExceptionInfo) x))
+
+(defn- error?
+  "otherwise, is it sufficiently exceptional?"
+  [x]
+  (instance? #?(:clj Exception
+                :cljs js/Error) x))
+
+(def error-interceptor
+  (i/interceptor
+   {:name ::error-interceptor
+    :error (fn [{:keys [response]
+                 :as ctx} ex]
+             (if response
+               ;; defer to custom upstream response
+               ctx
+               (do
+                 ;; Log all unhandled/bubbled errors
+                 (log/error :msg "Unhandled LRS Error"
+                            :exception ex)
+                 (assoc ctx
+                      :response
+                      {:status 500
+                       :body
+                       {:error
+                        {:type (cond (nil? ex)
+                                     {:name "unknown"}
+                                     (exi? ex)
+                                     (let [{:keys [type exception-type]
+                                            :as exd} (ex-data ex)
+                                           type-k (or exception-type
+                                                      type
+                                                      :unknown/unknown)
+                                           [tns tname] ((juxt namespace name) type-k)]
+                                       (merge (when tns {:ns tns})
+                                              {:name tname}))
+                                     (error? ex)
+                                     {:name (str (type ex))}
+                                     (string? ex)
+                                     {:name ex}
+                                     :else
+                                     {:name "unknown"})}}}))))}))
+
 ;; Time Requests
 
 (def request-timer
@@ -444,7 +494,7 @@
 
 (def common-interceptors [x-forwarded-for-interceptor
                           http/json-body
-
+                          error-interceptor
                           #?(:clj (body-params/body-params
                                    (body-params/default-parser-map
                                     :json-options {:key-fn str}))
