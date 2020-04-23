@@ -18,7 +18,8 @@
             [clojure.core.async :as a :include-macros true]
             #?@(:cljs [[cljs.nodejs :as node]
                        [cljs.pprint :refer [pprint]]
-                       [concat-stream]])))
+                       [concat-stream]
+                       [com.yetanalytics.lrs.util.log :as log]])))
 
 ;; Enter
 (defn lrs-interceptor
@@ -350,7 +351,12 @@
              (if response
                ;; defer to custom upstream response
                ctx
-               (assoc ctx :response
+               (do
+                 ;; Log all unhandled/bubbled errors
+                 (log/error :msg "Unhandled LRS Error"
+                            :exception ex)
+                 (assoc ctx
+                      :response
                       {:status 500
                        :body
                        {:error
@@ -370,7 +376,7 @@
                                      (string? ex)
                                      {:name ex}
                                      :else
-                                     {:name "unknown"})}}})))}))
+                                     {:name "unknown"})}}}))))}))
 
 ;; Time Requests
 
