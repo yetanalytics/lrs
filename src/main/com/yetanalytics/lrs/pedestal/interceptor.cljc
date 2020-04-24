@@ -473,14 +473,10 @@
                        (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
                        (some? allowed-origins) (conj (cors/allow-origin allowed-origins))
                        (some? not-found-interceptor) (conj (io.pedestal.interceptor/interceptor not-found-interceptor))
-                       #?@(:clj [(or enable-session enable-csrf) (conj (middlewares/session (or enable-session {})))
-                                 (some? enable-csrf) (into [(body-params/body-params (:body-params enable-csrf (body-params/default-parser-map)))
-                                                            (csrf/anti-forgery enable-csrf)])])
                        true (conj (middlewares/content-type {:mime-types ext-mime-types}))
                        true (conj route/query-params)
                        true (conj xapi-method-param)
                        true (conj (route/method-param :method))
-                       #?@(:clj [(some? secure-headers) (conj (sec-headers/secure-headers secure-headers))])
                        ;; The etag interceptor may mess with routes, so it's important not to have any
                        ;; important leave stuff after it in the defaults
                        true (conj etag-interceptor)
