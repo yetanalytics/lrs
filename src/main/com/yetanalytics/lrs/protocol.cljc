@@ -105,7 +105,7 @@
 
 ;; TODO: this should be an empty map, not nil
 (s/def ::set-document-ret
-  (or-error nil?))
+  (or-error (s/nilable map?))) ;; flexible for now
 
 (s/def ::get-document-params
   (s/or :state
@@ -156,13 +156,13 @@
 
 ;; TODO: empty map?
 (s/def ::delete-document-ret
-  (or-error nil?))
+  (or-error (s/nilable map?)))
 
 (s/def ::delete-documents-params
   (s/or :state (sc/with-conform-gen :xapi.document.state/context-params)))
 
 (s/def ::delete-documents-ret
-  (or-error nil?))
+  (or-error (s/nilable map?)))
 
 (s/def ::delete-document-all-params
   (s/or :single
