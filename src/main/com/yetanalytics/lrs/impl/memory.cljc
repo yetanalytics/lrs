@@ -733,7 +733,7 @@
       p/DocumentResource
       (-set-document [lrs _ params document merge?]
         (try (swap! state update :state/documents transact-document params document merge?)
-             nil
+             {}
              (catch #?(:clj clojure.lang.ExceptionInfo
                        :cljs ExceptionInfo) exi
                {:error exi})))
@@ -743,10 +743,10 @@
         {:document-ids (get-document-ids @state params)})
       (-delete-document [lrs _ params]
         (swap! state update :state/documents delete-document params)
-        nil)
+        {})
       (-delete-documents [lrs _ params]
         (swap! state update :state/documents delete-documents params)
-        nil)
+        {})
       p/DocumentResourceAsync
       (-set-document-async [lrs auth-identity params document merge?]
         (a/go

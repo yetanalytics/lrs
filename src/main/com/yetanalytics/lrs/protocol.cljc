@@ -104,9 +104,8 @@
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
-;; TODO: this should be an empty map, not nil
 (s/def ::set-document-ret
-  (or-error (s/nilable map?))) ;; flexible for now
+  (or-error #{{}}))
 
 (s/def ::get-document-params
   (s/or :state
@@ -155,15 +154,14 @@
         :activity-profile
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
-;; TODO: empty map?
 (s/def ::delete-document-ret
-  (or-error (s/nilable map?)))
+  (or-error #{{}}))
 
 (s/def ::delete-documents-params
   (s/or :state (sc/with-conform-gen :xapi.document.state/context-params)))
 
 (s/def ::delete-documents-ret
-  (or-error (s/nilable map?)))
+  (or-error #{{}}))
 
 (s/def ::delete-document-all-params
   (s/or :single
