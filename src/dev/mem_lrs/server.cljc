@@ -24,33 +24,37 @@
       :or {reload-routes? true
            lrs (new-lrs {})}}]
   (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
-            :fns (stest/instrument `[lrs/get-about
-                                     lrs/get-about-async
-                                     lrs/set-document
-                                     lrs/set-document-async
-                                     lrs/get-document
-                                     lrs/get-document-async
-                                     lrs/get-document-ids
-                                     lrs/get-document-ids-async
-                                     lrs/delete-document
-                                     lrs/delete-document-async
-                                     lrs/delete-documents
-                                     lrs/delete-documents-async
-                                     lrs/get-activity
-                                     lrs/get-activity-async
-                                     lrs/get-person
-                                     lrs/get-person-async
-                                     lrs/store-statements
-                                     lrs/store-statements-async
-                                     lrs/get-statements
-                                     lrs/get-statements-async
-                                     lrs/consistent-through
-                                     lrs/consistent-through-async
-                                     lrs/authenticate
-                                     lrs/authenticate-async
-                                     lrs/authorize
-                                     lrs/authorize-async
-                                     ]))
+            :fns (stest/instrument
+                  `[lrs/get-about
+                    lrs/get-about-async
+                    lrs/set-document
+                    lrs/set-document-async
+                    lrs/get-document
+                    lrs/get-document-async
+                    lrs/get-document-ids
+                    lrs/get-document-ids-async
+                    lrs/delete-document
+                    lrs/delete-document-async
+                    lrs/delete-documents
+                    lrs/delete-documents-async
+                    lrs/get-activity
+                    lrs/get-activity-async
+                    lrs/get-person
+                    lrs/get-person-async
+                    lrs/store-statements
+                    lrs/store-statements-async
+                    lrs/get-statements
+                    lrs/get-statements-async
+                    lrs/consistent-through
+                    lrs/consistent-through-async
+                    lrs/authenticate
+                    lrs/authenticate-async
+                    lrs/authorize
+                    lrs/authorize-async
+
+                    ;; response handling
+                    com.yetanalytics.lrs.pedestal.routes.about/get-response
+                    ]))
   (log/info :msg "Creating your [DEV] server...")
   (-> service/service ;; start with production configuration
       (merge {:env :dev

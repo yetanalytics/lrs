@@ -2,7 +2,12 @@
   (:require [com.yetanalytics.lrs :as lrs]
             [com.yetanalytics.lrs.protocol :as p]
             [clojure.core.async :as a :include-macros true]
-            [com.yetanalytics.lrs.auth :as auth]))
+            [com.yetanalytics.lrs.auth :as auth]
+            [clojure.spec.alpha :as s :include-macros true]))
+
+(s/fdef get-response
+  :args (s/cat :ctx map?
+               :get-about-ret ::p/get-about-ret))
 
 (defn get-response [{:keys [com.yetanalytics/lrs] :as ctx}
                     {body :body
