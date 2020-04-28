@@ -54,6 +54,13 @@
 
                     ;; response handling
                     com.yetanalytics.lrs.pedestal.routes.about/get-response
+                    com.yetanalytics.lrs.pedestal.routes.activities/get-response
+                    com.yetanalytics.lrs.pedestal.routes.agents/get-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/put-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/post-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/delete-response
                     ]))
   (log/info :msg "Creating your [DEV] server...")
   (-> service/service ;; start with production configuration

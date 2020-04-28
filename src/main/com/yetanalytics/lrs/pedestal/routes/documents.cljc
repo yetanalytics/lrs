@@ -5,7 +5,8 @@
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [clojure.core.async :as a :include-macros true]
             [com.yetanalytics.lrs.auth :as auth]
-            #?(:clj [cheshire.core :as json])))
+            #?(:clj [cheshire.core :as json])
+            [clojure.spec.alpha :as s :include-macros true]))
 
 (defn find-some [m & kws]
   (some (partial find m)
@@ -21,6 +22,19 @@
   [etag-header]
   (into #{} (re-seq etag-string-pattern etag-header)))
 
+(s/fdef put-response
+  :args (s/cat :ctx map?
+               :set-document-ret ::p/set-document-ret))
+
+(defn put-response
+  [{:keys [xapi
+           com.yetanalytics/lrs] :as ctx}
+   {:keys [error]}]
+  (if error
+    (assoc ctx :io.pedestal.interceptor.chain/error error)
+    (assoc ctx :response {:status 204})))
+
+
 ;; TODO: better handling of sync/async, dedupe
 (def handle-put
   {:name ::handle-put
@@ -30,63 +44,77 @@
                        com.yetanalytics/lrs] :as ctx}]
             (if (p/document-resource-async? lrs)
               (a/go
-                (let [{:keys [body content-type content-length headers]} request]
-                  (if-let [[_ params] (find xapi :xapi.activities.state.PUT.request/params)]
-                    (do
-                      (a/<! (lrs/set-document-async
-                             lrs auth-identity params
-                             {:content-type content-type
-                              :content-length content-length
-                              :contents body}
-                             false))
-                      (assoc ctx :response {:status 204}))
-                    (let [[params-spec params] (find-some xapi
-                                                          :xapi.activities.profile.PUT.request/params
-                                                          :xapi.agents.profile.PUT.request/params)
-                          {:strs [if-match if-none-match]} headers]
-                      (if (or if-match if-none-match)
-                        (do (a/<! (lrs/set-document-async
-                                   lrs auth-identity params
-                                   {:content-type content-type
-                                    :content-length content-length
-                                    :contents body}
-                                   false))
-                            (assoc ctx :response {:status 204}))
-                        ;; if neither header is present
-                        (if (:document (a/<! (lrs/get-document-async
-                                              lrs auth-identity params)))
-                          (assoc ctx :response {:status 409
-                                                :headers {"Content-Type" "text/plain"}
-                                                :body "If-Match or If-None-Match header is required for existing document."})
-                          (assoc ctx :response {:status 400})))))))
-              (let [{:keys [body content-type content-length headers]} request]
-                  (if-let [[_ params] (find xapi :xapi.activities.state.PUT.request/params)]
-                    (do
-                      (lrs/set-document
-                       lrs auth-identity params
-                       {:content-type content-type
-                        :content-length content-length
-                        :contents body}
-                       false)
-                      (assoc ctx :response {:status 204}))
-                    (let [[params-spec params] (find-some xapi
-                                                          :xapi.activities.profile.PUT.request/params
-                                                          :xapi.agents.profile.PUT.request/params)
-                          {:strs [if-match if-none-match]} headers]
-                      (if (or if-match if-none-match)
-                        (do (lrs/set-document
-                             lrs auth-identity params
-                             {:content-type content-type
-                              :content-length content-length
-                              :contents body}
-                             false)
-                            (assoc ctx :response {:status 204}))
-                        ;; if neither header is present
-                        (if (:document (a/<! (lrs/get-document lrs auth-identity params)))
-                          (assoc ctx :response {:status 409
-                                                :headers {"Content-Type" "text/plain"}
-                                                :body "If-Match or If-None-Match header is required for existing document."})
-                          (assoc ctx :response {:status 400}))))))))})
+                (try (let [{:keys [body content-type content-length headers]} request]
+                       (if-let [[_ params] (find xapi :xapi.activities.state.PUT.request/params)]
+                         (put-response ctx (a/<! (lrs/set-document-async
+                                                  lrs auth-identity params
+                                                  {:content-type content-type
+                                                   :content-length content-length
+                                                   :contents body}
+                                                  false)))
+                         (let [[params-spec params] (find-some xapi
+                                                               :xapi.activities.profile.PUT.request/params
+                                                               :xapi.agents.profile.PUT.request/params)
+                               {:strs [if-match if-none-match]} headers]
+                           (if (or if-match if-none-match)
+                             (put-response ctx (a/<! (lrs/set-document-async
+                                                      lrs auth-identity params
+                                                      {:content-type content-type
+                                                       :content-length content-length
+                                                       :contents body}
+                                                      false)))
+                             ;; if neither header is present
+                             (let [{:keys [error
+                                           document]} (a/<! (lrs/get-document-async
+                                                             lrs auth-identity params))]
+                               (cond
+                                 error
+                                 (assoc ctx :io.pedestal.interceptor.chain/error error)
+                                 document
+                                 (assoc ctx :response {:status 409
+                                                       :headers {"Content-Type" "text/plain"}
+                                                       :body "If-Match or If-None-Match header is required for existing document."})
+                                 :else (assoc ctx :response {:status 400})))))))
+                     (catch #?(:clj Exception :cljs js/Error) ex
+                       (assoc ctx :io.pedestal.interceptor.chain/error ex))))
+              (try (let [{:keys [body content-type content-length headers]} request]
+                     (if-let [[_ params] (find xapi :xapi.activities.state.PUT.request/params)]
+                       (put-response ctx (lrs/set-document
+                                          lrs auth-identity params
+                                          {:content-type content-type
+                                           :content-length content-length
+                                           :contents body}
+                                          false))
+                       (let [[params-spec params] (find-some xapi
+                                                             :xapi.activities.profile.PUT.request/params
+                                                             :xapi.agents.profile.PUT.request/params)
+                             {:strs [if-match if-none-match]} headers]
+                         (if (or if-match if-none-match)
+                           (put-response ctx
+                                         (lrs/set-document
+                                          lrs auth-identity params
+                                          {:content-type content-type
+                                           :content-length content-length
+                                           :contents body}
+                                          false))
+                           ;; if neither header is present
+                           (let [{:keys [error
+                                         document]} (lrs/get-document
+                                                     lrs auth-identity params)]
+                             (cond
+                               error
+                               (assoc ctx :io.pedestal.interceptor.chain/error error)
+                               document
+                               (assoc ctx :response {:status 409
+                                                     :headers {"Content-Type" "text/plain"}
+                                                     :body "If-Match or If-None-Match header is required for existing document."})
+                               :else (assoc ctx :response {:status 400})))))))
+                   (catch #?(:clj Exception :cljs js/Error) ex
+                     (assoc ctx :io.pedestal.interceptor.chain/error ex)))))})
+
+(s/fdef post-response
+  :args (s/cat :ctx map?
+               :set-document-ret ::p/set-document-ret))
 
 (defn post-response [{:keys [xapi
                              request
@@ -129,40 +157,56 @@
                                      :contents body}
                                     true)))))})
 
+(s/fdef get-single-response
+  :args (s/cat :ctx map?
+               :get-document-ret ::p/get-document-ret))
+
 (defn get-single-response
   [{:keys [xapi
            request
            com.yetanalytics/lrs] :as ctx}
-   {?document :document
+   {error :error
+    ?document :document
     ?etag :etag :as lrs-response}]
-  (if-let [{:keys [content-type
-                   content-length
-                   contents
-                   id
-                   updated] :as result} ?document]
-    (assoc ctx :response {:status 200
-                          :headers (cond-> {"Content-Type" content-type
-                                            "Content-Length" (str content-length)
-                                            "Last-Modified" updated}
-                                     ?etag (assoc "etag" ?etag))
-                          :body contents #_(ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
-    (assoc ctx :response {:status 404})))
+  (if error
+    (assoc ctx :io.pedestal.interceptor.chain/error
+           error)
+    (if-let [{:keys [content-type
+                     content-length
+                     contents
+                     id
+                     updated] :as result} ?document]
+      (assoc ctx :response {:status 200
+                            :headers (cond-> {"Content-Type" content-type
+                                              "Content-Length" (str content-length)
+                                              "Last-Modified" updated}
+                                       ?etag (assoc "etag" ?etag))
+                            :body contents #_(ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
+      (assoc ctx :response {:status 404}))))
+
+(s/fdef get-multiple-response
+  :args (s/cat :ctx map?
+               :get-document-ids-ret ::p/get-document-ids-ret))
 
 (defn get-multiple-response
   [{:keys [xapi
            request
            com.yetanalytics/lrs] :as ctx}
-   {ids :document-ids
+   {error :error
+    ids :document-ids
     ?etag :etag :as lrs-response}]
-  (cond->
-      (assoc ctx :response {:headers {"Content-Type" "application/json"}
-                            :status 200
-                            :body (-> (into [] ids)
-                                      #?@(:clj [json/generate-string]
-                                          :cljs [clj->js
-                                                 (->> (.stringify js/JSON))])
-                                   )})
-    ?etag (assoc ::i/etag ?etag)))
+  (if error
+    (assoc ctx :io.pedestal.interceptor.chain/error
+           error)
+    (cond->
+        (assoc ctx :response {:headers {"Content-Type" "application/json"}
+                              :status 200
+                              :body (-> (into [] ids)
+                                        #?@(:clj [json/generate-string]
+                                            :cljs [clj->js
+                                                   (->> (.stringify js/JSON))])
+                                        )})
+      ?etag (assoc ::i/etag ?etag))))
 
 (def handle-get
   {:name ::handle-get
@@ -194,6 +238,20 @@
                                                             params)))
          (assoc ctx :response {:status 400}))))})
 
+(s/fdef delete-response
+  :args (s/cat :ctx map?
+               :delete-document-ret
+               (s/or :single ::p/delete-document-ret
+                     :multiple ::p/delete-documents-ret)))
+
+(defn delete-response
+  [{:keys [xapi
+           com.yetanalytics/lrs] :as ctx}
+   {:keys [error]}]
+  (if error
+    (assoc ctx :io.pedestal.interceptor.chain/error error)
+    (assoc ctx :response {:status 204})))
+
 (def handle-delete
   {:name ::handle-delete
    :enter (fn [{auth-identity ::auth/identity
@@ -202,18 +260,18 @@
                        com.yetanalytics/lrs] :as ctx}]
             (if (p/document-resource-async? lrs)
               (a/go
-                (if-let [[params-spec params] (find-some xapi
-                                                         :xapi.activities.profile.DELETE.request/params
-                                                         :xapi.agents.profile.DELETE.request/params)]
-                  (a/<! (lrs/delete-document-async lrs auth-identity params))
-                  (let [[params-type params] (:xapi.activities.state.DELETE.request/params xapi)]
-                    (case params-type
-                      :id (a/<! (lrs/delete-document-async
-                                 lrs auth-identity params))
-                      :context (a/<! (lrs/delete-documents-async
-                                      lrs auth-identity params)))))
-                (assoc ctx :response {:status 204}))
-              (do
+                (delete-response ctx
+                 (if-let [[params-spec params] (find-some xapi
+                                                          :xapi.activities.profile.DELETE.request/params
+                                                          :xapi.agents.profile.DELETE.request/params)]
+                   (a/<! (lrs/delete-document-async lrs auth-identity params))
+                   (let [[params-type params] (:xapi.activities.state.DELETE.request/params xapi)]
+                     (case params-type
+                       :id (a/<! (lrs/delete-document-async
+                                  lrs auth-identity params))
+                       :context (a/<! (lrs/delete-documents-async
+                                       lrs auth-identity params)))))))
+              (delete-response ctx
                 (if-let [[params-spec params] (find-some xapi
                                                          :xapi.activities.profile.DELETE.request/params
                                                          :xapi.agents.profile.DELETE.request/params)]
@@ -221,5 +279,4 @@
                   (let [[params-type params] (:xapi.activities.state.DELETE.request/params xapi)]
                     (case params-type
                       :id (lrs/delete-document lrs auth-identity params)
-                      :context (lrs/delete-documents lrs auth-identity params))))
-                (assoc ctx :response {:status 204}))))})
+                      :context (lrs/delete-documents lrs auth-identity params)))))))})
