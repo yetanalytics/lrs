@@ -61,6 +61,9 @@
                     com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
                     com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
                     com.yetanalytics.lrs.pedestal.routes.documents/delete-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/put-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/post-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/get-response
                     ]))
   (log/info :msg "Creating your [DEV] server...")
   (-> service/service ;; start with production configuration
