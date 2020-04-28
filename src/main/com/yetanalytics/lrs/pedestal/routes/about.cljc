@@ -10,13 +10,16 @@
                :get-about-ret ::p/get-about-ret))
 
 (defn get-response [{:keys [com.yetanalytics/lrs] :as ctx}
-                    {body :body
+                    {error :error
+                     body :body
                      ?etag :etag :as lrs-response}]
-  (assoc ctx :response
-         (cond-> {:status 200
-                  :body body}
-           ?etag (assoc :headers
-                        {"etag" ?etag}))))
+  (if error
+    (assoc ctx :io.pedestal.interceptor.chain/error error)
+    (assoc ctx :response
+           (cond-> {:status 200
+                    :body body}
+             ?etag (assoc :headers
+                          {"etag" ?etag})))))
 
 (def handle-get
   {:name ::handle-get
