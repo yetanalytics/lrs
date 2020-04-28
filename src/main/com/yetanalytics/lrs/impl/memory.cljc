@@ -796,11 +796,11 @@
         true)
       p/LRSAuthAsync
       (-authenticate-async [lrs ctx]
-        (a/go {:scopes #{:scope/all}
-               :prefix ""
-               :auth {:no-op {}}}))
+        (a/go {:result {:scopes #{:scope/all}
+                        :prefix ""
+                        :auth {:no-op {}}}}))
       (-authorize-async [lrs ctx auth-identity]
-        (a/go true))
+        (a/go {:result true}))
       DumpableMemoryLRS
       (dump [_]
         @state))))

@@ -419,11 +419,17 @@
 (s/def ::lrs-auth-instance
   lrs-auth-instance?)
 
-(s/def ::authenticate-ret
+(s/def :authenticate-ret/result
   ::auth/authenticate-result)
 
-(s/def ::authorize-ret
+(s/def ::authenticate-ret
+  (or-error (s/keys :req-un [:authenticate-ret/result])))
+
+(s/def :authorize-ret/result
   boolean?)
+
+(s/def ::authorize-ret
+  (or-error (s/keys :req-un [:authorize-ret/result])))
 
 (defprotocol LRSAuthAsync
   "Protocol for an authenticatable LRS"
@@ -440,11 +446,11 @@
 
 (s/def ::authenticate-async-ret
   (sc/from-port
-   ::auth/authenticate-result))
+   ::authenticate-ret))
 
 (s/def ::authorize-async-ret
   (sc/from-port
-   boolean?))
+   ::authorize-ret))
 
 
 ;; Spec for the whole LRS
