@@ -8,6 +8,19 @@
             [clojure.core.async :as a :include-macros true]
             [com.yetanalytics.lrs.spec.common :as cs]))
 
+(defn handle-authenticate
+  "Logic for handling authentication results, common sync + async"
+  [ctx {:keys [error
+               result]}]
+  (if error
+    (assoc ctx ::chain/error error)
+    (if-not (= result ::auth/forbidden)
+      (assoc ctx ::auth/identity result)
+      (assoc (chain/terminate ctx)
+             :response
+             {:status 401
+              :body "FORBIDDEN"}))))
+
 (def lrs-authenticate
   (interceptor
    {:name ::lrs-authenticate
@@ -16,20 +29,22 @@
                     ctx
                     (if (p/lrs-auth-async-instance? lrs)
                       (a/go
-                        (let [auth-result (a/<! (lrs/authenticate-async lrs ctx))]
-                          (if-not (= auth-result ::auth/forbidden)
-                            (assoc ctx ::auth/identity auth-result)
-                            (assoc (chain/terminate ctx)
-                                   :response
-                                   {:status 401
-                                    :body "FORBIDDEN"}))))
-                      (let [auth-result (lrs/authenticate lrs ctx)]
-                        (if-not (= auth-result ::auth/forbidden)
-                          (assoc ctx ::auth/identity auth-result)
-                          (assoc (chain/terminate ctx)
-                                 :response
-                                 {:status 401
-                                  :body "FORBIDDEN"}))))))}))
+                        (handle-authenticate ctx (a/<! (lrs/authenticate-async lrs ctx))))
+                      (handle-authenticate ctx
+                                           (lrs/authenticate lrs ctx)))))}))
+
+(defn handle-authorize
+  "Logic for handling authorization results, common sync + async"
+  [ctx {:keys [error
+               result]}]
+  (if error
+    (assoc ctx ::chain/error error)
+    (if result
+      ctx
+      (assoc (chain/terminate ctx)
+             :response
+             {:status 403
+              :body "UNAUTHORIZED"}))))
 
 (def lrs-authorize
   (interceptor
@@ -38,15 +53,5 @@
                  :keys [com.yetanalytics/lrs] :as ctx}]
              (if (p/lrs-auth-async-instance? lrs)
                (a/go
-                 (if (a/<! (lrs/authorize-async lrs ctx auth-identity))
-                   ctx
-                   (assoc (chain/terminate ctx)
-                          :response
-                          {:status 403
-                           :body "UNAUTHORIZED"})))
-               (if (lrs/authorize lrs ctx auth-identity)
-                 ctx
-                 (assoc (chain/terminate ctx)
-                        :response
-                        {:status 403
-                         :body "UNAUTHORIZED"}))))}))
+                 (handle-authorize ctx (a/<! (lrs/authorize-async lrs ctx auth-identity))))
+               (handle-authorize ctx (lrs/authorize lrs ctx auth-identity))))}))

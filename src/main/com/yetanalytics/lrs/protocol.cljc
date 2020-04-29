@@ -1,5 +1,6 @@
 (ns com.yetanalytics.lrs.protocol
-  #?(:cljs (:require-macros [com.yetanalytics.lrs.protocol :refer [make-proto-pred]]))
+  #?(:cljs (:require-macros [com.yetanalytics.lrs.protocol :refer [make-proto-pred
+                                                                   or-error]]))
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec.resources :as xsr]
@@ -26,6 +27,12 @@
 (s/def ::error-ret
   (s/keys :req-un [:ret/error]))
 
+(defmacro or-error
+  "Given a response spec, accept ::error-ret as a result"
+  [spec]
+  `(s/or :response ~spec
+         :error ::error-ret))
+
 ;; About
 ;; /xapi/about
 
@@ -47,9 +54,10 @@
   about-resource?)
 
 (s/def ::get-about-ret
-  (s/keys
-   :req-un [:xapi.about.GET.response/body]
-   :opt-un [::xapi/etag]))
+  (or-error
+   (s/keys
+    :req-un [:xapi.about.GET.response/body]
+    :opt-un [::xapi/etag])))
 
 (defprotocol AboutResourceAsync
   "AsyncProtocol for retrieving LRS info."
@@ -64,9 +72,7 @@
 
 (s/def ::get-about-asyc-ret
   (sc/from-port
-   (s/keys
-    :req-un [:xapi.about.GET.response/body]
-    :opt-un [::xapi/etag])))
+   ::get-about-ret))
 
 ;; Document APIs
 
@@ -99,8 +105,7 @@
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
 (s/def ::set-document-ret
-  (s/or :success nil?
-        :error ::error-ret))
+  (or-error #{{}}))
 
 (s/def ::get-document-params
   (s/or :state
@@ -114,8 +119,8 @@
   (s/nilable :com.yetanalytics.lrs.xapi/document))
 
 (s/def ::get-document-ret
-  (s/keys :opt-un [::xapi/etag
-                   :get-document-ret/document]))
+  (or-error (s/keys :opt-un [::xapi/etag
+                             :get-document-ret/document])))
 
 (s/def ::get-document-ids-params
   (s/or :state
@@ -131,8 +136,9 @@
              :into []))
 
 (s/def ::get-document-ids-ret
-  (s/keys :opt-un [::xapi/etag
-                   :get-document-ids-ret/document-ids]))
+  (or-error
+   (s/keys :opt-un [::xapi/etag
+                    :get-document-ids-ret/document-ids])))
 
 (s/def ::get-document-all-params
   (s/or :single
@@ -149,13 +155,13 @@
         (sc/with-conform-gen :xapi.document.activity-profile/id-params)))
 
 (s/def ::delete-document-ret
-  nil?)
+  (or-error #{{}}))
 
 (s/def ::delete-documents-params
   (s/or :state (sc/with-conform-gen :xapi.document.state/context-params)))
 
 (s/def ::delete-documents-ret
-  nil?)
+  (or-error #{{}}))
 
 (s/def ::delete-document-all-params
   (s/or :single
@@ -186,26 +192,23 @@
 
 (s/def ::set-document-async-ret
   (sc/from-port
-   (s/or :success nil?
-         :error ::error-ret)))
+   ::set-document-ret))
 
 (s/def ::get-document-async-ret
   (sc/from-port
-   (s/keys :opt-un [::xapi/etag
-                    :get-document-ret/document])))
+   ::get-document-ret))
 
 (s/def ::get-document-ids-async-ret
   (sc/from-port
-   (s/keys :opt-un [::xapi/etag
-                    :get-document-ids-ret/document-ids])))
+   ::get-document-ids-ret))
 
 (s/def ::delete-document-async-ret
   (sc/from-port
-   nil?))
+   ::delete-document-ret))
 
 (s/def ::delete-documents-async-ret
   (sc/from-port
-   nil?))
+   ::delete-documents-ret))
 
 ;; Activities
 ;; /xapi/activities
@@ -224,8 +227,9 @@
   (s/nilable ::xs/activity))
 
 (s/def ::get-activity-ret
-  (s/keys :opt-un [::xapi/etag
-                   :get-activity-ret/activity]))
+  (or-error
+   (s/keys :opt-un [::xapi/etag
+                    :get-activity-ret/activity])))
 
 (defprotocol ActivityInfoResourceAsync
   "Async protocol for retrieving activity info."
@@ -240,8 +244,7 @@
 
 (s/def ::get-activity-async-ret
   (sc/from-port
-   (s/keys :opt-un [::xapi/etag
-                    :get-activity-ret/activity])))
+   ::get-activity-ret))
 
 ;; Agents
 ;; /xapi/agents
@@ -261,9 +264,10 @@
   (sc/with-conform-gen :xapi.agents.GET.request/params))
 
 (s/def ::get-person-ret
-  (s/keys
-   :req-un [:xapi.agents.GET.response/person]
-   :opt-un [::xapi/etag]))
+  (or-error
+   (s/keys
+    :req-un [:xapi.agents.GET.response/person]
+    :opt-un [::xapi/etag])))
 
 (defprotocol AgentInfoResourceAsync
   "Async protocol for retrieving information on agents."
@@ -281,9 +285,7 @@
 
 (s/def ::get-person-async-ret
   (sc/from-port
-   (s/keys
-    :req-un [:xapi.agents.GET.response/person]
-    :opt-un [::xapi/etag])))
+   ::get-person-ret))
 
 ;; Statements
 ;; /xapi/statements
@@ -314,8 +316,8 @@
   (s/coll-of :statement/id :kind vector? :into []))
 
 (s/def ::store-statements-ret
-  (s/or :success (s/keys :req-un [:store-statements-ret/statement-ids])
-        :error ::error-ret))
+  (or-error
+   (s/keys :req-un [:store-statements-ret/statement-ids])))
 
 
 (s/def ::get-statements-ret
@@ -327,7 +329,7 @@
                           :req-un [::ss/attachments
                                    :xapi.statements.GET.response/statement-result])
         :error ::error-ret))
-
+;; TODO: wrap in map
 (s/def ::consistent-through-ret
   ::xs/timestamp)
 
@@ -367,8 +369,7 @@
 
 (s/def ::store-statements-async-ret
   (sc/from-port
-   (s/or :success (s/keys :req-un [:store-statements-ret/statement-ids])
-         :error ::error-ret)))
+   (or-error (s/keys :req-un [:store-statements-ret/statement-ids]))))
 
 #_(s/def :get-statements-async-ret/statement-result-chan
   (sc/from-port-coll
@@ -402,6 +403,7 @@
   (sc/from-port
    ::consistent-through-ret))
 
+;; TODO: handle auth errors
 ;; Auth
 (defprotocol LRSAuth
   "Protocol for an authenticatable LRS"
@@ -416,11 +418,17 @@
 (s/def ::lrs-auth-instance
   lrs-auth-instance?)
 
-(s/def ::authenticate-ret
+(s/def :authenticate-ret/result
   ::auth/authenticate-result)
 
-(s/def ::authorize-ret
+(s/def ::authenticate-ret
+  (or-error (s/keys :req-un [:authenticate-ret/result])))
+
+(s/def :authorize-ret/result
   boolean?)
+
+(s/def ::authorize-ret
+  (or-error (s/keys :req-un [:authorize-ret/result])))
 
 (defprotocol LRSAuthAsync
   "Protocol for an authenticatable LRS"
@@ -437,11 +445,11 @@
 
 (s/def ::authenticate-async-ret
   (sc/from-port
-   ::auth/authenticate-result))
+   ::authenticate-ret))
 
 (s/def ::authorize-async-ret
   (sc/from-port
-   boolean?))
+   ::authorize-ret))
 
 
 ;; Spec for the whole LRS

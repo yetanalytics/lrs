@@ -733,7 +733,7 @@
       p/DocumentResource
       (-set-document [lrs _ params document merge?]
         (try (swap! state update :state/documents transact-document params document merge?)
-             nil
+             {}
              (catch #?(:clj clojure.lang.ExceptionInfo
                        :cljs ExceptionInfo) exi
                {:error exi})))
@@ -743,10 +743,10 @@
         {:document-ids (get-document-ids @state params)})
       (-delete-document [lrs _ params]
         (swap! state update :state/documents delete-document params)
-        nil)
+        {})
       (-delete-documents [lrs _ params]
         (swap! state update :state/documents delete-documents params)
-        nil)
+        {})
       p/DocumentResourceAsync
       (-set-document-async [lrs auth-identity params document merge?]
         (a/go
@@ -788,19 +788,18 @@
       p/LRSAuth
       (-authenticate [lrs ctx]
         ;; Authenticate is a no-op right now, just returns a dummy
-        {:scopes #{:scope/all}
-         :prefix ""
-         :auth {:no-op {}}})
+        {:result
+         {:scopes #{:scope/all}
+          :prefix ""
+          :auth {:no-op {}}}})
       (-authorize [lrs ctx auth-identity]
         ;; Auth
-        true)
+        {:result true})
       p/LRSAuthAsync
       (-authenticate-async [lrs ctx]
-        (a/go {:scopes #{:scope/all}
-               :prefix ""
-               :auth {:no-op {}}}))
+        (a/go (p/-authenticate lrs ctx)))
       (-authorize-async [lrs ctx auth-identity]
-        (a/go true))
+        (a/go (p/-authorize lrs ctx auth-identity)))
       DumpableMemoryLRS
       (dump [_]
         @state))))

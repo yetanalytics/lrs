@@ -9,7 +9,8 @@
             [clojure.core.async :as a]
             [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
-            [com.yetanalytics.lrs.xapi.statements.timestamp :as t]))
+            [com.yetanalytics.lrs.xapi.statements.timestamp :as t]
+            [clojure.spec.test.alpha :as stest]))
 
 (alias 'stc 'clojure.spec.test.check)
 
@@ -25,10 +26,38 @@
               :input :json "dev-resources/datasim/input/tc3.json"))))
 
 
+;; instrument LRS api fns throughout tests
+(stest/instrument `[get-about
+                    get-about-async
+                    set-document
+                    set-document-async
+                    get-document
+                    get-document-async
+                    get-document-ids
+                    get-document-ids-async
+                    delete-document
+                    delete-document-async
+                    delete-documents
+                    delete-documents-async
+                    get-activity
+                    get-activity-async
+                    get-person
+                    get-person-async
+                    store-statements
+                    store-statements-async
+                    get-statements
+                    get-statements-async
+                    consistent-through
+                    consistent-through-async
+                    authenticate
+                    authenticate-async
+                    authorize
+                    authorize-async
+                    ])
 
 
 (deftest query-test
-  (let [auth-id {:auth :com.yetanalytics.lrs.auth/no-op
+  (let [auth-id {:auth {:no-op {}}
                  :prefix ""
                  :scopes #{:scope/all}
                  :agent {"mbox" "mailto:lrs@yetanalytics.io"}}]

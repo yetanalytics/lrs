@@ -1,6 +1,7 @@
 (ns mem-lrs.server
   #?(:clj (:gen-class)) ; for -main method in uberjar
   (:require
+   [com.yetanalytics.lrs :as lrs]
    #?(:cljs [cljs.nodejs :as node])
    [io.pedestal.http :as server]
    [io.pedestal.http.route :as route]
@@ -8,7 +9,8 @@
    [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
    [com.yetanalytics.lrs.pedestal.interceptor :as i]
    [#?(:clj io.pedestal.log
-       :cljs com.yetanalytics.lrs.util.log) :as log]))
+       :cljs com.yetanalytics.lrs.util.log) :as log]
+   [clojure.spec.test.alpha :as stest :include-macros true]))
 
 ;; This is an adapted service map, that can be started and stopped
 ;; From the REPL you can call server/start and server/stop on this service
@@ -21,6 +23,48 @@
              lrs]
       :or {reload-routes? true
            lrs (new-lrs {})}}]
+  (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
+            :fns (stest/instrument
+                  `[lrs/get-about
+                    lrs/get-about-async
+                    lrs/set-document
+                    lrs/set-document-async
+                    lrs/get-document
+                    lrs/get-document-async
+                    lrs/get-document-ids
+                    lrs/get-document-ids-async
+                    lrs/delete-document
+                    lrs/delete-document-async
+                    lrs/delete-documents
+                    lrs/delete-documents-async
+                    lrs/get-activity
+                    lrs/get-activity-async
+                    lrs/get-person
+                    lrs/get-person-async
+                    lrs/store-statements
+                    lrs/store-statements-async
+                    lrs/get-statements
+                    lrs/get-statements-async
+                    lrs/consistent-through
+                    lrs/consistent-through-async
+                    lrs/authenticate
+                    lrs/authenticate-async
+                    lrs/authorize
+                    lrs/authorize-async
+
+                    ;; response handling
+                    com.yetanalytics.lrs.pedestal.routes.about/get-response
+                    com.yetanalytics.lrs.pedestal.routes.activities/get-response
+                    com.yetanalytics.lrs.pedestal.routes.agents/get-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/put-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/post-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/delete-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/put-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/post-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/get-response
+                    ]))
   (log/info :msg "Creating your [DEV] server...")
   (-> service/service ;; start with production configuration
       (merge {:env :dev
@@ -47,7 +91,6 @@
 (defn ^:export -main
   "The entry-point for 'lein run'"
   [& args]
-  (log/info :msg "Creating your server...")
   (run-dev :reload-routes? false))
 
 #?(:cljs (set! *main-cli-fn* -main))

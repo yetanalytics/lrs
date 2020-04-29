@@ -22,7 +22,7 @@
 (s/fdef get-about
         :args (s/cat :lrs (s/with-gen ::p/about-resource-instance
                             lrs-gen-fn)
-                     :auth-identity ::auth/identity)
+                     :auth-identity (s/nilable ::auth/identity))
         :ret ::p/get-about-ret)
 
 (defn get-about-async
@@ -33,7 +33,7 @@
 (s/fdef get-about-async
         :args (s/cat :lrs (s/with-gen ::p/about-resource-async-instance
                             lrs-gen-fn)
-                     :auth-identity ::auth/identity)
+                     :auth-identity (s/nilable ::auth/identity))
         :ret ::p/get-about-asyc-ret)
 
 ;; Documents
