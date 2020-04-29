@@ -788,19 +788,18 @@
       p/LRSAuth
       (-authenticate [lrs ctx]
         ;; Authenticate is a no-op right now, just returns a dummy
-        {:scopes #{:scope/all}
-         :prefix ""
-         :auth {:no-op {}}})
+        {:result
+         {:scopes #{:scope/all}
+          :prefix ""
+          :auth {:no-op {}}}})
       (-authorize [lrs ctx auth-identity]
         ;; Auth
-        true)
+        {:result true})
       p/LRSAuthAsync
       (-authenticate-async [lrs ctx]
-        (a/go {:result {:scopes #{:scope/all}
-                        :prefix ""
-                        :auth {:no-op {}}}}))
+        (a/go (p/-authenticate lrs ctx)))
       (-authorize-async [lrs ctx auth-identity]
-        (a/go {:result true}))
+        (a/go (p/-authorize lrs ctx auth-identity)))
       DumpableMemoryLRS
       (dump [_]
         @state))))
