@@ -20,21 +20,25 @@ run-dev:
 	clojure -A:dev -m mem-lrs.server
 
 run-dev-cljs:
-	clj -Adev -m cljs.main -re node -d out -t nodejs -O none -co "{:install-deps,true}" -c mem-lrs.server
+	clojure -Adev -m cljs.main -re node -d out -t nodejs -O none -co "{:install-deps,true}" -c mem-lrs.server
 	node out/main.js
 
 run-dev-cljs-simple:
-	clj -Adev -m cljs.main -re node -d out -t nodejs -O simple -co "{:install-deps,true}" -c mem-lrs.server
+	clojure -Adev -m cljs.main -re node -d out -t nodejs -O simple -co "{:install-deps,true}" -c mem-lrs.server
 	node out/main.js
 
 test-lib-cljs:
-	clj -Adev -m cljs.main -re node -d out -o "out/test.js" -t nodejs -O none -co "{:install-deps,true}" -c com.yetanalytics.test-runner
+	clojure -Adev -m cljs.main -re node -d out -o "out/test.js" -t nodejs -O none -co "{:install-deps,true}" -c com.yetanalytics.test-runner
 	node out/test.js
+
 test-lib-clj:
 	clojure -A:dev -m com.yetanalytics.test-runner
+
 test-lib: test-lib-clj test-lib-cljs
+
 test-conformance: lrs-conformance-test-suite
 	clojure -A:dev -m com.yetanalytics.conformance-test
+
 test-all: test-lib test-conformance
 
 ci: test-all
