@@ -2,7 +2,7 @@
   (:require [cljs.nodejs :as node]
             [goog.string :refer [format]]
             [goog.string.format]
-            ["log4js" :as log]))
+            [log4js :as log]))
 
 (def logger
   (delay (let [new-logger (log/getLogger)]
