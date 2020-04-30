@@ -5,7 +5,10 @@ lrs-conformance-test-suite:
 	cd lrs-conformance-test-suite; rm package-lock.json; npm install
 
 clean:
-	rm -rf target lrs-conformance-test-suite pom.xml.asc logs out node_modules .cljs_node_repl package.json package-lock.json
+	rm -rf target pom.xml.asc logs out node_modules .cljs_node_repl package.json package-lock.json
+
+node_modules:
+	clojure -Adev -m cljs.main --install-deps
 
 repl:
 	clj -A:dev:test -r
