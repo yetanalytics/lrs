@@ -20,11 +20,11 @@ run-dev:
 	clojure -A:dev -m mem-lrs.server
 
 run-dev-cljs:
-	clojure -Adev -m cljs.main -re node -d out -t nodejs -O none -co "{:install-deps,true}" -c mem-lrs.server
+	clojure -Adev -m cljs.main -re node -d out -t nodejs -O none -co "{:install-deps,true}" -v -c mem-lrs.server
 	node out/main.js
 
 run-dev-cljs-simple:
-	clojure -Adev -m cljs.main -re node -d out -t nodejs -O simple -co "{:install-deps,true}" -c mem-lrs.server
+	clojure -Adev -m cljs.main -re node -d out -t nodejs -O simple -co "{:install-deps,true}" -v -c mem-lrs.server
 	node out/main.js
 
 test-lib-cljs:
