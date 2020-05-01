@@ -67,16 +67,24 @@
                             a/close!)
                           fn1))))))))
 
-#?(:clj (defn conform-promise-port
-          [x]
-          (if (satisfies? FakeChan x)
-            (state x)
-            (a/<!! x))))
+(defn conform-promise-port
+  [x]
+  (if (satisfies? FakeChan x)
+    (state x)
+    #?(:clj (a/<!! x)
+       :cljs (throw
+              (ex-info "Thread join Not possible in cljs!"
+                       {:type ::thread-join-impossible
+                        :chan x})))))
 
-#?(:clj (defn conform-coll-port [x]
-          (if (satisfies? FakeChan x)
-            (state x)
-            (a/<!! (a/into [] x)))))
+(defn conform-coll-port [x]
+  (if (satisfies? FakeChan x)
+    (state x)
+    #?(:clj (a/<!! (a/into [] x))
+       :cljs (throw
+              (ex-info "Thread join Not possible in cljs!"
+                       {:type ::thread-join-impossible
+                        :chan x})))))
 
 (defmacro from-port [spec]
   `(s/with-gen
