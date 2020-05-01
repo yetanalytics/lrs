@@ -36,7 +36,7 @@
 
 (defn make-parse-context
   [opts row route]
-  (assert (vector? route) (syntax-error row nil "the element" "a vector" route))
+  (assert (vector? route) (syntax-error nil row "a vector" route))
   (merge {:row       row
           :original  route
           :remaining route

@@ -14,11 +14,9 @@
 
 #?(:clj (alias 'stc 'clojure.spec.test.check))
 
-(def stc-ret #?(:clj :clojure.spec.test.check/ret
-                :cljs :clojure.test.check/ret))
+(def stc-ret :clojure.spec.test.check/ret)
 
-(def stc-opts #?(:clj :clojure.spec.test.check/opts
-                 :cljs :clojure.test.check/opts))
+(def stc-opts :clojure.spec.test.check/opts)
 
 (defn failures [check-results]
   (mapv

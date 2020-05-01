@@ -2,4 +2,5 @@
 ;;; For more information see (info "(emacs) Directory Variables")
 
 ((nil .
-      ((cider-clojure-cli-global-options . "-A:dev:bench"))))
+      ((cider-clojure-cli-global-options . "-A:dev:bench")
+       (cider-default-cljs-repl . node))))

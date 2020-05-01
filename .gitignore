@@ -17,3 +17,5 @@ pom.xml.asc
 npm-debug.log
 /node_modules
 .rebel_readline_history
+package.json
+package-lock.json

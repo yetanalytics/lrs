@@ -1,5 +1,8 @@
 (ns com.yetanalytics.test-runner
-  (:require [clojure.test :as test
+  (:require
+   clojure.test.check
+   clojure.test.check.properties
+   [clojure.test :as test
              :refer [run-tests] :include-macros true]
             #?(:clj com.yetanalytics.lrs-test
                :cljs [cljs.nodejs :refer [process]])
