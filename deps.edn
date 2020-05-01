@@ -1,11 +1,12 @@
 {:paths ["src/main" "resources"]
  :deps
  {org.clojure/clojure {:mvn/version "1.10.1"}
+  org.clojure/clojurescript {:mvn/version "1.10.741"}
+  org.clojure/core.async {:mvn/version "1.1.587"}
   com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
                                 :sha "e2c517e7adcedc7f3012b90bce274e2c33cdbcc1"
                                 :exclusions [org.clojure/clojurescript]}
   io.pedestal/pedestal.service {:mvn/version "0.5.7"}
-  org.clojure/clojurescript {:mvn/version "1.10.741"}
   macchiato/core {:mvn/version "0.2.17"
                   :exclusions [funcool/cuerdas]
                   }
