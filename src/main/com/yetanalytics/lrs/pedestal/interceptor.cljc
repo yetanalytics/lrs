@@ -173,138 +173,22 @@
   [etag-header]
   (into #{} (re-seq etag-string-pattern etag-header)))
 
-(declare etag-leave)
-
-(defn de-servlet-chan
-  "Remove any servlet/response interceptors, and add one that returns async context."
-  [ctx]
-  (let [out (a/promise-chan)]
-    [out
-     (-> ctx
-         (assoc :enter-async [])
-         (update ::chain/stack
-                 #(apply list
-                         (concat (take-while (fn [i]
-                                               (not= (:name i)
-                                                     #?(:clj :io.pedestal.http.impl.servlet-interceptor/ring-response
-                                                        :cljs :com.yetanalytics.node-chain-provider/ring-response)))
-                                             %)
-                                 (list
-                                  (i/interceptor
-                                   {:leave (fn [ctx]
-                                             ;; return the promise
-                                             (a/go (a/>! out ctx)
-                                                   ctx))}))))))]))
-;; TODO: stop using this in favor of only applying the etag interceptor to doc
-;; routes
-
-(defn etag-route?
-  [req-uri]
-  (some #(.endsWith #?(:cljs req-uri
-                       :clj ^String req-uri)
-                    %)
-        ["/activities/state"
-         "/activities/profile"
-         "/agents/profile"]))
-
-(defn etag-enter [{:keys [request] :as ctx}]
-  (let [{{:strs [if-match if-none-match]} :headers
-         method :request-method
-         req-uri :uri} request]
-    (if (and
-         ;; TODO: This should only be applied to the state + profile routes
-         ;; But we can't move it due to interceptor ordering. Should be fixed.
-         (etag-route? req-uri)
-         (#{:put :post :delete} method)
-         (or if-match if-none-match))
-      (a/go
-        (let [[get-ctx ctx'] (de-servlet-chan ctx)
-              _ (chain/execute (-> ctx'
-                                   (update :request dissoc :body)
-                                   (assoc-in [:request
-                                              :request-method]
-                                             :get)))
-              if-match-ok? (case if-match
-                             nil true
-                             "*" (= 200
-                                    (get-in (a/<! get-ctx)
-                                            [:response
-                                             :status]))
-                             (contains? (etag-header->etag-set if-match)
-                                        (::etag (a/<! get-ctx))))
-
-              if-none-match-ok? (case if-none-match
-                                  nil true
-                                  "*" (= 404
-                                         (get-in (a/<! get-ctx)
-                                                 [:response
-                                                  :status]))
-                                  (not (contains? (etag-header->etag-set if-none-match)
-                                                  (::etag (a/<! get-ctx)))))]
-          (if (and if-match-ok? if-none-match-ok?)
-            ctx
-            (let [{{route-interceptors :interceptors
-                    :as route} :route
-                   :as after-route-ctx} (chain/execute-only
-                                         (chain/terminate-when
-                                          ctx
-                                          :route)
-                                         :enter)]
-              (-> ctx
-                  ;; Run the leave stuff
-                  (dissoc ::chain/queue)
-                  (chain/enqueue (mapv #(assoc % :enter nil)
-                                       route-interceptors))
-                  ;; Set the error response
-                  (assoc :response
-                         (or
-                          ;; If the params are not valid for the GET
-                          ;; then the status is contagious
-                          (let [get-response (:response (a/<! get-ctx))]
-                            (when (= 400 (:status get-response))
-                              {:status 400}))
-                          ;; If the enter interceptors (except the handler)
-                          ;; for this request would return a 400
-                          (when-let [error-response
-                                     (let [[p ctx'] (de-servlet-chan ctx)]
-                                       (-> ctx'
-                                           (dissoc ::chain/queue)
-                                           (chain/enqueue (into []
-                                                                (butlast route-interceptors)))
-                                           (chain/execute-only :enter))
-                                       (:response (a/<! p)))]
-                            (when (= 400 (:status error-response))
-                              error-response))
-                          ;; Otherwise, it's a precon fail
-                          {:status 412})))))))
-      ctx)))
-
 (defn- quote-etag [etag]
   (str "\"" etag "\""))
 
 (defn etag-leave
   [{:keys [request response] :as ctx}]
-  (if (and
-       (etag-route? (:uri request))
-       (#{:get :head} (:request-method request)))
-    (let [etag (or
-                (::etag ctx)
-                (get-in response [:headers "etag"])
-                (get-in response [:headers "Etag"])
-                (get-in response [:headers "ETag"])
-                (some-> response :body meta :etag)
-                (calculate-etag (:body response)))]
-      (-> ctx
-          (assoc ::etag etag)
-          (update-in [:response :headers] dissoc "etag" "ETag" "Etag")
-          (update-in [:response :headers] merge {"ETag" (quote-etag etag)})))
-    ctx))
-
-(def etag-interceptor
-  (i/interceptor
-   {:name ::etag
-    :enter etag-enter
-    :leave etag-leave}))
+  (let [etag (or
+              (::etag ctx)
+              (get-in response [:headers "etag"])
+              (get-in response [:headers "Etag"])
+              (get-in response [:headers "ETag"])
+              (some-> response :body meta :etag)
+              (calculate-etag (:body response)))]
+    (-> ctx
+        (assoc ::etag etag)
+        (update-in [:response :headers] dissoc "etag" "ETag" "Etag")
+        (update-in [:response :headers] merge {"ETag" (quote-etag etag)}))))
 
 ;; Combo
 (def require-and-set-xapi-version-interceptor
@@ -479,7 +363,6 @@
                        true (conj (route/method-param :method))
                        ;; The etag interceptor may mess with routes, so it's important not to have any
                        ;; important leave stuff after it in the defaults
-                       true (conj etag-interceptor)
                        ;; TODO: If all platforms support async/NIO responses, we can bring this back
                                         ;(not (nil? resource-path)) (conj (middlewares/fast-resource resource-path))
                        #?@(:clj [(some? resource-path) (conj (middlewares/resource resource-path))
