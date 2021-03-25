@@ -39,11 +39,13 @@
        (failures
         (stest/check `mem/store-agents
                      {stc-opts {:num-tests 3 :max-size 2}})))))
+
 (deftest transact-document-test
   (is (empty?
        (failures
         (stest/check `mem/transact-document
                      {stc-opts {:num-tests 3 :max-size 2}})))))
+
 (deftest get-document-test
   (is (empty?
        (failures
@@ -85,6 +87,7 @@
        (failures
         (stest/check `mem/statements-seq
                      {stc-opts {:num-tests 3 :max-size 1}})))))
+
 (deftest fixture-state-test
   (is (empty?
        (failures
