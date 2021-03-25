@@ -2,7 +2,7 @@
  :deps
  {org.clojure/clojure {:mvn/version "1.10.1"}
   org.clojure/clojurescript {:mvn/version "1.10.741"}
-  org.clojure/core.async {:mvn/version "1.3.610" #_"1.1.587"}
+  org.clojure/core.async {:mvn/version "1.1.587"}
   com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
                                 :sha "1c653a932618b07ee2f03e747e56aaa17fea250b"
                                 :exclusions [org.clojure/clojurescript]}
@@ -22,6 +22,8 @@
   {:extra-paths ["src/test" "src/dev" "dev-resources"]
    :extra-deps
    {;; cider/piggieback {:mvn/version "0.3.8"}
+    ;; Need to override core.async version due to to-chan! function in datasim
+    org.clojure/core.async {:mvn/version "1.3.610"}
     org.clojure/test.check {:mvn/version "1.0.0"}
     io.pedestal/pedestal.jetty {:mvn/version "0.5.7"}
     ch.qos.logback/logback-classic {:mvn/version "1.2.3"
@@ -32,7 +34,6 @@
     io.pedestal/pedestal.service-tools {:mvn/version "0.5.7"}
     com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
                               :sha "0047cb3123e32b72380ea31ec98a26ef85543b63"
-                                   #_"423bd6c301ce8503f5c18b43df098bbe64f8f1ab"
                               ;; excluding clojure.java-time causes exception
                               :exclusions [cheshire/cheshire
                                            com.yetanalytics/xapi-schema
@@ -48,7 +49,6 @@
                 com.yetanalytics/datasim
                 {:git/url "https://github.com/yetanalytics/datasim.git"
                  :sha "0047cb3123e32b72380ea31ec98a26ef85543b63"
-                      #_"423bd6c301ce8503f5c18b43df098bbe64f8f1ab"
                  :exclusions [cheshire/cheshire
                               clojure.java-time/clojure.java-time
                               com.yetanalytics/xapi-schema
