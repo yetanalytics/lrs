@@ -52,8 +52,7 @@
                     authenticate
                     authenticate-async
                     authorize
-                    authorize-async
-                    ])
+                    authorize-async])
 
 
 (deftest query-test
@@ -69,8 +68,7 @@
         s-count 100
         lrs (doto (mem/new-lrs {:statements-result-max s-count})
               (store-statements auth-id
-                                (into [] (take s-count)
-                                      test-statements)
+                                (into [] (take s-count) test-statements)
                                 []))
         get-ss #(into []
                       (get-in (get-statements lrs auth-id % #{"en-US"})
@@ -206,4 +204,15 @@
           (is (= (cs/upper-case id)
                  (get-in (get-statements lrs auth-id {:statementId id}
                                          #{"en-US"})
-                         [:statement "id"]))))))))
+                         [:statement "id"]))))))
+    (testing "Empty maps do not cause errors"
+      (let [s (-> (first test-statements)
+                  (assoc-in ["verb" "display"] {}))
+            id (get s "id")
+            lrs (doto (mem/new-lrs {:statements-result-max 1})
+                  (store-statements auth-id [s] []))]
+        (is (:statement (get-statements lrs auth-id {:statementId id} #{"en-US"})))
+        (is (= {}
+               (-> (get-statements lrs auth-id {:statementId id} #{"en-US"})
+                   :statement
+                   (get-in ["verb" "display"]))))))))
