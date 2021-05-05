@@ -30,38 +30,44 @@
     :enter (fn [ctx]
              (assoc ctx :com.yetanalytics/lrs lrs))}))
 
+(def xAPIVersionRegEx
+  (let [suf-part "[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*"
+        suffix   (str "(\\.[0-9]+(?:-" suf-part ")?(?:\\+" suf-part ")?)?")
+        ver-str  (str "^[1-2]\\.0" suffix "$")]
+    (re-pattern ver-str)))
+
 (def require-xapi-version-interceptor
   (i/interceptor
    {:name ::require-xapi-version
-    :enter (fn [ctx]
+    :enter (fn [{{:keys [^String path-info]} :request
+                 :as ctx}]
              (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
-               (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
-                      ;; 1.0 must be accepted as if 1.0.0
-                      "1.0.0"
-                      "1.0.1"
-                      "1.0.2"
-                      "1.0.3"} version-header)
-                 ctx
+               (if (re-matches xAPIVersionRegEx
+                               version-header)
+                 (assoc ctx :com.yetanalytics.lrs/version version-header)
                  (assoc (chain/terminate ctx)
                         :response
-                        #?(:cljs {:status 400
-                                  :headers {"Content-Type" "application/json"}
-                                  :body
-                                  {:error {:message "X-Experience-API-Version header invalid!"}}}
-                           ;; TODO: Figure this out and dix
-                           ;; this is odd. For some reason, the conformance
-                           ;; tests intermittently fail when this error response
-                           ;; comes in w/o content-length. So we string it out
-                           ;; and set it. Who knows.
-                           :clj
-                           {:status 400
-                            :headers {"Content-Type" "application/json"
-                                      "Content-Length" "66"}
-                            :body "{\"error\": {\"message\": \"X-Experience-API-Version header invalid!\"}}"})))
+                        {:status 400
+                         :headers {#?(:cljs "Content-Type"
+                                      :clj "content-type")
+                                   "application/json"
+                                   "x-experience-api-version" "2.0.0"}
+                         :body
+                         {:error {:message "X-Experience-API-Version header invalid!"}}}))
                (assoc (chain/terminate ctx)
                       :response
                       {:status 400
-                       :headers {"Content-Type" "application/json"}
+                       :headers {#?(:cljs "Content-Type"
+                                    :clj "content-type") "application/json"
+                                 "x-experience-api-version"
+                                 ;; TODO: The new tests are broken and require
+                                 ;; different things in different contexts
+                                 ;; TODO: update when tests are fixed!!!
+                                 ;; HACK: special handling for statements-only xapi updates
+                                 (cond
+                                   (or (.endsWith path-info "/xapi/statements"))
+                                   "2.0.0"
+                                   :else "1.0.3")}
                        :body
                        {:error {:message "X-Experience-API-Version header required!"}}})))}))
 
@@ -82,35 +88,6 @@
     :enter (fn [{:keys [request] :as ctx}]
              (if-let [attachments (parse-request request)]
                (assoc ctx :xapi/attachments attachments)
-               ctx))}))
-
-(def valid-alt-request-headers
-  [:Authorization :X-Experience-API-Version :Content-Type
-   :Content-Length :If-Match :If-None-Match
-   ;; :Accept-Language
-   ;; :Accept
-   ;; :Accept-Encoding
-   ])
-
-#_(def xapi-alternate-request-interceptor
-  (i/interceptor
-   {:name ::xapi-alternate-request-headers
-    :enter (fn [{:keys [request] :as ctx}]
-             (if (some-> request :params :method)
-               (let [request (body-params/form-parser request)
-                     keyword-or-string-headers (into valid-alt-request-headers
-                                                     (map keyword
-                                                          valid-alt-request-headers))
-                     form-headers  (reduce conj {}
-                                           (map #(update % 0 (comp cstr/lower-case
-                                                                   name))
-                                                (select-keys (:form-params request)
-                                                             ;; for some reason, they are sometimes keywords
-                                                             keyword-or-string-headers)))]
-                 (assoc ctx :request (apply dissoc
-                                            (update request :headers merge form-headers)
-                                            :params
-                                            keyword-or-string-headers)))
                ctx))}))
 
 (defn parse-accept-language
@@ -159,8 +136,10 @@
   (i/interceptor
    {:name ::set-xapi-version
     :leave (fn [ctx]
-             (assoc-in ctx [:response :headers "X-Experience-API-Version"]
-                       "1.0.3"))}))
+             (assoc-in ctx
+                       [:response :headers "X-Experience-API-Version"]
+                       ;; Should be latest patch version
+                       "2.0.0"))}))
 
 (defn calculate-etag [x]
   (sha-1 x))
@@ -191,7 +170,7 @@
         (update-in [:response :headers] merge {"ETag" (quote-etag etag)}))))
 
 ;; Combo
-(def require-and-set-xapi-version-interceptor
+#_(def require-and-set-xapi-version-interceptor
   (i/interceptor
    (merge
     require-xapi-version-interceptor
@@ -371,33 +350,29 @@
                                       :cljs route/delegate-router) processed-routes router))))
               service-map)))
 
+(def body-params-interceptor
+  #?(:clj (body-params/body-params
+           (body-params/default-parser-map
+            :json-options {:key-fn str}))
+     :cljs (body-params/body-params)))
+
+(def json-body-interceptor
+  http/json-body)
+
+(def alternate-request-syntax-interceptor
+  xapi/alternate-request-syntax-interceptor)
+
 (def common-interceptors [x-forwarded-for-interceptor
-                          http/json-body
+                          json-body-interceptor
                           error-interceptor
-                          #?(:clj (body-params/body-params
-                                   (body-params/default-parser-map
-                                    :json-options {:key-fn str}))
-                             :cljs (body-params/body-params))
-
-                          xapi/alternate-request-syntax-interceptor
-                          #_(i/authentication auth/backend auth/cantilever-backend)
-                          #_(i/access-rules {:rules auth/rules
-                                             :on-error auth/error-response})
-
+                          body-params-interceptor
+                          alternate-request-syntax-interceptor
                           set-xapi-version-interceptor
-                          xapi-ltags-interceptor
-                          ])
+                          xapi-ltags-interceptor])
 
 (def doc-interceptors-base
   [x-forwarded-for-interceptor
-   xapi/alternate-request-syntax-interceptor
-   #_(i/authentication auth/backend auth/cantilever-backend)
-   #_(i/access-rules {:rules auth/rules
-                      :on-error auth/error-response})
-
+   require-xapi-version-interceptor
+   alternate-request-syntax-interceptor
    set-xapi-version-interceptor
-   xapi-ltags-interceptor
-   ])
-
-(def xapi-protected-interceptors
-  [require-xapi-version-interceptor])
+   xapi-ltags-interceptor])

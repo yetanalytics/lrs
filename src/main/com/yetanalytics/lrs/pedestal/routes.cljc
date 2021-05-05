@@ -73,21 +73,28 @@
 (defn build [{:keys [lrs]}]
   (let [lrs-i (i/lrs-interceptor lrs)
         global-interceptors-no-auth
-        (conj i/common-interceptors
-              lrs-i)
-        global-interceptors (conj i/common-interceptors
-                                  lrs-i
-                                  auth-i/lrs-authenticate
-                                  auth-i/lrs-authorize
-                                  )
-        protected-interceptors (into global-interceptors
-                                     i/xapi-protected-interceptors)
-        document-interceptors (into (conj i/doc-interceptors-base
-                                          lrs-i
-                                          auth-i/lrs-authenticate
-                                          auth-i/lrs-authorize
-                                          )
-                                    i/xapi-protected-interceptors)]
+        [i/x-forwarded-for-interceptor
+         i/json-body-interceptor
+         i/error-interceptor
+         i/body-params-interceptor
+         i/set-xapi-version-interceptor
+         i/xapi-ltags-interceptor
+         lrs-i]
+        protected-interceptors [i/x-forwarded-for-interceptor
+                                i/json-body-interceptor
+                                i/error-interceptor
+                                i/require-xapi-version-interceptor
+                                i/body-params-interceptor
+                                i/alternate-request-syntax-interceptor
+                                i/set-xapi-version-interceptor
+                                i/xapi-ltags-interceptor
+                                lrs-i
+                                auth-i/lrs-authenticate
+                                auth-i/lrs-authorize]
+        document-interceptors (conj i/doc-interceptors-base
+                                    lrs-i
+                                    auth-i/lrs-authenticate
+                                    auth-i/lrs-authorize)]
     (into #{["/health" :get (conj global-interceptors-no-auth
                                   health)]
             ;; xapi

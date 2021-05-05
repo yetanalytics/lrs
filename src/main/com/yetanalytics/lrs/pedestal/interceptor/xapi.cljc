@@ -34,74 +34,85 @@
   {:name ::alternate-request-syntax-interceptor
    :enter (fn [{:keys [request] :as ctx}]
             ;; If this is a request with a smuggled verb
+            ;; and version is pre-2.0.x
             (if (some-> request :params :method)
-              (if (not= :post (:original-request-method request))
+              ;; Version 2.0.0 and up do not allow this so we error
+              (if (.startsWith
+                   ^String (:com.yetanalytics.lrs/version
+                            ctx)
+                   "2.0")
                 (assoc (chain/terminate ctx)
                        :response
                        {:status 400
                         :body {:error
-                               {:message "xAPI alternate request syntax must use POST!"}}})
-                (if-let [extra-params (some-> ctx
-                                              :request
-                                              :query-params
-                                              not-empty)]
-                  ;; We can't have extra query params
+                               {:message "xAPI alternate request syntax not supported"}}})
+                (if (not= :post (:original-request-method request))
                   (assoc (chain/terminate ctx)
                          :response
                          {:status 400
-                          :body {:error {:message "xAPI Alternate Syntax does not allow extra query params."}}})
-                  (let [{:keys [params form-params]} request
-                        {:strs [content-type
-                                content-length]
-                         :as form-headers}
-                        (reduce conj {}
-                                (map #(update % 0 (comp cstr/lower-case
-                                                        name))
-                                     (select-keys (:form-params request)
-                                                  valid-alt-request-headers)))
-                        new-params (apply dissoc form-params
-                                          ;; don't let content in
-                                          :content
-                                          valid-alt-request-headers)
-                        {:keys [content]} form-params
-                        ?content-type (or content-type
-                                          (and content
-                                               "application/json"))
-                        ?content-bytes
-                        #?(:clj (when content
-                                  (.getBytes ^String content "UTF-8"))
-                           :cljs nil)
-                        ?content-length (or content-length
-                                            #?(:clj (and ?content-bytes
-                                                         (count ?content-bytes))
-                                               :cljs (and content
-                                                          (.-length content))))]
+                          :body {:error
+                                 {:message "xAPI alternate request syntax must use POST!"}}})
+                  (if-let [extra-params (some-> ctx
+                                                :request
+                                                :query-params
+                                                not-empty)]
+                    ;; We can't have extra query params
+                    (assoc (chain/terminate ctx)
+                           :response
+                           {:status 400
+                            :body {:error {:message "xAPI Alternate Syntax does not allow extra query params."}}})
+                    (let [{:keys [params form-params]} request
+                          {:strs [content-type
+                                  content-length]
+                           :as form-headers}
+                          (reduce conj {}
+                                  (map #(update % 0 (comp cstr/lower-case
+                                                          name))
+                                       (select-keys (:form-params request)
+                                                    valid-alt-request-headers)))
+                          new-params (apply dissoc form-params
+                                            ;; don't let content in
+                                            :content
+                                            valid-alt-request-headers)
+                          {:keys [content]} form-params
+                          ?content-type (or content-type
+                                            (and content
+                                                 "application/json"))
+                          ?content-bytes
+                          #?(:clj (when content
+                                    (.getBytes ^String content "UTF-8"))
+                             :cljs nil)
+                          ?content-length (or content-length
+                                              #?(:clj (and ?content-bytes
+                                                           (count ?content-bytes))
+                                                 :cljs (and content
+                                                            (.-length content))))]
 
-                    (cond-> (assoc ctx
-                                   :request
-                                   (-> request
-                                       (dissoc :form-params)
-                                       (update :headers merge form-headers)
-                                       ;; replace params with the other form params
-                                       (assoc :params
-                                              new-params)
-                                       (cond->
-                                           ?content-type
-                                         (assoc :content-type ?content-type)
-                                         ?content-length
-                                         (assoc :content-length ?content-length)
-                                         ;; If there's content, make it an input stream
-                                         #?(:clj ?content-bytes :cljs content)
-                                         (assoc :body #?(:clj (ByteArrayInputStream.
-                                                               ^bytes ?content-bytes)
-                                                         :cljs content)))))
-                      content
-                      ;; TODO: Need to figure out body-params in cljs
-                      #?(:clj (execute-next (body-params/body-params
-                                             (body-params/default-parser-map
-                                              :json-options {:key-fn str})))
-                         :cljs (execute-next (body-params/body-params
-                                              (body-params/default-parser-map))))))))
+                      (cond-> (assoc ctx
+                                     :request
+                                     (-> request
+                                         (dissoc :form-params)
+                                         (update :headers merge form-headers)
+                                         ;; replace params with the other form params
+                                         (assoc :params
+                                                new-params)
+                                         (cond->
+                                             ?content-type
+                                           (assoc :content-type ?content-type)
+                                           ?content-length
+                                           (assoc :content-length ?content-length)
+                                           ;; If there's content, make it an input stream
+                                           #?(:clj ?content-bytes :cljs content)
+                                           (assoc :body #?(:clj (ByteArrayInputStream.
+                                                                 ^bytes ?content-bytes)
+                                                           :cljs content)))))
+                        content
+                        ;; TODO: Need to figure out body-params in cljs
+                        #?(:clj (execute-next (body-params/body-params
+                                               (body-params/default-parser-map
+                                                :json-options {:key-fn str})))
+                           :cljs (execute-next (body-params/body-params
+                                                (body-params/default-parser-map)))))))))
               ctx))})
 
 (defn conform-cheshire [spec-kw x]
