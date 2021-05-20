@@ -223,6 +223,9 @@
 (s/def ::activity-info-resource-instance
   activity-info-resource?)
 
+(s/def ::get-activity-params
+  (sc/with-conform-gen :xapi.activities.GET.request/params))
+
 (s/def :get-activity-ret/activity
   (s/nilable ::xs/activity))
 
