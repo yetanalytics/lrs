@@ -28,4 +28,4 @@
             (if (p/about-resource-async? lrs)
               (a/go (get-response ctx
                                   (a/<! (lrs/get-about-async lrs auth-identity))))
-              (get-response ctx (a/<! (lrs/get-about lrs auth-identity)))))})
+              (get-response ctx (lrs/get-about lrs auth-identity))))})
