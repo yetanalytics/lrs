@@ -296,7 +296,7 @@
   (p/-consistent-through lrs ctx auth-identity))
 
 (s/fdef consistent-through
-  :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
+  :args (s/cat :lrs (s/with-gen ::p/statements-resource-instance
                       lrs-gen-fn)
                :ctx map?
                :auth-identity ::auth/identity)
