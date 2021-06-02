@@ -156,8 +156,7 @@
       (try (assoc ctx
                   :response
                   (if-let [s-data (or statement statement-result)]
-                    (if (and (get-in xapi [:xapi.statements.GET.request/params :attachments])
-                             (seq attachments))
+                    (if (get-in xapi [:xapi.statements.GET.request/params :attachments])
                       {:status 200
                        :headers (cond-> {"Content-Type" att-resp/content-type}
                                   etag (assoc "etag" etag))
