@@ -155,7 +155,7 @@
   (if error (error-response ctx error)
       (try (assoc ctx
                   :response
-                  (if-let [s-data (or statement statement-result)]
+                  (if (or statement statement-result)
                     (if (get-in xapi [:xapi.statements.GET.request/params :attachments])
                       {:status 200
                        :headers (cond-> {"Content-Type" att-resp/content-type}
@@ -180,7 +180,8 @@
                                                    (when-let [more (:more statement-result)]
                                                      (list :more more)))))}
                         {:status 200
-                         :body s-data}))
+                         :body statement}))
+                    ;; not found
                     {:status 404 :body ""}))
            (catch #?(:clj Exception
                      :cljs js/Error) ex
