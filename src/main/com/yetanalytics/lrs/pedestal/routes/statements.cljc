@@ -6,7 +6,8 @@
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             [clojure.core.async :as a :include-macros true]
             [com.yetanalytics.lrs.auth :as auth]
-            [clojure.spec.alpha :as s :include-macros true]))
+            [clojure.spec.alpha :as s :include-macros true]
+            [com.yetanalytics.lrs.pedestal.routes.statements.html :as html]))
 
 (defn error-response
   "Define error responses for statement resource errors. Stick unhandled errors
@@ -140,6 +141,16 @@
         (a/pipe c out-c)))
     out-c))
 
+(defn- accept-html?
+  "Did the user request html?"
+  [ctx]
+  (some-> ctx
+          ^String (get-in [:request
+                           :headers
+                           "accept"])
+   (.startsWith "text/html")))
+
+
 (s/fdef get-response-sync
   :args (s/cat :ctx map?
                :get-statements-ret ::p/get-statements-ret))
@@ -172,19 +183,27 @@
                                              (when-let [more (:more statement-result)]
                                                (list :more more))
                                              (cons :attachments attachments)))))}
-                      (if statement-result
-                        {:status 200
-                         :headers {"Content-Type" "application/json"}
-                         :body (si/lazy-statement-result-async
-                                (a/to-chan (concat (cons :statements
-                                                         (:statements statement-result))
-                                                   (when-let [more (:more statement-result)]
-                                                     (list :more more)))))}
-                        ;; otherwise, statement assumed
-                        {:status 200
-                         ;; TODO: if content-type headers get set here the body
-                         ;; is not coerced
-                         :body statement}))
+                      (if (accept-html? ctx)
+                        (if statement-result
+                          (html/statements-response
+                           ctx
+                           statement-result)
+                          (html/statement-response
+                           ctx
+                           statement))
+                        (if statement-result
+                          {:status 200
+                           :headers {"Content-Type" "application/json"}
+                           :body (si/lazy-statement-result-async
+                                  (a/to-chan (concat (cons :statements
+                                                           (:statements statement-result))
+                                                     (when-let [more (:more statement-result)]
+                                                       (list :more more)))))}
+                          ;; otherwise, statement assumed
+                          {:status 200
+                           ;; TODO: if content-type headers get set here the body
+                           ;; is not coerced
+                           :body statement})))
                     ;; not found
                     {:status 404 :body ""}))
            (catch #?(:clj Exception

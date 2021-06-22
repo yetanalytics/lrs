@@ -16,7 +16,7 @@
   tailrecursion/cljs-priority-map {:mvn/version "1.2.1"
                                    :exclusions [org.clojure/clojure
                                                 org.clojure/clojurescript]}
-  }
+  hiccup/hiccup {:mvn/version "1.0.5"}}
  :aliases
  {:test-cljs
   {:main-opts ["-m" "cljs.main" "-t" "nodejs" "-o" "out/test.js"]}
