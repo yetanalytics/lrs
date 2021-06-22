@@ -140,13 +140,14 @@
         (a/pipe c out-c)))
     out-c))
 
-(s/fdef get-response
+(s/fdef get-response-sync
   :args (s/cat :ctx map?
                :get-statements-ret ::p/get-statements-ret))
 
 (defn get-response-sync
   [{:keys [xapi
-           com.yetanalytics/lrs] :as ctx}
+           com.yetanalytics/lrs]
+    :as ctx}
    {:keys [error
            statement-result
            statement
