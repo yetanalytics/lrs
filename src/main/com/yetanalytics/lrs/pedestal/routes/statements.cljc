@@ -144,7 +144,7 @@
   :args (s/cat :ctx map?
                :get-statements-ret ::p/get-statements-ret))
 
-(defn get-response
+(defn get-response-sync
   [{:keys [xapi
            com.yetanalytics/lrs] :as ctx}
    {:keys [error
@@ -186,6 +186,46 @@
                      :cljs js/Error) ex
              (error-response ctx ex)))))
 
+(defn get-response-async
+  [{{params :xapi.statements.GET.request/params} :xapi
+    :as ctx}
+   r-chan]
+  (a/go
+    (merge
+     ctx
+     (let [header (a/<! r-chan)]
+       (if (= :error header)
+         {:io.pedestal.interceptor.chain/error
+          (a/<! r-chan)}
+         {:response
+          (case header
+             :statement
+             (let [?statement (a/<! r-chan)]
+               (if (map? ?statement)
+                 (if (:attachments params)
+                   {:status 200
+                    :headers {"Content-Type" att-resp/content-type}
+                    :body
+                    (att-resp/build-multipart-async
+                     (aconcat [:statement
+                               ?statement]
+                              r-chan))}
+                   {:status 200
+                    :body ?statement})
+                 {:status 404 :body ""}))
+             :statements
+             (if (:attachments params)
+               {:status 200
+                :headers {"Content-Type" att-resp/content-type}
+                :body
+                (att-resp/build-multipart-async
+                 (aconcat [:statements] r-chan))}
+               {:status 200
+                :headers {"Content-Type" "application/json"}
+                :body
+                (si/lazy-statement-result-async
+                 (aconcat [:statements] r-chan))}))})))))
+
 (def handle-get
   {:name ::handle-get
    :enter
@@ -195,49 +235,17 @@
      (let [params (get-in ctx [:xapi :xapi.statements.GET.request/params] {})
            ltags (get ctx :xapi/ltags [])]
        (if (p/statements-resource-async? lrs)
-         (let [r-chan (lrs/get-statements-async
-                       lrs
-                       auth-identity
-                       params
-                       ltags)]
-           (a/go
-             (let [header (a/<! r-chan)]
-               (case header
-                 :statement
-                 (assoc ctx
-                        :response
-                        (let [?statement (a/<! r-chan)]
-                          (if (map? ?statement)
-                            (if (:attachments params)
-                              {:status 200
-                               :headers {"Content-Type" att-resp/content-type}
-                               :body
-                               (att-resp/build-multipart-async
-                                (aconcat [:statement
-                                          ?statement]
-                                         r-chan))}
-                              {:status 200
-                               :body ?statement})
-                            {:status 404 :body ""})))
-                 :statements
-                 (assoc ctx
-                        :response
-                        (if (:attachments params)
-                          {:status 200
-                           :headers {"Content-Type" att-resp/content-type}
-                           :body
-                           (att-resp/build-multipart-async
-                            (aconcat [:statements] r-chan))}
-                          {:status 200
-                           :headers {"Content-Type" "application/json"}
-                           :body
-                           (si/lazy-statement-result-async
-                            (aconcat [:statements] r-chan))}))
-                 :error
-                 (let [ex (a/<! r-chan)]
-                   (assoc ctx :io.pedestal.interceptor.chain/error ex))))))
-         (get-response ctx (lrs/get-statements
-                            lrs
-                            auth-identity
-                            params
-                            ltags)))))})
+         (get-response-async
+          ctx
+          (lrs/get-statements-async
+           lrs
+           auth-identity
+           params
+           ltags))
+         (get-response-sync
+          ctx
+          (lrs/get-statements
+           lrs
+           auth-identity
+           params
+           ltags)))))})
