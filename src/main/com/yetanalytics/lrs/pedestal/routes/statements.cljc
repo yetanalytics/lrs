@@ -179,7 +179,10 @@
                                                          (:statements statement-result))
                                                    (when-let [more (:more statement-result)]
                                                      (list :more more)))))}
+                        ;; otherwise, statement assumed
                         {:status 200
+                         ;; TODO: if content-type headers get set here the body
+                         ;; is not coerced
                          :body statement}))
                     ;; not found
                     {:status 404 :body ""}))
