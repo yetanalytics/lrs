@@ -234,8 +234,12 @@
                      (aconcat [:statement
                                ?statement]
                               r-chan))}
-                   {:status 200
-                    :body ?statement})
+                   (if (accept-html? ctx)
+                     (html/statement-response
+                      ctx
+                      ?statement)
+                     {:status 200
+                      :body ?statement}))
                  {:status 404 :body ""}))
              :statements
              (if (:attachments params)
@@ -244,11 +248,17 @@
                 :body
                 (att-resp/build-multipart-async
                  (aconcat [:statements] r-chan))}
-               {:status 200
-                :headers {"Content-Type" "application/json"}
-                :body
-                (si/lazy-statement-result-async
-                 (aconcat [:statements] r-chan))}))})))))
+               (if (accept-html? ctx)
+                 (html/statements-response
+                  ctx
+                  (a/<!
+                   (si/collect-result
+                    (aconcat [:statements] r-chan))))
+                 {:status 200
+                  :headers {"Content-Type" "application/json"}
+                  :body
+                  (si/lazy-statement-result-async
+                   (aconcat [:statements] r-chan))})))})))))
 
 (def handle-get
   {:name ::handle-get

@@ -32,6 +32,7 @@
                       {:href (format "/xapi/statements?statementId=%s"
                                      id)}
                       (str id)]]))
+            ;; print the whole thing
             #_[:pre
              (json/generate-string
               statements
