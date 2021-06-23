@@ -23,6 +23,10 @@
     content:\"}\";
 }
 
+.json-map-entry-val > .json-map::after {
+    content: \"},\";
+}
+
 .json-map-entry {
     display:grid;
     grid-template-columns: 1fr 12fr;
@@ -53,6 +57,10 @@
     content:\"]\";
 }
 
+.json-map-entry-val > .json-array::after {
+    content: \"],\";
+}
+
 .json-array-element {
   padding-left: 1em;
 }
@@ -67,9 +75,17 @@
     text-overflow: ellipsis;
 }
 
+.json-map-entry-val > .json-scalar::after {
+    content: \",\";
+}
+
 .json-array-element > .json-scalar {
     background-color: cornsilk;
     text-overflow: ellipsis;
+}
+
+.json-array-element > .json-scalar::after {
+    content: \",\";
 }
 
 
