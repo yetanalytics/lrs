@@ -38,7 +38,9 @@
              ;; if this is an html request, don't require this
              ;; browsers can't provide it
              (if (si/accept-html? ctx)
-               ctx
+               (assoc-in ctx
+                         [:request :headers "x-experience-api-version"]
+                         "1.0.3")
                (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
                  (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
                         ;; 1.0 must be accepted as if 1.0.0
