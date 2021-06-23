@@ -141,16 +141,6 @@
         (a/pipe c out-c)))
     out-c))
 
-(defn- accept-html?
-  "Did the user request html?"
-  [ctx]
-  (some-> ctx
-          ^String (get-in [:request
-                           :headers
-                           "accept"])
-   (.startsWith "text/html")))
-
-
 (s/fdef get-response-sync
   :args (s/cat :ctx map?
                :get-statements-ret ::p/get-statements-ret))
@@ -183,7 +173,7 @@
                                              (when-let [more (:more statement-result)]
                                                (list :more more))
                                              (cons :attachments attachments)))))}
-                      (if (accept-html? ctx)
+                      (if (si/accept-html? ctx)
                         (if statement-result
                           (html/statements-response
                            ctx
@@ -234,7 +224,7 @@
                      (aconcat [:statement
                                ?statement]
                               r-chan))}
-                   (if (accept-html? ctx)
+                   (if (si/accept-html? ctx)
                      (html/statement-response
                       ctx
                       ?statement)
@@ -248,7 +238,7 @@
                 :body
                 (att-resp/build-multipart-async
                  (aconcat [:statements] r-chan))}
-               (if (accept-html? ctx)
+               (if (si/accept-html? ctx)
                  (html/statements-response
                   ctx
                   (a/<!

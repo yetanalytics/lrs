@@ -16,6 +16,7 @@
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [com.yetanalytics.lrs.spec.common :as cs]
             [clojure.core.async :as a :include-macros true]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             #?@(:cljs [[cljs.nodejs :as node]
                        [cljs.pprint :refer [pprint]]
                        [concat-stream]
@@ -34,36 +35,40 @@
   (i/interceptor
    {:name ::require-xapi-version
     :enter (fn [ctx]
-             (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
-               (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
-                      ;; 1.0 must be accepted as if 1.0.0
-                      "1.0.0"
-                      "1.0.1"
-                      "1.0.2"
-                      "1.0.3"} version-header)
-                 ctx
+             ;; if this is an html request, don't require this
+             ;; browsers can't provide it
+             (if (si/accept-html? ctx)
+               ctx
+               (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
+                 (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
+                        ;; 1.0 must be accepted as if 1.0.0
+                        "1.0.0"
+                        "1.0.1"
+                        "1.0.2"
+                        "1.0.3"} version-header)
+                   ctx
+                   (assoc (chain/terminate ctx)
+                          :response
+                          #?(:cljs {:status 400
+                                    :headers {"Content-Type" "application/json"}
+                                    :body
+                                    {:error {:message "X-Experience-API-Version header invalid!"}}}
+                             ;; TODO: Figure this out and dix
+                             ;; this is odd. For some reason, the conformance
+                             ;; tests intermittently fail when this error response
+                             ;; comes in w/o content-length. So we string it out
+                             ;; and set it. Who knows.
+                             :clj
+                             {:status 400
+                              :headers {"Content-Type" "application/json"
+                                        "Content-Length" "66"}
+                              :body "{\"error\": {\"message\": \"X-Experience-API-Version header invalid!\"}}"})))
                  (assoc (chain/terminate ctx)
                         :response
-                        #?(:cljs {:status 400
-                                  :headers {"Content-Type" "application/json"}
-                                  :body
-                                  {:error {:message "X-Experience-API-Version header invalid!"}}}
-                           ;; TODO: Figure this out and dix
-                           ;; this is odd. For some reason, the conformance
-                           ;; tests intermittently fail when this error response
-                           ;; comes in w/o content-length. So we string it out
-                           ;; and set it. Who knows.
-                           :clj
-                           {:status 400
-                            :headers {"Content-Type" "application/json"
-                                      "Content-Length" "66"}
-                            :body "{\"error\": {\"message\": \"X-Experience-API-Version header invalid!\"}}"})))
-               (assoc (chain/terminate ctx)
-                      :response
-                      {:status 400
-                       :headers {"Content-Type" "application/json"}
-                       :body
-                       {:error {:message "X-Experience-API-Version header required!"}}})))}))
+                        {:status 400
+                         :headers {"Content-Type" "application/json"}
+                         :body
+                         {:error {:message "X-Experience-API-Version header required!"}}}))))}))
 
 (def x-forwarded-for-interceptor
   (i/interceptor
