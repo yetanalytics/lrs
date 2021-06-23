@@ -4,27 +4,95 @@
                       [cheshire.core :as json]]
                 :cljs [[hiccups.runtime :as hic]
                        [goog.string :refer [format]]
-                       goog.string.format])))
+                       goog.string.format])
+            [com.yetanalytics.lrs.pedestal.routes.statements.html.json
+             :refer [json->hiccup]]))
+
+(def page-css
+  "
+
+.json-map {
+    display:grid;
+}
+
+.json-map::before {
+    content:\"{\";
+}
+
+.json-map::after {
+    content:\"}\";
+}
+
+.json-map-entry {
+    display:grid;
+    grid-template-columns: 1fr 12fr;
+}
+
+.json-map-entry-key {
+    padding-left: 1em;
+}
+
+.json-map-entry-key:after {
+    content: \":\";
+    margin-left: 0.25em;
+}
+
+
+.json-map-entry-val {
+}
+
+.json-array {
+    display:grid;
+}
+
+.json-array::before {
+    content:\"[\";
+}
+
+.json-array::after {
+    content:\"]\";
+}
+
+.json-array-element {
+  padding-left: 1em;
+}
+
+.json-scalar {
+  display: inline;
+}
+
+/* leaf values */
+.json-map-entry-val > .json-scalar {
+    background-color: cornsilk;
+    text-overflow: ellipsis;
+}
+
+.json-array-element > .json-scalar {
+    background-color: cornsilk;
+    text-overflow: ellipsis;
+}
+
+
+")
+
+(def head
+  [:head
+   [:style
+    page-css]])
+
 
 (defn page
   [hvec]
-  #?(:clj (page/html5 hvec)
+  #?(:clj (page/html5 head hvec)
      :cljs (format "<!DOCTYPE html>\n<html>%s</html>"
                    (hic/render-html
-                    hvec))))
+                    [head hvec]))))
 
 (defn statement-page
   [statement]
   (page
    [:main
-    [:pre
-     #?(:clj (json/generate-string
-              statement
-              {:pretty true})
-        :cljs (.stringify js/JSON
-                          (clj->js statement)
-                          nil
-                          2))]]))
+    (json->hiccup statement)]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
