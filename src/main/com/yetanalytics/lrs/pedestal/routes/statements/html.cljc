@@ -1,16 +1,30 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html
-  (:require [hiccup.core :as html]
-            [hiccup.page :as page]
-            [cheshire.core :as json]))
+  (:require #?@(:clj [[hiccup.core :as html]
+                      [hiccup.page :as page]
+                      [cheshire.core :as json]]
+                :cljs [[hiccups.runtime :as hic]
+                       [goog.string :refer [format]]
+                       goog.string.format])))
+
+(defn page
+  [hvec]
+  #?(:clj (page/html5 hvec)
+     :cljs (format "<!DOCTYPE html>\n<html>%s</html>"
+                   (hic/render-html
+                    hvec))))
 
 (defn statement-page
   [statement]
-  (page/html5
+  (page
    [:main
     [:pre
-     (json/generate-string
-      statement
-      {:pretty true})]]))
+     #?(:clj (json/generate-string
+              statement
+              {:pretty true})
+        :cljs (.stringify js/JSON
+                          (clj->js statement)
+                          nil
+                          2))]]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
@@ -23,7 +37,7 @@
 (defn statements-page
   [{:keys [statements]
     ?more :more}]
-  (page/html5
+  (page
    (cond-> [:main
             (into [:ul]
                   (for [{:strs [id]} statements]
