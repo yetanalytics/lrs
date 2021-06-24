@@ -12,6 +12,15 @@
   (or (.startsWith maybe-link "http://")
       (.startsWith maybe-link "https://")))
 
+(defn json-map-entry
+  "Helper for creating map entries"
+  [k v]
+  [:div.json.json-map-entry
+   [:div.json.json-map-entry-key
+    k]
+   [:div.json.json-map-entry-val
+    v]])
+
 (defn json->hiccup
   [json
    & {:keys [path
@@ -44,19 +53,17 @@
             (into
              (map-indexed
               (fn [idx [k v]]
-                [:div.json.json-map-entry
+                (json-map-entry
                  (let [kn (name k)]
                    (if (linky? kn)
-                     [:a.json.json-map-entry-key
+                     [:a
                       {:href kn
                        :target "_blank"}
                       kn]
-                     [:div.json.json-map-entry-key
-                      kn]))
-                 [:div.json.json-map-entry-val
-                  (json->hiccup v
-                                :custom custom
-                                :path (conj path k))]])
+                     kn))
+                 (json->hiccup v
+                               :custom custom
+                               :path (conj path k))))
               json))
             (vary-meta assoc ::rendered true))
         ;; leave map entries alone entirely
@@ -76,9 +83,13 @@
             (vary-meta assoc ::rendered true))
         ;; all other scalar for now
         :else
-        ^::rendered (if (and (string? json) (linky? json))
-                      [:a.json.json-scalar
-                       {:href json
-                        :target "_blank"}
-                       json]
-                      [:div.json.json-scalar (str json)])))))
+        ^::rendered
+        [:div.json.json-scalar
+         ;; automatically create links when possible
+         (if (and (string? json)
+                  (linky? json))
+           [:a
+            {:href json
+             :target "_blank"}
+            json]
+           (str json))]))))

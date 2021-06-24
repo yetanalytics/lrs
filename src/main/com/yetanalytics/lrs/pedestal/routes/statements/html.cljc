@@ -7,7 +7,7 @@
                        [goog.string :refer [format]]
                        goog.string.format])
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
-             :refer [json->hiccup]])
+             :refer [json->hiccup json-map-entry]])
   #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
                              :refer [load-css!]]))
   #?(:clj (:import [java.net URLEncoder])))
@@ -54,18 +54,16 @@
                             (keys json))))
                    (fn [json & _]
                      (conj (json->hiccup json)
-                           [:div.json.json-map-entry
-                            [:div.json.json-map-entry-key
-                             ""]
-                            [:div.json.json-map-entry-val
-                             [:a.json.json-scalar
-                              {:href (format
-                                      "/xapi/statements?agent=%s"
-                                      (encode-query-part
-                                       #?(:clj (json/generate-string
-                                                json)
-                                          :cljs (.stringify js/JSON (clj->js json)))))}
-                              "Filter..."]]]))
+                           (json-map-entry
+                            ""
+                            [:div.json.json-scalar
+                             [:a {:href (format
+                                         "/xapi/statements?agent=%s"
+                                         (encode-query-part
+                                          #?(:clj (json/generate-string
+                                                   json)
+                                             :cljs (.stringify js/JSON (clj->js json)))))}
+                              "Filter..."]])))
                    ;; linkable verbs
                    (fn [path json]
                      (contains? #{["verb"]
@@ -73,15 +71,14 @@
                                 path))
                    (fn [json & _]
                      (conj (json->hiccup json)
-                           [:div.json.json-map-entry
-                            [:div.json.json-map-entry-key
-                             ""]
-                            [:div.json.json-map-entry-val
-                             [:a.json.json-scalar
+                           (json-map-entry
+                            ""
+                            [:div.json.json-scalar
+                             [:a
                               {:href (format
                                       "/xapi/statements?verb=%s"
                                       (encode-query-part (get json "id")))}
-                              "Filter..."]]]))
+                              "Filter..."]])))
                    ;; linkable activities
                    (fn [path json]
                      (or (and
@@ -94,24 +91,38 @@
                               (= "Activity" (get json "objectType")))))
                    (fn [json & _]
                      (conj (json->hiccup json)
-                           [:div.json.json-map-entry
-                            [:div.json.json-map-entry-key
-                             ""]
-                            [:div.json.json-map-entry-val
-                             [:a.json.json-scalar
+                           (json-map-entry
+                            ""
+                            [:div.json.json-scalar
+                             [:a
                               {:href (format
                                       "/xapi/statements?activity=%s"
                                       (encode-query-part (get json "id")))}
-                              "Filter..."]]]))
+                              "Filter..."]])))
                    ;; linkable registration
                    (fn [path _json]
                      (= "registration" (peek path)))
                    (fn [json & _]
-                     [:a.json.json-scalar
-                      {:href (format
-                              "/xapi/statements?registration=%s"
-                              json)}
-                      json])})]))
+                     [:div.json.json-scalar
+                      [:a
+                       {:href (format
+                               "/xapi/statements?registration=%s"
+                               json)}
+                       json]])
+                   ;; linkable statement ref
+                   (fn [path json]
+                     (and (map? json)
+                          (= "StatementRef" (get json "objectType"))))
+                   (fn [json & _]
+                     (conj (json->hiccup json)
+                           (json-map-entry
+                            ""
+                            [:div.json.json-scalar
+                             [:a
+                              {:href (format
+                                      "/xapi/statements?statementId=%s"
+                                      (get json "id"))}
+                              "View..."]])))})]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
