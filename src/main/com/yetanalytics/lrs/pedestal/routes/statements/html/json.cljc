@@ -2,60 +2,58 @@
   "Simple json structural elements for statement data"
   (:require [clojure.walk :as w]))
 
-(def el-keys
-  #{:div.json-map
-    :div.json-map-entry
-    :div.json-map-entry-key
-    :div.json-map-entry-val
-    :div.json-array
-    :div.json-array-element})
-
-(def apply-custom-paths
-  (partial
-   reduce
-   (fn [json [path path-fn]]
-     (update-in json path (comp
-                           #(vary-meta % assoc ::rendered true)
-                           path-fn)))))
+(defn rendered?
+  [x]
+  (some-> x meta ::rendered true?))
 
 (defn json->hiccup
   "Convert json to our hiccup html render, preserving custom-paths which is a
-  map of paths in the json to functions that take the node and return hiccup"
+  map of paths in the json to functions that take the node and return normalized
+  hiccup (with args map)"
   [json
-   & {:keys [custom-paths]
-      :or {custom-paths {}}}]
-  (-> json
-      (apply-custom-paths custom-paths)
-      (->>
-       (w/postwalk
-        (fn [node]
-          (if (some-> node meta ::rendered)
-            ;; don't touch already rendered
-            node
-            (cond
-              ;; maps are objects
-              (map? node)
-              (into
-               ^::rendered [:div.json-map]
-               (map
-                (fn [[k v]]
-                  ^::rendered [:div.json-map-entry
-                               ^::rendered [:div.json-map-entry-key k]
-                               ^::rendered [:div.json-map-entry-val v]])
-                node))
-              (map-entry? node)
-              node
-              ;; all other collections are arrays
-              (coll? node)
-              (into
-               ^::rendered [:div.json-array]
-               (map
-                (fn [n]
-                  ^::rendered [:div.json-array-element n])
-                node))
-              ;; all other scalar for now
-              :else
-              (if (contains? el-keys
-                             node)
-                node
-                [:div.json-scalar (str node)]))))))))
+   & {:keys [path
+             custom-paths]
+      :or {path []
+           custom-paths {}}}]
+  (if (rendered? json)
+    ;; don't touch already rendered
+    json
+    (if-let [path-fn (get custom-paths path)]
+      ;; if we have a custom path function, use that
+      (vary-meta
+       (path-fn json)
+       assoc ::rendered true)
+      (cond
+        ;; maps are objects
+        (map? json)
+        (-> [:div.json.json-map]
+            (into
+             (map-indexed
+              (fn [idx [k v]]
+                [:div.json.json-map-entry
+                 [:div.json.json-map-entry-key
+                  (name k)]
+                 [:div.json.json-map-entry-val
+                  (json->hiccup v
+                                :custom-paths custom-paths
+                                :path (conj path k))]])
+              json))
+            (vary-meta assoc ::rendered true))
+        ;; leave map entries alone entirely
+        (map-entry? json)
+        json
+        ;; all other collections are arrays
+        (coll? json)
+        (-> [:div.json.json-array]
+            (into
+             (map-indexed
+              (fn [idx e]
+                [:div.json.json-array-element
+                 (json->hiccup e
+                               :custom-paths custom-paths
+                               :path (conj path idx))])
+              json))
+            (vary-meta assoc ::rendered true))
+        ;; all other scalar for now
+        :else
+        ^::rendered [:div.json.json-scalar (str json)]))))
