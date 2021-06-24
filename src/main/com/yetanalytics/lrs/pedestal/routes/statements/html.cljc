@@ -16,7 +16,7 @@
 (defn- encode-query-part
   [^String qpart]
   #?(:clj (URLEncoder/encode qpart "UTF-8")
-     :cljs (js/encodeURIcomponent qpart)))
+     :cljs (js/encodeURIComponent qpart)))
 
 #?(:clj (defmacro load-css! []
           (slurp (io/resource "lrs/statements/style.css"))))
