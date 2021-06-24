@@ -24,7 +24,6 @@
 
 /* leaf */
 .json-scalar {
-  background-color: cornsilk;
   text-overflow: ellipsis;
   display: inline;
   margin-left: 1em

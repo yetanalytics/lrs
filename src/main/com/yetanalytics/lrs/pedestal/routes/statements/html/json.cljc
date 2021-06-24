@@ -6,22 +6,30 @@
   [x]
   (some-> x meta ::rendered true?))
 
+(defn linky?
+  "is the string link-like?"
+  [^String maybe-link]
+  (or (.startsWith maybe-link "http://")
+      (.startsWith maybe-link "https://")))
+
 (defn json->hiccup
-  "Convert json to our hiccup html render, preserving custom-paths which is a
-  map of paths in the json to functions that take the node and return normalized
-  hiccup (with args map)"
   [json
    & {:keys [path
-             custom-paths]
+             custom]
       :or {path []
-           custom-paths {}}}]
+           custom {}}}]
   (if (rendered? json)
     ;; don't touch already rendered
     json
-    (if-let [path-fn (get custom-paths path)]
+    (if-let [custom-fn (some
+                        (fn [[pred cfn]]
+                          (when (pred path
+                                      json)
+                            cfn))
+                        custom)]
       ;; if we have a custom path function, use that
       (vary-meta
-       (path-fn json)
+       (custom-fn path json)
        assoc ::rendered true)
       (cond
         ;; maps are objects
@@ -31,11 +39,17 @@
              (map-indexed
               (fn [idx [k v]]
                 [:div.json.json-map-entry
-                 [:div.json.json-map-entry-key
-                  (name k)]
+                 (let [kn (name k)]
+                   (if (linky? kn)
+                     [:a.json.json-map-entry-key
+                      {:href kn
+                       :target "_blank"}
+                      kn]
+                     [:div.json.json-map-entry-key
+                      kn]))
                  [:div.json.json-map-entry-val
                   (json->hiccup v
-                                :custom-paths custom-paths
+                                :custom custom
                                 :path (conj path k))]])
               json))
             (vary-meta assoc ::rendered true))
@@ -50,10 +64,15 @@
               (fn [idx e]
                 [:div.json.json-array-element
                  (json->hiccup e
-                               :custom-paths custom-paths
+                               :custom custom
                                :path (conj path idx))])
               json))
             (vary-meta assoc ::rendered true))
         ;; all other scalar for now
         :else
-        ^::rendered [:div.json.json-scalar (str json)]))))
+        ^::rendered (if (and (string? json) (linky? json))
+                      [:a.json.json-scalar
+                       {:href json
+                        :target "_blank"}
+                       json]
+                      [:div.json.json-scalar (str json)])))))

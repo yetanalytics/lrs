@@ -9,7 +9,13 @@
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
              :refer [json->hiccup]])
   #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
-                             :refer [load-css!]])))
+                             :refer [load-css!]]))
+  #?(:clj (:import [java.net URLEncoder])))
+
+(defn- encode-query-part
+  [^String qpart]
+  #?(:clj (URLEncoder/encode qpart "UTF-8")
+     :cljs (js/encodeURIcomponent qpart)))
 
 #?(:clj (defmacro load-css! []
           (slurp (io/resource "lrs/statements/style.css"))))
@@ -33,7 +39,49 @@
   [statement]
   (page
    [:main
-    (json->hiccup statement)]))
+    (json->hiccup statement
+                  :custom
+                  {;; linkable actors
+                   (fn [path json]
+                     (and
+                      (map? json)
+                      (or (contains? #{["actor"]
+                                       ["object" "actor"]}
+                                     path)
+                          (contains? #{"Agent" "Group"}
+                                     (get json "objectType")))
+                      (some #{"mbox" "mbox_sha1sum" "openid" "account"}
+                            (keys json))))
+                   (fn [path json]
+                     (conj (json->hiccup json)
+                           [:div.json.json-map-entry
+                            [:div.json.json-map-entry-key
+                             ""]
+                            [:div.json.json-map-entry-val
+                             [:a.json.json-scalar
+                              {:href (format
+                                      "/xapi/statements?agent=%s"
+                                      (encode-query-part
+                                       #?(:clj (json/generate-string
+                                                json)
+                                          :cljs (.stringify js/JSON (clj->js json)))))}
+                              "Filter..."]]]))
+                   ;; linkable verbs
+                   (fn [path json]
+                     (contains? #{["verb"]
+                                  ["object" "verb"]}
+                                path))
+                   (fn [_path json]
+                     (conj (json->hiccup json)
+                           [:div.json.json-map-entry
+                            [:div.json.json-map-entry-key
+                             ""]
+                            [:div.json.json-map-entry-val
+                             [:a.json.json-scalar
+                              {:href (format
+                                      "/xapi/statements?verb=%s"
+                                      (encode-query-part (get json "id")))}
+                              "Filter..."]]]))})]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
@@ -57,9 +105,9 @@
                       (str id)]]))
             ;; print the whole thing
             #_[:pre
-             (json/generate-string
-              statements
-              {:pretty true})]]
+               (json/generate-string
+                statements
+                {:pretty true})]]
      ?more
      (conj [:a
             {:href ?more}
