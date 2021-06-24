@@ -102,7 +102,16 @@
                               {:href (format
                                       "/xapi/statements?activity=%s"
                                       (encode-query-part (get json "id")))}
-                              "Filter..."]]]))})]))
+                              "Filter..."]]]))
+                   ;; linkable registration
+                   (fn [path _json]
+                     (= "registration" (peek path)))
+                   (fn [_path json]
+                     [:a.json.json-scalar
+                      {:href (format
+                              "/xapi/statements?registration=%s"
+                              json)}
+                      json])})]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
