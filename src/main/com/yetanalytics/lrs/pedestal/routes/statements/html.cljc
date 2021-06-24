@@ -52,7 +52,7 @@
                                      (get json "objectType")))
                       (some #{"mbox" "mbox_sha1sum" "openid" "account"}
                             (keys json))))
-                   (fn [path json]
+                   (fn [_path json]
                      (conj (json->hiccup json)
                            [:div.json.json-map-entry
                             [:div.json.json-map-entry-key
@@ -80,6 +80,27 @@
                              [:a.json.json-scalar
                               {:href (format
                                       "/xapi/statements?verb=%s"
+                                      (encode-query-part (get json "id")))}
+                              "Filter..."]]]))
+                   ;; linkable activities
+                   (fn [path json]
+                     (or (and
+                          (contains? #{["object"]
+                                       ["object" "object"]}
+                                     path)
+                          (nil? (get json "objectType"))
+                          (get json "id"))
+                         (and (map? json)
+                              (= "Activity" (get json "objectType")))))
+                   (fn [_path json]
+                     (conj (json->hiccup json)
+                           [:div.json.json-map-entry
+                            [:div.json.json-map-entry-key
+                             ""]
+                            [:div.json.json-map-entry-val
+                             [:a.json.json-scalar
+                              {:href (format
+                                      "/xapi/statements?activity=%s"
                                       (encode-query-part (get json "id")))}
                               "Filter..."]]]))})]))
 
