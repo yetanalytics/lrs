@@ -1,0 +1,74 @@
+.json-map {
+    display:grid;
+}
+
+.json-map:first-child:before {
+    content:"{";
+}
+
+.json-map:last-child:after {
+    content:"}";
+}
+
+.json-map-entry:not(:last-child) > .json-map-entry-val > .json-map:last-child:after {
+    content:"},";
+}
+
+.json-array-element:not(:last-child) > .json-map:last-child:after {
+    content:"},";
+}
+
+.json-array {
+    display:grid;
+}
+
+.json-array:first-child:before {
+    content:"[";
+}
+
+.json-array:last-child:after {
+    content:"]";
+}
+
+.json-map-entry:not(:last-child) > .json-map-entry-val > .json-array:last-child:after {
+    content:"],";
+}
+
+.json-array-element:not(:last-child) > .json-array:last-child:after {
+    content:"],";
+}
+
+/* for inline commas on scalar vs */
+.json-map-entry:not(:last-child) > .json-map-entry-val > .json-scalar:after {
+    content:",";
+}
+
+.json-map-entry {
+    display:grid;
+    grid-template-columns: 1fr 12fr;
+}
+
+.json-map-entry-key {
+    padding-left: 1em;
+}
+
+.json-map-entry-key:after {
+    content: ":";
+    margin-left: 0.25em;
+    margin-right: 0.25em;
+}
+
+
+.json-array-element {
+  padding-left: 1em;
+}
+
+.json-scalar {
+  display: inline;
+}
+
+/* leaf */
+:not(.json-map-entry-key) > .json-scalar {
+    background-color: cornsilk;
+    text-overflow: ellipsis;
+}

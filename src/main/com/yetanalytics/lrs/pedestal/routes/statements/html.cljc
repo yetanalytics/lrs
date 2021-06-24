@@ -1,108 +1,33 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html
   (:require #?@(:clj [[hiccup.core :as html]
                       [hiccup.page :as page]
-                      [cheshire.core :as json]]
+                      [cheshire.core :as json]
+                      [clojure.java.io :as io]]
                 :cljs [[hiccups.runtime :as hic]
                        [goog.string :refer [format]]
                        goog.string.format])
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
-             :refer [json->hiccup]]))
+             :refer [json->hiccup]])
+  #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
+                             :refer [load-css!]])))
 
-(def page-css
-  "
+#?(:clj (defmacro load-css! []
+          (slurp (io/resource "lrs/statements/style.css"))))
 
-.json-map {
-    display:grid;
-}
-
-.json-map::before {
-    content:\"{\";
-}
-
-.json-map::after {
-    content:\"}\";
-}
-
-.json-map-entry-val > .json-map::after {
-    content: \"},\";
-}
-
-.json-map-entry {
-    display:grid;
-    grid-template-columns: 1fr 12fr;
-}
-
-.json-map-entry-key {
-    padding-left: 1em;
-}
-
-.json-map-entry-key:after {
-    content: \":\";
-    margin-left: 0.25em;
-}
-
-
-.json-map-entry-val {
-}
-
-.json-array {
-    display:grid;
-}
-
-.json-array::before {
-    content:\"[\";
-}
-
-.json-array::after {
-    content:\"]\";
-}
-
-.json-map-entry-val > .json-array::after {
-    content: \"],\";
-}
-
-.json-array-element {
-  padding-left: 1em;
-}
-
-.json-scalar {
-  display: inline;
-}
-
-/* leaf values */
-.json-map-entry-val > .json-scalar {
-    background-color: cornsilk;
-    text-overflow: ellipsis;
-}
-
-.json-map-entry-val > .json-scalar::after {
-    content: \",\";
-}
-
-.json-array-element > .json-scalar {
-    background-color: cornsilk;
-    text-overflow: ellipsis;
-}
-
-.json-array-element > .json-scalar::after {
-    content: \",\";
-}
-
-
-")
+(defonce page-css
+  (load-css!))
 
 (def head
   [:head
    [:style
     page-css]])
 
-
 (defn page
   [hvec]
   #?(:clj (page/html5 head hvec)
      :cljs (format "<!DOCTYPE html>\n<html>%s</html>"
                    (hic/render-html
-                    [head hvec]))))
+                    (list head hvec)))))
 
 (defn statement-page
   [statement]
