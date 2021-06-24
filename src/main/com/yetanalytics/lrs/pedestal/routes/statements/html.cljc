@@ -52,7 +52,7 @@
                                      (get json "objectType")))
                       (some #{"mbox" "mbox_sha1sum" "openid" "account"}
                             (keys json))))
-                   (fn [_path json]
+                   (fn [json & _]
                      (conj (json->hiccup json)
                            [:div.json.json-map-entry
                             [:div.json.json-map-entry-key
@@ -71,7 +71,7 @@
                      (contains? #{["verb"]
                                   ["object" "verb"]}
                                 path))
-                   (fn [_path json]
+                   (fn [json & _]
                      (conj (json->hiccup json)
                            [:div.json.json-map-entry
                             [:div.json.json-map-entry-key
@@ -92,7 +92,7 @@
                           (get json "id"))
                          (and (map? json)
                               (= "Activity" (get json "objectType")))))
-                   (fn [_path json]
+                   (fn [json & _]
                      (conj (json->hiccup json)
                            [:div.json.json-map-entry
                             [:div.json.json-map-entry-key
@@ -106,7 +106,7 @@
                    ;; linkable registration
                    (fn [path _json]
                      (= "registration" (peek path)))
-                   (fn [_path json]
+                   (fn [json & _]
                      [:a.json.json-scalar
                       {:href (format
                               "/xapi/statements?registration=%s"

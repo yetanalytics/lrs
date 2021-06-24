@@ -29,7 +29,13 @@
                         custom)]
       ;; if we have a custom path function, use that
       (vary-meta
-       (custom-fn path json)
+       (custom-fn
+        json
+        ;; throw the json->hiccup args on the end
+        ;; possibly useful to resume
+        :custom custom
+        :path path
+        )
        assoc ::rendered true)
       (cond
         ;; maps are objects
