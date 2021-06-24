@@ -1,6 +1,8 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html.json
   "Simple json structural elements for statement data"
-  (:require [clojure.walk :as w]))
+  (:require [clojure.walk :as w]
+            #?@(:cljs [[goog.string :refer [format]]
+                       goog.string.format])))
 
 (defn rendered?
   [x]
@@ -20,6 +22,22 @@
     k]
    [:div.json.json-map-entry-val
     v]])
+
+(defn collapse-wrapper
+  [label & elements]
+  (let [input-id (str
+                  #?(:clj (java.util.UUID/randomUUID)
+                     :cljs (random-uuid)))]
+    [:div.json.collapse-wrapper
+     [:input.json.collapse-input
+      {:type "checkbox"
+       :id input-id
+       :style "display:none;"}]
+     [:label.collapse-label
+      {:for input-id}
+      label]
+     (into [:div.json.collapsed]
+           elements)]))
 
 (defn json->hiccup
   [json

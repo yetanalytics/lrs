@@ -7,6 +7,7 @@
                        [goog.string :refer [format]]
                        goog.string.format])
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
+             :as jr
              :refer [json->hiccup json-map-entry]])
   #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
                              :refer [load-css!]]))
@@ -35,94 +36,123 @@
                    (hic/render-html
                     (list head hvec)))))
 
+(defn actor-pred
+  [path json]
+  (and
+   (map? json)
+   (or (contains? #{["actor"]
+                    ["object" "actor"]}
+                  path)
+       (contains? #{"Agent" "Group"}
+                  (get json "objectType")))
+   (some #{"mbox" "mbox_sha1sum" "openid" "account"}
+         (keys json))))
+
+(defn actor-custom
+  [json & _]
+  (conj (json->hiccup json)
+        (json-map-entry
+         ""
+         [:div.json.json-scalar
+          [:a {:href (format
+                      "/xapi/statements?agent=%s"
+                      (encode-query-part
+                       #?(:clj (json/generate-string
+                                json)
+                          :cljs (.stringify js/JSON (clj->js json)))))}
+           "Filter..."]])))
+
+(defn verb-pred
+  [path json]
+  (contains? #{["verb"]
+               ["object" "verb"]}
+             path))
+
+(defn verb-custom
+  [json & _]
+  (conj (json->hiccup json)
+        (json-map-entry
+         ""
+         [:div.json.json-scalar
+          [:a
+           {:href (format
+                   "/xapi/statements?verb=%s"
+                   (encode-query-part (get json "id")))}
+           "Filter..."]])))
+
+(defn activity-pred
+  [path json]
+  (or (and
+       (contains? #{["object"]
+                    ["object" "object"]}
+                  path)
+       (nil? (get json "objectType"))
+       (get json "id"))
+      (and (map? json)
+           (= "Activity" (get json "objectType")))))
+(defn activity-custom
+  [json & _]
+  (conj (json->hiccup json)
+        (json-map-entry
+         ""
+         [:div.json.json-scalar
+          [:a
+           {:href (format
+                   "/xapi/statements?activity=%s"
+                   (encode-query-part (get json "id")))}
+           "Filter..."]])))
+
+(defn reg-pred [path _json]
+  (= "registration" (peek path)))
+
+(defn reg-custom [json & _]
+  [:div.json.json-scalar
+   [:a
+    {:href (format
+            "/xapi/statements?registration=%s"
+            json)}
+    json]])
+
+(defn ref-pred [path json]
+  (and (map? json)
+       (= "StatementRef" (get json "objectType"))))
+
+(defn ref-custom [json & _]
+  (conj (json->hiccup json)
+        (json-map-entry
+         ""
+         [:div.json.json-scalar
+          [:a
+           {:href (format
+                   "/xapi/statements?statementId=%s"
+                   (get json "id"))}
+           "View..."]])))
+
+(def statement-custom
+  {;; linkable actors
+   actor-pred
+   actor-custom
+   ;; linkable verbs
+   verb-pred
+   verb-custom
+   ;; linkable activities
+   activity-pred
+   activity-custom
+   ;; linkable registration
+   reg-pred
+   reg-custom
+   ;; linkable statement ref
+   ref-pred
+   ref-custom})
+
 (defn statement-page
   [statement]
   (page
    [:main
-    (json->hiccup statement
-                  :custom
-                  {;; linkable actors
-                   (fn [path json]
-                     (and
-                      (map? json)
-                      (or (contains? #{["actor"]
-                                       ["object" "actor"]}
-                                     path)
-                          (contains? #{"Agent" "Group"}
-                                     (get json "objectType")))
-                      (some #{"mbox" "mbox_sha1sum" "openid" "account"}
-                            (keys json))))
-                   (fn [json & _]
-                     (conj (json->hiccup json)
-                           (json-map-entry
-                            ""
-                            [:div.json.json-scalar
-                             [:a {:href (format
-                                         "/xapi/statements?agent=%s"
-                                         (encode-query-part
-                                          #?(:clj (json/generate-string
-                                                   json)
-                                             :cljs (.stringify js/JSON (clj->js json)))))}
-                              "Filter..."]])))
-                   ;; linkable verbs
-                   (fn [path json]
-                     (contains? #{["verb"]
-                                  ["object" "verb"]}
-                                path))
-                   (fn [json & _]
-                     (conj (json->hiccup json)
-                           (json-map-entry
-                            ""
-                            [:div.json.json-scalar
-                             [:a
-                              {:href (format
-                                      "/xapi/statements?verb=%s"
-                                      (encode-query-part (get json "id")))}
-                              "Filter..."]])))
-                   ;; linkable activities
-                   (fn [path json]
-                     (or (and
-                          (contains? #{["object"]
-                                       ["object" "object"]}
-                                     path)
-                          (nil? (get json "objectType"))
-                          (get json "id"))
-                         (and (map? json)
-                              (= "Activity" (get json "objectType")))))
-                   (fn [json & _]
-                     (conj (json->hiccup json)
-                           (json-map-entry
-                            ""
-                            [:div.json.json-scalar
-                             [:a
-                              {:href (format
-                                      "/xapi/statements?activity=%s"
-                                      (encode-query-part (get json "id")))}
-                              "Filter..."]])))
-                   ;; linkable registration
-                   (fn [path _json]
-                     (= "registration" (peek path)))
-                   (fn [json & _]
-                     [:div.json.json-scalar
-                      [:a
-                       {:href (format
-                               "/xapi/statements?registration=%s"
-                               json)}
-                       json]])
-                   ;; linkable statement ref
-                   (fn [path json]
-                     (and (map? json)
-                          (= "StatementRef" (get json "objectType"))))
-                   (fn [json & _]
-                     (conj (json->hiccup json)
-                           (json-map-entry
-                            ""
-                            [:div.json.json-scalar
-                             [:a
-                              {:href (format
-                                      "/xapi/statements?statementId=%s"
-                                      (get json "id"))}
-                              "View..."]])))})]))
+    (json->hiccup
+     statement
+     :custom
+     statement-custom)]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
@@ -138,17 +168,15 @@
   (page
    (cond-> [:main
             (into [:ul]
-                  (for [{:strs [id]} statements]
+                  (for [{:strs [id] :as statement} statements]
                     [:li
-                     [:a
-                      {:href (format "/xapi/statements?statementId=%s"
-                                     id)}
-                      (str id)]]))
-            ;; print the whole thing
-            #_[:pre
-               (json/generate-string
-                statements
-                {:pretty true})]]
+                     (jr/collapse-wrapper
+                      (str id)
+                      (json->hiccup
+                       statement
+                       :custom
+                       statement-custom))
+                     ]))]
      ?more
      (conj [:a
             {:href ?more}

@@ -28,3 +28,22 @@
   display: inline;
   margin-left: 1em
 }
+
+/* collapsing */
+
+.collapse-wrapper > .collapsed {
+  display: none;
+}
+
+.collapse-wrapper > :checked ~ .collapsed {
+  display:unset;
+}
+
+.collapse-wrapper > label.collapse-label:after {
+  content: "+";
+  margin-left: 1em;
+}
+
+.collapse-wrapper > :checked ~ label.collapse-label:after {
+  content: "-";
+}
