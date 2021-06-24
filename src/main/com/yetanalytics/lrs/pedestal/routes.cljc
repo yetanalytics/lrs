@@ -97,11 +97,14 @@
              :route-name :com.yetanalytics.lrs.xapi.about/any]
 
             ;; xapi statements
-            ["/xapi/statements" :get (conj protected-interceptors
-                                           statements-i/set-consistent-through
-                                           (xapi-i/params-interceptor
-                                            :xapi.statements.GET.request/params)
-                                           statements/handle-get)]
+            ["/xapi/statements" :get (into [(auth-i/www-authenticate
+                                             "Statement Viewer")]
+                                           (concat
+                                            protected-interceptors
+                                            [statements-i/set-consistent-through
+                                             (xapi-i/params-interceptor
+                                              :xapi.statements.GET.request/params)
+                                             statements/handle-get]))]
             ["/xapi/statements" :head (conj protected-interceptors
                                             statements-i/set-consistent-through
                                             (xapi-i/params-interceptor
