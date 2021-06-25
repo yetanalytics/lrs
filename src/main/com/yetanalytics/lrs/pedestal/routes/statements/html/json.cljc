@@ -42,9 +42,12 @@
 (defn json->hiccup
   [json
    & {:keys [path
-             custom]
+             custom
+             key-weights ;; map of key to number, higher is higher
+             ]
       :or {path []
-           custom {}}}]
+           custom {}
+           key-weights {}}}]
   (if (rendered? json)
     ;; don't touch already rendered
     json
@@ -62,6 +65,7 @@
         ;; possibly useful to resume
         :custom custom
         :path path
+        :key-weights key-weights
         )
        assoc ::rendered true)
       (cond
@@ -81,8 +85,12 @@
                      kn))
                  (json->hiccup v
                                :custom custom
-                               :path (conj path k))))
-              json))
+                               :path (conj path k)
+                               :key-weights key-weights)))
+              (sort-by
+               #(get key-weights (first %) 0)
+               >
+               json)))
             (vary-meta assoc ::rendered true))
         ;; leave map entries alone entirely
         (map-entry? json)
@@ -96,7 +104,8 @@
                 [:div.json.json-array-element
                  (json->hiccup e
                                :custom custom
-                               :path (conj path idx))])
+                               :path (conj path idx)
+                               :key-weights key-weights)])
               json))
             (vary-meta assoc ::rendered true))
         ;; all other scalar for now

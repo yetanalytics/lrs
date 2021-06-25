@@ -145,14 +145,21 @@
    ref-pred
    ref-custom})
 
+(def statement-key-weights
+  {"id" 2
+   "mbox" 1
+   "mbox_sha1sum" 1
+   "openid" 1
+   "account" 1})
+
 (defn statement-page
   [statement]
   (page
    [:main
     (json->hiccup
      statement
-     :custom
-     statement-custom)]))
+     :custom statement-custom
+     :key-weights statement-key-weights)]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
@@ -174,8 +181,8 @@
                       (str id)
                       (json->hiccup
                        statement
-                       :custom
-                       statement-custom))
+                       :custom statement-custom
+                       :key-weights statement-key-weights))
                      ]))]
      ?more
      (conj [:a
