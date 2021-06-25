@@ -1,3 +1,22 @@
+/* global */
+@import url('https://fonts.googleapis.com/css?family=Roboto+Mono:100,100i,300,300i,400,400i,500,500i,700,700i&subset=latin-ext');
+
+html {
+  height: 100%;
+}
+
+body {
+  margin: 0 0 0 0;
+  font-family: 'Roboto Mono', monospace;
+  height: 100%;
+}
+
+body > main {
+  height: 100%;
+}
+
+/* JSON-specific */
+
 .json-map {
   display:grid;
 }
