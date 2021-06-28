@@ -17,12 +17,14 @@
 (defn method-not-allowed [_]
   {:status 405})
 
-(defn build-document-routes [interceptors]
+(defn build-document-routes [interceptors
+                             & {:keys [path-prefix]
+                                :or {path-prefix "/xapi"}}]
   (into []
         (for [[resource doc-type :as resource-tuple] [["activities" "state"]
                                                       ["activities" "profile"]
                                                       ["agents"     "profile"]]
-              :let [path (format "/xapi/%s/%s" resource doc-type)
+              :let [path (format "%s/%s/%s" path-prefix resource doc-type)
                     route-name-ns (format "com.yetanalytics.lrs.xapi.%s.%s"
                                           resource doc-type)]
               method [:put :post :get :head :delete :any]
@@ -70,7 +72,8 @@
     :enter (fn [ctx]
              (assoc ctx :response {:status 200 :body ""}))}))
 
-(defn build [{:keys [lrs]}]
+(defn build [{:keys [lrs path-prefix]
+              :or {path-prefix "/xapi"}}]
   (let [lrs-i (i/lrs-interceptor lrs)
         global-interceptors-no-auth
         (conj i/common-interceptors
@@ -88,63 +91,77 @@
                                           auth-i/lrs-authorize
                                           )
                                     i/xapi-protected-interceptors)]
-    (into #{["/health" :get (conj global-interceptors-no-auth
-                                  health)]
+    (into #{["/health"
+             :get (conj global-interceptors-no-auth
+                        health)]
             ;; xapi
-            ["/xapi/about" :get (conj global-interceptors-no-auth
-                                      about/handle-get)]
-            ["/xapi/about" :any method-not-allowed
+            [(format "%s/about" path-prefix)
+             :get (conj global-interceptors-no-auth
+                        about/handle-get)]
+            [(format "%s/about" path-prefix)
+             :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.about/any]
 
             ;; xapi statements
-            ["/xapi/statements" :get (conj protected-interceptors
-                                           statements-i/set-consistent-through
-                                           (xapi-i/params-interceptor
-                                            :xapi.statements.GET.request/params)
-                                           statements/handle-get)]
-            ["/xapi/statements" :head (conj protected-interceptors
-                                            statements-i/set-consistent-through
-                                            (xapi-i/params-interceptor
-                                             :xapi.statements.GET.request/params)
-                                            statements/handle-get)
+            [(format "%s/statements" path-prefix)
+             :get (conj protected-interceptors
+                        statements-i/set-consistent-through
+                        (xapi-i/params-interceptor
+                         :xapi.statements.GET.request/params)
+                        statements/handle-get)]
+            [(format "%s/statements" path-prefix)
+             :head (conj protected-interceptors
+                         statements-i/set-consistent-through
+                         (xapi-i/params-interceptor
+                          :xapi.statements.GET.request/params)
+                         statements/handle-get)
              :route-name :com.yetanalytics.lrs.xapi.statements/head]
-            ["/xapi/statements" :put (conj protected-interceptors
-                                           statements-i/set-consistent-through
-                                           (xapi-i/params-interceptor
-                                            :xapi.statements.PUT.request/params)
-                                           statements-i/parse-multiparts
-                                           statements-i/validate-request-statements
-                                           statements/handle-put)
-             ]
-            ["/xapi/statements" :post (conj protected-interceptors
-                                            statements-i/set-consistent-through
-                                            statements-i/parse-multiparts
-                                            statements-i/validate-request-statements
-                                            statements/handle-post)]
-            ["/xapi/statements" :any method-not-allowed
+            [(format "%s/statements" path-prefix)
+             :put (conj protected-interceptors
+                        statements-i/set-consistent-through
+                        (xapi-i/params-interceptor
+                         :xapi.statements.PUT.request/params)
+                        statements-i/parse-multiparts
+                        statements-i/validate-request-statements
+                        statements/handle-put)]
+            [(format "%s/statements" path-prefix)
+             :post (conj protected-interceptors
+                         statements-i/set-consistent-through
+                         statements-i/parse-multiparts
+                         statements-i/validate-request-statements
+                         statements/handle-post)]
+            [(format "%s/statements" path-prefix)
+             :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.statements/any]
 
-            ["/xapi/agents" :get (conj protected-interceptors
-                                       (xapi-i/params-interceptor
-                                        :xapi.agents.GET.request/params)
-                                       agents/handle-get)]
-            ["/xapi/agents" :head (conj protected-interceptors
-                                        (xapi-i/params-interceptor
-                                         :xapi.agents.GET.request/params)
-                                        agents/handle-get)
+            [(format "%s/agents" path-prefix)
+             :get (conj protected-interceptors
+                        (xapi-i/params-interceptor
+                         :xapi.agents.GET.request/params)
+                        agents/handle-get)]
+            [(format "%s/agents" path-prefix)
+             :head (conj protected-interceptors
+                         (xapi-i/params-interceptor
+                          :xapi.agents.GET.request/params)
+                         agents/handle-get)
              :route-name :com.yetanalytics.lrs.xapi.agents/head]
-            ["/xapi/agents" :any method-not-allowed
+            [(format "%s/agents" path-prefix)
+             :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.agents/any]
 
-            ["/xapi/activities" :get (conj protected-interceptors
-                                           (xapi-i/params-interceptor
-                                            :xapi.activities.GET.request/params)
-                                           activities/handle-get)]
-            ["/xapi/activities" :head (conj protected-interceptors
-                                            (xapi-i/params-interceptor
-                                             :xapi.activities.GET.request/params)
-                                            activities/handle-get)
+            [(format "%s/activities" path-prefix)
+             :get (conj protected-interceptors
+                        (xapi-i/params-interceptor
+                         :xapi.activities.GET.request/params)
+                        activities/handle-get)]
+            [(format "%s/activities" path-prefix)
+             :head (conj protected-interceptors
+                         (xapi-i/params-interceptor
+                          :xapi.activities.GET.request/params)
+                         activities/handle-get)
              :route-name :com.yetanalytics.lrs.xapi.activities/head]
-            ["/xapi/activities" :any method-not-allowed
+            [(format "%s/activities" path-prefix)
+             :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.activities/any]}
-          (build-document-routes document-interceptors))))
+          (build-document-routes document-interceptors
+                                 :path-prefix path-prefix))))

@@ -115,7 +115,7 @@
                             request-method
                             params]
   (cond
-    (.endsWith path-info "/xapi/statements")
+    (.endsWith path-info "/statements")
     (case request-method
       :get (let [{:keys [statementId
                          voidedStatementId]} params]
@@ -146,21 +146,6 @@
                                       ;; TODO: handle param-based MORE implementations
                                       :page
                                       :from))))
-      nil)
-    #_(.endsWith path-info "/xapi/activities/state")
-    #_(case request-method
-      :get (let [{:keys [stateId
-                         agent
-                         activityId
-                         registration]} params]
-             (cond stateId
-                   (not-empty (dissoc params
-                                      :stateId
-                                      :agent
-                                      :activityId
-                                      :registration))
-                   :else nil
-                   ))
       nil)
     :else nil))
 

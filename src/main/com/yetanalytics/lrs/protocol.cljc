@@ -34,7 +34,7 @@
          :error ::error-ret))
 
 ;; About
-;; /xapi/about
+;; /about
 
 (defprotocol AboutResource
   "Protocol for retrieving LRS info"
@@ -211,7 +211,7 @@
    ::delete-documents-ret))
 
 ;; Activities
-;; /xapi/activities
+;; /activities
 (defprotocol ActivityInfoResource
   "Protocol for retrieving activity info."
   (-get-activity [this auth-identity params]
@@ -250,7 +250,7 @@
    ::get-activity-ret))
 
 ;; Agents
-;; /xapi/agents
+;; /agents
 
 (defprotocol AgentInfoResource
   "Protocol for retrieving information on agents."
@@ -291,7 +291,7 @@
    ::get-person-ret))
 
 ;; Statements
-;; /xapi/statements
+;; /statements
 
 (defprotocol StatementsResource
   "Protocol for storing/retrieving statements, activities, agents."
