@@ -49,13 +49,15 @@
          (keys json))))
 
 (defn actor-custom
-  [json & _]
+  [path-prefix
+   json & _]
   (conj (json->hiccup json)
         (json-map-entry
          ""
          [:div.json.json-scalar
           [:a {:href (format
-                      "/xapi/statements?agent=%s"
+                      "%s/statements?agent=%s"
+                      path-prefix
                       (encode-query-part
                        #?(:clj (json/generate-string
                                 json)
@@ -69,14 +71,16 @@
              path))
 
 (defn verb-custom
-  [json & _]
+  [path-prefix
+   json & _]
   (conj (json->hiccup json)
         (json-map-entry
          ""
          [:div.json.json-scalar
           [:a
            {:href (format
-                   "/xapi/statements?verb=%s"
+                   "%s/statements?verb=%s"
+                   path-prefix
                    (encode-query-part (get json "id")))}
            "Filter..."]])))
 
@@ -91,25 +95,29 @@
       (and (map? json)
            (= "Activity" (get json "objectType")))))
 (defn activity-custom
-  [json & _]
+  [path-prefix
+   json & _]
   (conj (json->hiccup json)
         (json-map-entry
          ""
          [:div.json.json-scalar
           [:a
            {:href (format
-                   "/xapi/statements?activity=%s"
+                   "%s/statements?activity=%s"
+                   path-prefix
                    (encode-query-part (get json "id")))}
            "Filter..."]])))
 
 (defn reg-pred [path _json]
   (= "registration" (peek path)))
 
-(defn reg-custom [json & _]
+(defn reg-custom [path-prefix
+                  json & _]
   [:div.json.json-scalar
    [:a
     {:href (format
-            "/xapi/statements?registration=%s"
+            "%s/statements?registration=%s"
+            path-prefix
             json)}
     json]])
 
@@ -117,33 +125,44 @@
   (and (map? json)
        (= "StatementRef" (get json "objectType"))))
 
-(defn ref-custom [json & _]
+(defn ref-custom [path-prefix
+                  json & _]
   (conj (json->hiccup json)
         (json-map-entry
          ""
          [:div.json.json-scalar
           [:a
            {:href (format
-                   "/xapi/statements?statementId=%s"
+                   "%s/statements?statementId=%s"
+                   path-prefix
                    (get json "id"))}
            "View..."]])))
 
-(def statement-custom
+(defn statement-custom*
+  [path-prefix]
   {;; linkable actors
    actor-pred
-   actor-custom
+   (partial actor-custom
+            path-prefix)
    ;; linkable verbs
    verb-pred
-   verb-custom
+   (partial verb-custom
+            path-prefix)
    ;; linkable activities
    activity-pred
-   activity-custom
+   (partial activity-custom
+            path-prefix)
    ;; linkable registration
    reg-pred
-   reg-custom
+   (partial reg-custom
+            path-prefix)
    ;; linkable statement ref
    ref-pred
-   ref-custom})
+   (partial ref-custom
+            path-prefix)})
+
+(def statement-custom
+  (memoize statement-custom*))
 
 (def statement-key-weights
   {"id" 2
@@ -153,24 +172,29 @@
    "account" 1})
 
 (defn statement-page
-  [statement]
+  [path-prefix
+   statement]
   (page
    [:main
     (json->hiccup
      statement
-     :custom statement-custom
+     :custom (statement-custom path-prefix)
      :key-weights statement-key-weights)]))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
-  [_ statement]
+  [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
+    :or {path-prefix ""}}
+   statement]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body (statement-page
+          path-prefix
           statement)})
 
 (defn statements-page
-  [{:keys [statements]
+  [path-prefix
+   {:keys [statements]
     ?more :more}]
   (page
    (cond-> [:main
@@ -181,7 +205,7 @@
                       (str id)
                       (json->hiccup
                        statement
-                       :custom statement-custom
+                       :custom (statement-custom path-prefix)
                        :key-weights statement-key-weights))
                      ]))]
      ?more
@@ -191,8 +215,11 @@
 
 (defn statements-response
   "Given the ctx and a statement result obj, respond with a page"
-  [_ statement-result]
+  [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
+    :or {path-prefix ""}}
+   statement-result]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body (statements-page
+          path-prefix
           statement-result)})
