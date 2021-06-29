@@ -44,19 +44,23 @@
    & {:keys [path
              custom
              key-weights ;; map of key to number, higher is higher
-             ]
+             ignore-custom ;; ignore custom, one level deep
+             #_prefold-map-entries
+             #_prefold-array-elements]
       :or {path []
            custom {}
-           key-weights {}}}]
+           key-weights {}
+           ignore-custom false}}]
   (if (rendered? json)
     ;; don't touch already rendered
     json
-    (if-let [custom-fn (some
-                        (fn [[pred cfn]]
-                          (when (pred path
-                                      json)
-                            cfn))
-                        custom)]
+    (if-let [custom-fn (and (not ignore-custom)
+                            (some
+                             (fn [[pred cfn]]
+                               (when (pred path
+                                           json)
+                                 cfn))
+                             custom))]
       ;; if we have a custom path function, use that
       (vary-meta
        (custom-fn

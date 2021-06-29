@@ -50,8 +50,11 @@
 
 (defn actor-custom
   [path-prefix
-   json & _]
-  (conj (json->hiccup json)
+   json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a {:href (format
@@ -71,8 +74,11 @@
 
 (defn verb-custom
   [path-prefix
-   json & _]
-  (conj (json->hiccup json)
+   json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
@@ -94,8 +100,11 @@
            (= "Activity" (get json "objectType")))))
 (defn activity-custom
   [path-prefix
-   json & _]
-  (conj (json->hiccup json)
+   json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
@@ -123,8 +132,11 @@
        (= "StatementRef" (get json "objectType"))))
 
 (defn ref-custom [path-prefix
-                  json & _]
-  (conj (json->hiccup json)
+                  json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
