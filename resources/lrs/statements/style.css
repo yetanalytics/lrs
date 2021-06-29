@@ -15,6 +15,24 @@ body > main {
   height: 100%;
 }
 
+/* (Multiple) Statement Resposne */
+main.statement-response {
+
+}
+
+main.statement-response > ul.statements {
+  list-style-type: none;
+}
+
+ul.statements > statement {
+}
+
+/* (Single) Statement Response */
+
+main.statement {
+
+}
+
 /* JSON-specific */
 
 .json-map {
