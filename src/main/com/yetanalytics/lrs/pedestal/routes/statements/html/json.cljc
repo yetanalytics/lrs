@@ -16,11 +16,14 @@
 
 (defn json-map-entry
   "Helper for creating map entries"
-  [k v]
+  [k v & {:keys [scalar]
+          :or {scalar false}}]
   [:div.json.json-map-entry
    [:div.json.json-map-entry-key
     k]
-   [:div.json.json-map-entry-val
+   [(if scalar
+      :div.json.json-map-entry-val.scalar
+      :div.json.json-map-entry-val)
     v]])
 
 (defn collapse-wrapper
@@ -88,7 +91,8 @@
                                 (json->hiccup v
                                               :custom custom
                                               :path (conj path k)
-                                              :key-weights key-weights)))
+                                              :key-weights key-weights)
+                                :scalar (not (coll? v))))
                              (sort-by
                               #(get key-weights (first %) 0)
                               >

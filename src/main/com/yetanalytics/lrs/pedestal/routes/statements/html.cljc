@@ -238,7 +238,7 @@
       [:div.json.json-map-entry.more
        [:div.json.json-map-entry-key
         "more"]
-       [:div.json.json-map-entry-val
+       [:div.json.json-map-entry-val.scalar
         [:div.json.json-scalar
          [:a.more
           {:href ?more}
