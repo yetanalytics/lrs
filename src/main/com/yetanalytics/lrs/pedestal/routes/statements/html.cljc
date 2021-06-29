@@ -52,8 +52,7 @@
   [path-prefix
    json & _]
   (conj (json->hiccup json)
-        (json-map-entry
-         ""
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a {:href (format
                       "%s/statements?agent=%s"
@@ -62,7 +61,7 @@
                        #?(:clj (json/generate-string
                                 json)
                           :cljs (.stringify js/JSON (clj->js json)))))}
-           "Filter..."]])))
+           "Filter..."]]]))
 
 (defn verb-pred
   [path json]
@@ -74,15 +73,14 @@
   [path-prefix
    json & _]
   (conj (json->hiccup json)
-        (json-map-entry
-         ""
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
            {:href (format
                    "%s/statements?verb=%s"
                    path-prefix
                    (encode-query-part (get json "id")))}
-           "Filter..."]])))
+           "Filter..."]]]))
 
 (defn activity-pred
   [path json]
@@ -98,15 +96,14 @@
   [path-prefix
    json & _]
   (conj (json->hiccup json)
-        (json-map-entry
-         ""
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
            {:href (format
                    "%s/statements?activity=%s"
                    path-prefix
                    (encode-query-part (get json "id")))}
-           "Filter..."]])))
+           "Filter..."]]]))
 
 (defn reg-pred [path _json]
   (= "registration" (peek path)))
@@ -128,15 +125,14 @@
 (defn ref-custom [path-prefix
                   json & _]
   (conj (json->hiccup json)
-        (json-map-entry
-         ""
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
            {:href (format
                    "%s/statements?statementId=%s"
                    path-prefix
                    (get json "id"))}
-           "View..."]])))
+           "View..."]]]))
 
 (defn statement-custom*
   [path-prefix]
@@ -197,20 +193,44 @@
    {:keys [statements]
     ?more :more}]
   (page
-   (cond-> [:main.statement-response
-            (into [:ul.statements]
-                  (for [{:strs [id] :as statement} statements]
-                    [:li.statement
-                     (jr/collapse-wrapper
-                      (str id)
-                      (json->hiccup
-                       statement
-                       :custom (statement-custom path-prefix)
-                       :key-weights statement-key-weights))]))]
+   (cond-> [:main.statement-response.json.json-map
+            [:div.json.json-map-entry.statements
+             [:div.json.json-map-entry-key
+              "statements"]
+             [:div.json.json-map-entry-val
+              (let [[fel & rel] (for [{:strs [id] :as statement} statements]
+                                  [:div.json.json-array-element
+                                   (json->hiccup
+                                    statement
+                                    :custom (statement-custom path-prefix)
+                                    :key-weights statement-key-weights)])]
+                (into (if-not fel
+                        [:div.json.json-array.statements.empty]
+                        (if (not-empty rel)
+                          (let [truncator-id (str
+                                              #?(:clj (java.util.UUID/randomUUID)
+                                                 :cljs (random-uuid)))]
+                            [:div.json.json-array.statements
+                             fel
+                             [:input.truncator
+                              {:type "checkbox"
+                               :id truncator-id
+                               :style "display:none;"}]
+                             [:label.truncator-label
+                              {:for truncator-id}
+                              (format "[ %d more ]" (count rel))]])
+                          [:div.json.json-array.statements fel]))
+                      rel))]]]
      ?more
-     (conj [:a.more
-            {:href ?more}
-            ?more]))))
+     (conj
+      [:div.json.json-map-entry.more
+       [:div.json.json-map-entry-key
+        "more"]
+       [:div.json.json-map-entry-val
+        [:div.json.json-scalar
+         [:a.more
+          {:href ?more}
+          ?more]]]]))))
 
 (defn statements-response
   "Given the ctx and a statement result obj, respond with a page"
