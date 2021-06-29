@@ -175,7 +175,7 @@
   [path-prefix
    statement]
   (page
-   [:main
+   [:main.statement
     (json->hiccup
      statement
      :custom (statement-custom path-prefix)
@@ -197,19 +197,18 @@
    {:keys [statements]
     ?more :more}]
   (page
-   (cond-> [:main
-            (into [:ul]
+   (cond-> [:main.statement-response
+            (into [:ul.statements]
                   (for [{:strs [id] :as statement} statements]
-                    [:li
+                    [:li.statement
                      (jr/collapse-wrapper
                       (str id)
                       (json->hiccup
                        statement
                        :custom (statement-custom path-prefix)
-                       :key-weights statement-key-weights))
-                     ]))]
+                       :key-weights statement-key-weights))]))]
      ?more
-     (conj [:a
+     (conj [:a.more
             {:href ?more}
             ?more]))))
 
