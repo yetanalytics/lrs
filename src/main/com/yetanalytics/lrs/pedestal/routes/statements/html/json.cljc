@@ -48,12 +48,13 @@
              custom
              key-weights ;; map of key to number, higher is higher
              ignore-custom ;; ignore custom, one level deep
-             #_prefold-map-entries
-             #_prefold-array-elements]
+             truncate-after ;; truncate after this many collection elements
+             ]
       :or {path []
            custom {}
            key-weights {}
-           ignore-custom false}}]
+           ignore-custom false
+           truncate-after 1}}]
   (if (rendered? json)
     ;; don't touch already rendered
     json
@@ -73,47 +74,51 @@
         :custom custom
         :path path
         :key-weights key-weights
+        :truncate-after truncate-after
         )
        assoc ::rendered true)
       (cond
         ;; maps are objects
         (map? json)
-        (let [[fent & rent] (map-indexed
-                             (fn [idx [k v]]
-                               (json-map-entry
-                                (let [kn (name k)]
-                                  (if (linky? kn)
-                                    [:a
-                                     {:href kn
-                                      :target "_blank"}
-                                     kn]
-                                    kn))
-                                (json->hiccup v
-                                              :custom custom
-                                              :path (conj path k)
-                                              :key-weights key-weights)
-                                :scalar (not (coll? v))))
-                             (sort-by
-                              #(get key-weights (first %) 0)
-                              >
-                              json))]
-          (-> (if-not fent
+        (let [[fent rent]
+              (->> json
+                   (sort-by
+                    #(get key-weights (first %) 0)
+                    >)
+                   (map-indexed
+                    (fn [idx [k v]]
+                      (json-map-entry
+                       (let [kn (name k)]
+                         (if (linky? kn)
+                           [:a
+                            {:href kn
+                             :target "_blank"}
+                            kn]
+                           kn))
+                       (json->hiccup v
+                                     :custom custom
+                                     :path (conj path k)
+                                     :key-weights key-weights
+                                     :truncate-after truncate-after)
+                       :scalar (not (coll? v)))))
+                   (split-at truncate-after))]
+          (-> (if (empty? fent)
                 [:div.json.json-map.empty]
                 (if (not-empty rent)
                   (let [truncator-id (str
                                       #?(:clj (java.util.UUID/randomUUID)
                                          :cljs (random-uuid)))]
-                    [:div.json.json-map
-                     fent
-                     [:input.truncator
-                      {:type "checkbox"
-                       :id truncator-id
-                       :style "display:none;"}]
-                     [:label.truncator-label
-                      {:for truncator-id}
-                      (format "{ %d more }" (count rent))]])
-                  [:div.json.json-map
-                   fent]))
+                    (-> [:div.json.json-map]
+                        (into fent)
+                        (into
+                         [[:input.truncator
+                           {:type "checkbox"
+                            :id truncator-id
+                            :style "display:none;"}]
+                          [:label.truncator-label
+                           {:for truncator-id}
+                           (format "{ %d more }" (count rent))]])))
+                  (into [:div.json.json-map] fent)))
               (into
                rent)
               (vary-meta assoc ::rendered true)))
@@ -122,31 +127,33 @@
         json
         ;; all other collections are arrays
         (coll? json)
-        (let [[fel & rel] (map-indexed
-                           (fn [idx e]
-                             [:div.json.json-array-element
-                              (json->hiccup e
-                                            :custom custom
-                                            :path (conj path idx)
-                                            :key-weights key-weights)])
-                           json)]
-          (-> (if-not fel
+        (let [[fel rel]
+              (->> json
+                   (map-indexed
+                    (fn [idx e]
+                      [:div.json.json-array-element
+                       (json->hiccup e
+                                     :custom custom
+                                     :path (conj path idx)
+                                     :key-weights key-weights
+                                     :truncate-after truncate-after)]))
+                   (split-at truncate-after))]
+          (-> (if (empty? fel)
                 [:div.json.json-array.empty]
                 (if (not-empty rel)
                   (let [truncator-id (str
                                       #?(:clj (java.util.UUID/randomUUID)
                                          :cljs (random-uuid)))]
-                    [:div.json.json-array
-                     fel
-                     [:input.truncator
-                      {:type "checkbox"
-                       :id truncator-id
-                       :style "display:none;"}]
-                     [:label.truncator-label
-                      {:for truncator-id}
-                      (format "[ %d more ]" (count rel))]])
-                  [:div.json.json-array
-                   fel]))
+                    (-> [:div.json.json-array]
+                        (into fel)
+                        (into [[:input.truncator
+                                {:type "checkbox"
+                                 :id truncator-id
+                                 :style "display:none;"}]
+                               [:label.truncator-label
+                                {:for truncator-id}
+                                (format "[ %d more ]" (count rel))]])))
+                  (into [:div.json.json-array] fel)))
             (into
              rel)
             (vary-meta assoc ::rendered true)))
