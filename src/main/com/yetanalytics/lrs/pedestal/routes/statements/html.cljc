@@ -97,6 +97,8 @@
 (defn activity-pred
   [path json]
   (and (map? json)
+       ;; Statements are similar so we exempt those
+       (not (get json "actor"))
        (get json "id")
        (or (= "Activity" (get json "objectType"))
            (nil? (get json "objectType")))))
@@ -149,6 +151,26 @@
                    (get json "id"))}
            "View..."]]]))
 
+(defn sid-pred
+  "Detect a statement id to link"
+  [[root-k idx id-k :as path]
+   json]
+  (or (= path ["id"])
+      (and (= [:statements "id"]
+              [root-k id-k])
+           (number? idx))))
+
+(defn sid-custom
+  [path-prefix
+   json & _]
+  [:div.json.json-scalar
+   [:a
+    {:href (format
+            "%s/statements?statementId=%s"
+            path-prefix
+            json)}
+    json]])
+
 (defn statement-custom*
   [path-prefix]
   {;; linkable actors
@@ -170,6 +192,10 @@
    ;; linkable statement ref
    ref-pred
    (partial ref-custom
+            path-prefix)
+   ;; linkable statement id
+   sid-pred
+   (partial sid-custom
             path-prefix)})
 
 (def statement-custom
