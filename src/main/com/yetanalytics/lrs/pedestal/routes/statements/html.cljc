@@ -191,7 +191,10 @@
         (json->hiccup
          statement
          :custom (statement-custom path-prefix)
-         :key-weights statement-key-weights)]
+         :key-weights statement-key-weights
+         :truncate-after 10
+         :truncate-after-min 1
+         :truncate-after-mod -9)]
     (if (unwrap? ctx)
       #?(:clj (html/html statement-rendered)
          :cljs (hic/render-html statement-rendered))
@@ -219,7 +222,10 @@
          (cond-> {:statements statements}
            ?more (assoc :more ?more))
          :custom (statement-custom path-prefix)
-         :key-weights statement-key-weights)]
+         :key-weights statement-key-weights
+         :truncate-after 2
+         :truncate-after-min 1
+         :truncate-after-mod -1)]
     (if (unwrap? ctx)
       #?(:clj (html/html statement-response-rendered)
          :cljs (hic/render-html statement-response-rendered))
