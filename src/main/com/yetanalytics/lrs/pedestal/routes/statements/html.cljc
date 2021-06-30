@@ -40,20 +40,21 @@
   [path json]
   (and
    (map? json)
-   (or (contains? #{["actor"]
-                    ["object" "actor"]}
-                  path)
-       (contains? #{"Agent" "Group"}
-                  (get json "objectType")))
    (some #{"mbox" "mbox_sha1sum" "openid" "account"}
-         (keys json))))
+         (keys json))
+   (or
+    (contains? #{"Agent" "Group"}
+               (get json "objectType"))
+    (= (peek path) "actor"))))
 
 (defn actor-custom
   [path-prefix
-   json & _]
-  (conj (json->hiccup json)
-        (json-map-entry
-         ""
+   json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a {:href (format
                       "%s/statements?agent=%s"
@@ -62,51 +63,53 @@
                        #?(:clj (json/generate-string
                                 json)
                           :cljs (.stringify js/JSON (clj->js json)))))}
-           "Filter..."]])))
+           "Filter..."]]]))
 
 (defn verb-pred
   [path json]
-  (contains? #{["verb"]
-               ["object" "verb"]}
-             path))
+  (and
+   (map? json)
+   (= (peek path) "verb")
+   (get json "id")))
 
 (defn verb-custom
   [path-prefix
-   json & _]
-  (conj (json->hiccup json)
-        (json-map-entry
-         ""
+   json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
            {:href (format
                    "%s/statements?verb=%s"
                    path-prefix
                    (encode-query-part (get json "id")))}
-           "Filter..."]])))
+           "Filter..."]]]))
 
 (defn activity-pred
   [path json]
-  (or (and
-       (contains? #{["object"]
-                    ["object" "object"]}
-                  path)
-       (nil? (get json "objectType"))
-       (get json "id"))
-      (and (map? json)
-           (= "Activity" (get json "objectType")))))
+  (and (map? json)
+       (get json "id")
+       (or (= "Activity" (get json "objectType"))
+           (nil? (get json "objectType")))))
+
 (defn activity-custom
   [path-prefix
-   json & _]
-  (conj (json->hiccup json)
-        (json-map-entry
-         ""
+   json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
            {:href (format
                    "%s/statements?activity=%s"
                    path-prefix
                    (encode-query-part (get json "id")))}
-           "Filter..."]])))
+           "Filter..."]]]))
 
 (defn reg-pred [path _json]
   (= "registration" (peek path)))
@@ -126,17 +129,19 @@
        (= "StatementRef" (get json "objectType"))))
 
 (defn ref-custom [path-prefix
-                  json & _]
-  (conj (json->hiccup json)
-        (json-map-entry
-         ""
+                  json & json->hiccup-args]
+  (conj (apply json->hiccup
+               json
+               :ignore-custom true
+               json->hiccup-args)
+        [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
            {:href (format
                    "%s/statements?statementId=%s"
                    path-prefix
                    (get json "id"))}
-           "View..."]])))
+           "View..."]]]))
 
 (defn statement-custom*
   [path-prefix]
@@ -197,20 +202,11 @@
    {:keys [statements]
     ?more :more}]
   (page
-   (cond-> [:main.statement-response
-            (into [:ul.statements]
-                  (for [{:strs [id] :as statement} statements]
-                    [:li.statement
-                     (jr/collapse-wrapper
-                      (str id)
-                      (json->hiccup
-                       statement
-                       :custom (statement-custom path-prefix)
-                       :key-weights statement-key-weights))]))]
-     ?more
-     (conj [:a.more
-            {:href ?more}
-            ?more]))))
+   (json->hiccup
+    (cond-> {:statements statements}
+      ?more (assoc :more ?more))
+    :custom (statement-custom path-prefix)
+    :key-weights statement-key-weights)))
 
 (defn statements-response
   "Given the ctx and a statement result obj, respond with a page"

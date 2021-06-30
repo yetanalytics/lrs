@@ -15,18 +15,6 @@ body > main {
   height: 100%;
 }
 
-/* (Multiple) Statement Resposne */
-main.statement-response {
-
-}
-
-main.statement-response > ul.statements {
-  list-style-type: none;
-}
-
-ul.statements > statement {
-}
-
 /* (Single) Statement Response */
 
 main.statement {
@@ -37,50 +25,83 @@ main.statement {
 
 .json-map {
   display:grid;
+  border-left: 1px solid rgba(0,0,0,.05);
+}
+
+.json-map > .json-map-entry:not(:last-child) {
+  border-bottom: 1px solid rgba(0,0,0,.05);
 }
 
 .json-array {
   display:grid;
 }
 
+.json-array > .json-array-element:not(:last-child) {
+  border-bottom: 1px solid rgba(0,0,0,.05);
+}
+
+
+.json-array-element {
+  display:grid;
+}
+
+.json-array-action {
+  display: grid;
+}
+
+
 .json-map-entry {
   display:grid;
   grid-template-columns: 1fr 12fr;
-  border-bottom: 1px solid black
+}
+
+/* json-map-action shares layout styling with json-map-entry but contains actions */
+.json-map-action {
+  display:grid;
+  grid-template-columns: 1fr;
+  padding: 1em;
 }
 
 .json-map-entry-key {
   padding: 1em;
-  border-right: 1px solid black;
+  background-color: rgba(0,0,0,.025);
 }
 
-.json-map-entry-val {
-  margin-top: auto;
-  margin-bottom: auto;
+.json-map-entry-key:after {
+  content: ":";
 }
 
-/* leaf */
+/* leaf outer */
+
+.json-map-entry-val > .json-map {
+}
+
+.json-map-entry-val.scalar {
+  padding: 1em;
+}
+
+/* leaf inner */
 .json-scalar {
   text-overflow: ellipsis;
   display: inline;
-  margin-left: 1em
 }
 
-/* collapsing */
+/* truncation.. inline collapse with json in mind */
+/* expects a truncator input, preceded by label. Will hide the rest of the things except .no-truncate */
+label.truncator-label {
+  display:grid;
+  grid-template-columns: 1fr;
+  padding: 1em;
+}
 
-.collapse-wrapper > .collapsed {
+input.truncator ~ :not(.no-truncate,label.truncator-label) {
   display: none;
 }
 
-.collapse-wrapper > :checked ~ .collapsed {
-  display:unset;
+input.truncator:checked ~ :not(.no-truncate) {
+  display: grid;
 }
 
-.collapse-wrapper > label.collapse-label:after {
-  content: "+";
-  margin-left: 1em;
-}
-
-.collapse-wrapper > :checked ~ label.collapse-label:after {
-  content: "-";
+input.truncator:checked ~ label.truncator-label {
+  display: none;
 }
