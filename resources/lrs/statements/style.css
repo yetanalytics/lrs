@@ -15,12 +15,6 @@ body > main {
   height: 100%;
 }
 
-/* (Single) Statement Response */
-
-main.statement {
-
-}
-
 /* JSON-specific */
 
 .json-map {

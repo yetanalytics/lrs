@@ -6,6 +6,7 @@
                 :cljs [[hiccups.runtime :as hic]
                        [goog.string :refer [format]]
                        goog.string.format])
+            [clojure.string :as cs]
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
              :as jr
              :refer [json->hiccup json-map-entry]])
@@ -17,6 +18,11 @@
   [^String qpart]
   #?(:clj (URLEncoder/encode qpart "UTF-8")
      :cljs (js/encodeURIComponent qpart)))
+
+(defn- unwrap?
+  "Given the pedestal context, is the user asking for unwrapped html?"
+  [{{{:keys [unwrap_html]} :params} :request}]
+  (some-> unwrap_html cs/lower-case (= "true")))
 
 #?(:clj (defmacro load-css! []
           (slurp (io/resource "lrs/statements/style.css"))))
@@ -31,10 +37,10 @@
 
 (defn page
   [hvec]
-  #?(:clj (page/html5 head hvec)
+  #?(:clj (page/html5 head [:main hvec])
      :cljs (format "<!DOCTYPE html>\n<html>%s</html>"
                    (hic/render-html
-                    (list head hvec)))))
+                    (list head [:main hvec])))))
 
 (defn actor-pred
   [path json]
@@ -177,44 +183,55 @@
    "account" 1})
 
 (defn statement-page
-  [path-prefix
+  [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
+    :or {path-prefix ""}
+    :as ctx}
    statement]
-  (page
-   [:main.statement
-    (json->hiccup
-     statement
-     :custom (statement-custom path-prefix)
-     :key-weights statement-key-weights)]))
+  (let [statement-rendered
+        (json->hiccup
+         statement
+         :custom (statement-custom path-prefix)
+         :key-weights statement-key-weights)]
+    (if (unwrap? ctx)
+      #?(:clj (html/html statement-rendered)
+         :cljs (hic/render-html statement-rendered))
+      (page
+       statement-rendered))))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
-  [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
-    :or {path-prefix ""}}
+  [ctx
    statement]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body (statement-page
-          path-prefix
+          ctx
           statement)})
 
 (defn statements-page
-  [path-prefix
+  [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
+    :or {path-prefix ""}
+    :as ctx}
    {:keys [statements]
     ?more :more}]
-  (page
-   (json->hiccup
-    (cond-> {:statements statements}
-      ?more (assoc :more ?more))
-    :custom (statement-custom path-prefix)
-    :key-weights statement-key-weights)))
+  (let [statement-response-rendered
+        (json->hiccup
+         (cond-> {:statements statements}
+           ?more (assoc :more ?more))
+         :custom (statement-custom path-prefix)
+         :key-weights statement-key-weights)]
+    (if (unwrap? ctx)
+      #?(:clj (html/html statement-response-rendered)
+         :cljs (hic/render-html statement-response-rendered))
+      (page
+       statement-response-rendered))))
 
 (defn statements-response
   "Given the ctx and a statement result obj, respond with a page"
-  [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
-    :or {path-prefix ""}}
+  [ctx
    statement-result]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body (statements-page
-          path-prefix
+          ctx
           statement-result)})
