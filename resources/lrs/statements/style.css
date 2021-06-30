@@ -80,7 +80,6 @@ main.statement {
   padding: 1em;
 }
 
-
 /* leaf inner */
 .json-scalar {
   text-overflow: ellipsis;

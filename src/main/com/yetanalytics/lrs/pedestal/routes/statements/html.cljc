@@ -40,13 +40,12 @@
   [path json]
   (and
    (map? json)
-   (or (contains? #{["actor"]
-                    ["object" "actor"]}
-                  path)
-       (contains? #{"Agent" "Group"}
-                  (get json "objectType")))
    (some #{"mbox" "mbox_sha1sum" "openid" "account"}
-         (keys json))))
+         (keys json))
+   (or
+    (contains? #{"Agent" "Group"}
+               (get json "objectType"))
+    (= (peek path) "actor"))))
 
 (defn actor-custom
   [path-prefix
@@ -68,9 +67,10 @@
 
 (defn verb-pred
   [path json]
-  (contains? #{["verb"]
-               ["object" "verb"]}
-             path))
+  (and
+   (map? json)
+   (= (peek path) "verb")
+   (get json "id")))
 
 (defn verb-custom
   [path-prefix
@@ -90,14 +90,11 @@
 
 (defn activity-pred
   [path json]
-  (or (and
-       (contains? #{["object"]
-                    ["object" "object"]}
-                  path)
-       (nil? (get json "objectType"))
-       (get json "id"))
-      (and (map? json)
-           (= "Activity" (get json "objectType")))))
+  (and (map? json)
+       (get json "id")
+       (or (= "Activity" (get json "objectType"))
+           (nil? (get json "objectType")))))
+
 (defn activity-custom
   [path-prefix
    json & json->hiccup-args]
@@ -205,44 +202,11 @@
    {:keys [statements]
     ?more :more}]
   (page
-   (cond-> [:main.statement-response.json.json-map
-            [:div.json.json-map-entry.statements
-             [:div.json.json-map-entry-key
-              "statements"]
-             [:div.json.json-map-entry-val
-              (let [[fel & rel] (for [{:strs [id] :as statement} statements]
-                                  [:div.json.json-array-element
-                                   (json->hiccup
-                                    statement
-                                    :custom (statement-custom path-prefix)
-                                    :key-weights statement-key-weights)])]
-                (into (if-not fel
-                        [:div.json.json-array.statements.empty]
-                        (if (not-empty rel)
-                          (let [truncator-id (str
-                                              #?(:clj (java.util.UUID/randomUUID)
-                                                 :cljs (random-uuid)))]
-                            [:div.json.json-array.statements
-                             fel
-                             [:input.truncator
-                              {:type "checkbox"
-                               :id truncator-id
-                               :style "display:none;"}]
-                             [:label.truncator-label
-                              {:for truncator-id}
-                              (format "[ %d more ]" (count rel))]])
-                          [:div.json.json-array.statements fel]))
-                      rel))]]]
-     ?more
-     (conj
-      [:div.json.json-map-entry.more
-       [:div.json.json-map-entry-key
-        "more"]
-       [:div.json.json-map-entry-val.scalar
-        [:div.json.json-scalar
-         [:a.more
-          {:href ?more}
-          ?more]]]]))))
+   (json->hiccup
+    (cond-> {:statements statements}
+      ?more (assoc :more ?more))
+    :custom (statement-custom path-prefix)
+    :key-weights statement-key-weights)))
 
 (defn statements-response
   "Given the ctx and a statement result obj, respond with a page"

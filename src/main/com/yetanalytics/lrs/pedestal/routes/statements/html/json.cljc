@@ -12,7 +12,9 @@
   "is the string link-like?"
   [^String maybe-link]
   (or (.startsWith maybe-link "http://")
-      (.startsWith maybe-link "https://")))
+      (.startsWith maybe-link "https://")
+      (.startsWith maybe-link "/") ;; catch more link
+      ))
 
 (defn json-map-entry
   "Helper for creating map entries"
