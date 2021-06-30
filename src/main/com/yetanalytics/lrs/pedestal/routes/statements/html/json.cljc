@@ -28,22 +28,6 @@
       :div.json.json-map-entry-val)
     v]])
 
-(defn collapse-wrapper
-  [label & elements]
-  (let [input-id (str
-                  #?(:clj (java.util.UUID/randomUUID)
-                     :cljs (random-uuid)))]
-    [:div.json.collapse-wrapper
-     [:input.json.collapse-input
-      {:type "checkbox"
-       :id input-id
-       :style "display:none;"}]
-     [:label.collapse-label
-      {:for input-id}
-      label]
-     (into [:div.json.collapsed]
-           elements)]))
-
 (defn json->hiccup
   [json
    & {:keys [path
