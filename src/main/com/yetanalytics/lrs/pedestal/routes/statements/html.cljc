@@ -9,15 +9,22 @@
             [clojure.string :as cs]
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
              :as jr
-             :refer [json->hiccup json-map-entry]])
+             :refer [json->hiccup json-map-entry]]
+            [com.yetanalytics.lrs.util :as u])
   #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
                              :refer [load-css!]]))
   #?(:clj (:import [java.net URLEncoder])))
 
-(defn- encode-query-part
-  [^String qpart]
-  #?(:clj (URLEncoder/encode qpart "UTF-8")
-     :cljs (js/encodeURIComponent qpart)))
+(defn- statements-link
+  [path-prefix
+   params]
+  (str path-prefix "/statements"
+       (when (not-empty params)
+         (str
+          "?"
+          (u/form-encode
+           (cond-> params
+             (:agent params) (update :agent u/json-string)))))))
 
 (defn- unwrap?
   "Given the pedestal context, is the user asking for unwrapped html?"
@@ -62,13 +69,10 @@
                json->hiccup-args)
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
-          [:a {:href (format
-                      "%s/statements?agent=%s"
-                      path-prefix
-                      (encode-query-part
-                       #?(:clj (json/generate-string
-                                json)
-                          :cljs (.stringify js/JSON (clj->js json)))))}
+          [:a {:href
+               (statements-link
+                path-prefix
+                {:agent json})}
            "Filter..."]]]))
 
 (defn verb-pred
@@ -88,10 +92,10 @@
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
-           {:href (format
-                   "%s/statements?verb=%s"
-                   path-prefix
-                   (encode-query-part (get json "id")))}
+           {:href
+            (statements-link
+             path-prefix
+             {:verb (get json "id")})}
            "Filter..."]]]))
 
 (defn activity-pred
@@ -113,10 +117,10 @@
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
-           {:href (format
-                   "%s/statements?activity=%s"
-                   path-prefix
-                   (encode-query-part (get json "id")))}
+           {:href
+            (statements-link
+             path-prefix
+             {:activity (get json "id")})}
            "Filter..."]]]))
 
 (defn reg-pred [path _json]
@@ -126,10 +130,9 @@
                   json & _]
   [:div.json.json-scalar
    [:a
-    {:href (format
-            "%s/statements?registration=%s"
+    {:href (statements-link
             path-prefix
-            json)}
+            {:registration json})}
     json]])
 
 (defn ref-pred [path json]
@@ -145,10 +148,10 @@
         [:div.json.json-map-action.no-truncate
          [:div.json.json-scalar
           [:a
-           {:href (format
-                   "%s/statements?statementId=%s"
-                   path-prefix
-                   (get json "id"))}
+           {:href
+            (statements-link
+             path-prefix
+             {:statementId (get json "id")})}
            "View..."]]]))
 
 (defn sid-pred
@@ -165,10 +168,9 @@
    json & _]
   [:div.json.json-scalar
    [:a
-    {:href (format
-            "%s/statements?statementId=%s"
+    {:href (statements-link
             path-prefix
-            json)}
+            {:statementId json})}
     json]])
 
 (defn statement-custom*
