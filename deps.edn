@@ -6,6 +6,7 @@
   com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
                                 :sha "e2c517e7adcedc7f3012b90bce274e2c33cdbcc1"
                                 :exclusions [org.clojure/clojurescript]}
+  cheshire/cheshire {:mvn/version "5.10.0"}
   io.pedestal/pedestal.service {:mvn/version "0.5.7"}
   macchiato/core {:mvn/version "0.2.17"
                   :exclusions [funcool/cuerdas]
@@ -38,8 +39,7 @@
   ;; bench utils for LRS implementations
   :bench
   {:extra-paths ["src/bench"]
-   :extra-deps {cheshire/cheshire {:mvn/version "5.10.0"}
-                hato/hato {:mvn/version "0.5.0"}
+   :extra-deps {hato/hato {:mvn/version "0.5.0"}
                 org.clojure/tools.cli {:mvn/version "1.0.194"}
                 com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
                                           :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
