@@ -68,7 +68,7 @@ body > main {
 }
 
 .json-array.columnar {
-  display: flex;
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .json-array.columnar > :not(:last-child) {
@@ -77,7 +77,6 @@ body > main {
 
 
 .json-array.columnar > .json-array-element {
-  display: unset;
   padding: 1em;
 }
 
