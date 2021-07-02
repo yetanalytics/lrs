@@ -11,6 +11,14 @@ body {
   height: 100%;
 }
 
+nav.query {
+
+}
+
+a.query-remove-link {
+  margin: 1em;
+}
+
 body > main {
   height: 100%;
 }
@@ -19,7 +27,6 @@ body > main {
 
 .json-map {
   display:grid;
-  border-left: 1px solid rgba(0,0,0,.05);
 }
 
 .json-map > .json-map-entry:not(:last-child) {
@@ -28,10 +35,25 @@ body > main {
 
 .json-array {
   display:grid;
+  padding-left: .2em;
 }
 
-.json-array > .json-array-element:not(:last-child) {
+.json-array > * {
   border-bottom: 1px solid rgba(0,0,0,.05);
+  border-top: 1px solid rgba(0,0,0,.05);
+  border-left: 1px solid rgba(0,0,0,.05);
+}
+
+.json-array > *:not(:first-child) {
+  margin-top: .1em;
+}
+
+.json-array > *:not(:last-child) {
+  margin-bottom: .1em;
+}
+
+.json-array > :last-child {
+  margin-bottom: .2em;
 }
 
 
@@ -65,9 +87,18 @@ body > main {
   content: ":";
 }
 
+
+.json-map-entry-val {
+  border-left: 1px solid rgba(0,0,0,.05);
+}
+
 /* leaf outer */
 
 .json-map-entry-val > .json-map {
+  margin-left: .2em;
+  margin-bottom: .2em;
+  border-left: 1px solid rgba(0,0,0,.05);
+  border-bottom: 1px solid rgba(0,0,0,.05);
 }
 
 .json-map-entry-val.scalar {
