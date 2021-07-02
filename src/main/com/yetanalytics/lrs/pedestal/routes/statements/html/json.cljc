@@ -13,6 +13,11 @@
   [x]
   (some-> x meta ::link-tuple true?))
 
+(defn columnar?
+  "Should this array be displayed as columns?"
+  [x]
+  (some-> x meta ::columnar true?))
+
 (defn linky?
   "is the string link-like?"
   [^String maybe-link]
@@ -143,7 +148,11 @@
                 {:href link
                  :target "_blank"}
                 text]])
-            (let [[fel rel]
+            (let [columns? (columnar? json)
+                  arr-k (if (columnar? json)
+                          :div.json.json-array.columnar
+                          :div.json.json-array)
+                  [fel rel]
                   (->> json
                        (map-indexed
                         (fn [idx e]
@@ -164,7 +173,7 @@
                       (let [truncator-id (str
                                           #?(:clj (java.util.UUID/randomUUID)
                                              :cljs (random-uuid)))]
-                        (-> [:div.json.json-array]
+                        (-> [arr-k]
                             (into fel)
                             (into [[:input.truncator
                                     {:type "checkbox"
@@ -173,7 +182,7 @@
                                    [:label.truncator-label
                                     {:for truncator-id}
                                     (format "[ %d more ]" (count rel))]])))
-                      (into [:div.json.json-array] fel)))
+                      (into [arr-k] fel)))
                   (into
                    rel)
                   (vary-meta assoc ::rendered true))))

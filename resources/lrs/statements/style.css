@@ -49,23 +49,38 @@ body > main {
   padding-left: .2em;
 }
 
-.json-array > * {
+.json-array:not(.columnar) > * {
   border-bottom: 1px solid rgba(0,0,0,.05);
   border-top: 1px solid rgba(0,0,0,.05);
   border-left: 1px solid rgba(0,0,0,.05);
 }
 
-.json-array > *:not(:first-child) {
+.json-array:not(.columnar) > *:not(:first-child) {
   margin-top: .1em;
 }
 
-.json-array > *:not(:last-child) {
+.json-array:not(.columnar) > *:not(:last-child) {
   margin-bottom: .1em;
 }
 
-.json-array > :last-child {
+.json-array:not(.columnar) > :last-child {
   margin-bottom: .2em;
 }
+
+.json-array.columnar {
+  display: flex;
+}
+
+.json-array.columnar > :not(:last-child) {
+  border-right: 1px solid rgba(0,0,0,.05);
+}
+
+
+.json-array.columnar > .json-array-element {
+  display: unset;
+  padding: 1em;
+}
+
 
 
 .json-array-element {

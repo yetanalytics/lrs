@@ -65,6 +65,7 @@
           (fn [m k v]
             (assoc m
                    k
+                   ^::jr/columnar
                    [v
                     ^::jr/link-tuple
                     [(statements-link
