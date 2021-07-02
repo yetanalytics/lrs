@@ -66,11 +66,10 @@
             (assoc m
                    k
                    [v
-                    ^::jr/rendered
-                    [:a.query-remove-link
-                     {:href (statements-link
-                             path-prefix
-                             (dissoc params k))}
+                    ^::jr/link-tuple
+                    [(statements-link
+                      path-prefix
+                      (dissoc params k))
                      "Remove"]]))
           {}
           params)
