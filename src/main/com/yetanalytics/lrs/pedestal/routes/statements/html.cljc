@@ -43,11 +43,15 @@
     page-css]])
 
 (defn page
-  [hvec]
-  #?(:clj (page/html5 head [:main hvec])
-     :cljs (format "<!DOCTYPE html>\n<html>%s</html>"
-                   (hic/render-html
-                    (list head [:main hvec])))))
+  [& hvecs]
+  (format "<!DOCTYPE html>\n<html>%s</html>"
+          (cs/join "\n"
+                   (map
+                    (fn [hvec]
+                      (#?(:clj html/html
+                          :cljs hic/render-html)
+                       hvec))
+                    hvecs))))
 
 (defn actor-pred
   [path json]
@@ -227,7 +231,10 @@
       #?(:clj (html/html statement-rendered)
          :cljs (hic/render-html statement-rendered))
       (page
-       statement-rendered))))
+       head
+       [:body
+        [:main
+         statement-rendered]]))))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
@@ -258,7 +265,10 @@
       #?(:clj (html/html statement-response-rendered)
          :cljs (hic/render-html statement-response-rendered))
       (page
-       statement-response-rendered))))
+       head
+       [:body
+        [:main
+         statement-response-rendered]]))))
 
 (defn statements-response
   "Given the ctx and a statement result obj, respond with a page"
