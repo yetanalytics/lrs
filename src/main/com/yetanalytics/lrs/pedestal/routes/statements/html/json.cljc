@@ -18,13 +18,34 @@
   [x]
   (some-> x meta ::columnar true?))
 
+(defn web-link?
+  "Is it an http/s link?"
+  [^String maybe-web-link]
+  (or (.startsWith maybe-web-link "http://")
+      (.startsWith maybe-web-link "https://")))
+
+(defn relative-link?
+  "Is it a link within the LRS?"
+  [^String maybe-relative-link]
+  (.startsWith maybe-relative-link "/"))
+
 (defn linky?
   "is the string link-like?"
   [^String maybe-link]
-  (or (.startsWith maybe-link "http://")
-      (.startsWith maybe-link "https://")
-      (.startsWith maybe-link "/") ;; catch more link
-      ))
+  (or (web-link? maybe-link)
+      (relative-link? maybe-link)))
+
+(defn a-attrs
+  [href]
+  (cond-> {:href href}
+    (web-link? href)
+    (assoc :target "_blank")))1
+
+(defn a
+  [link text]
+  [:a
+   (a-attrs link)
+   text])
 
 (defn json-map-entry
   "Helper for creating map entries"
@@ -99,10 +120,7 @@
                         (json-map-entry
                          (let [kn (name k)]
                            (if (linky? kn)
-                             [:a
-                              {:href kn
-                               :target "_blank"}
-                              kn]
+                             (a kn kn)
                              kn))
                          (json->hiccup v
                                        :custom custom
@@ -144,10 +162,7 @@
             (let [[link text] json]
               ^::rendered
               [:div.json.json-scalar
-               [:a
-                {:href link
-                 :target "_blank"}
-                text]])
+               (a link text)])
             (let [columns? (columnar? json)
                   arr-k (if (columnar? json)
                           :div.json.json-array.columnar
@@ -193,8 +208,5 @@
            ;; automatically create links when possible
            (if (and (string? json)
                     (linky? json))
-             [:a
-              {:href json
-               :target "_blank"}
-              json]
+             (a json json)
              (str json))])))))
