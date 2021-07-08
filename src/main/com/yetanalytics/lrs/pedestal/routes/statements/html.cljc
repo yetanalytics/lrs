@@ -268,9 +268,6 @@
          :cljs (hic/render-html statement-rendered))
       (page
        head
-       #_[:head
-        [:style
-         (slurp (io/resource "lrs/statements/style.css"))]]
        [:body
         (header path-prefix
                 params)
@@ -309,9 +306,6 @@
          :cljs (hic/render-html statement-response-rendered))
       (page
        head
-       #_[:head
-        [:style
-         (slurp (io/resource "lrs/statements/style.css"))]]
        [:body
         (header path-prefix
                 params)
