@@ -8,6 +8,16 @@
   [x]
   (some-> x meta ::rendered true?))
 
+(defn link-tuple?
+  "Is it a tuple of link and display?"
+  [x]
+  (some-> x meta ::link-tuple true?))
+
+(defn columnar?
+  "Should this array be displayed as columns?"
+  [x]
+  (some-> x meta ::columnar true?))
+
 (defn linky?
   "is the string link-like?"
   [^String maybe-link]
@@ -130,40 +140,52 @@
           json
           ;; all other collections are arrays
           (coll? json)
-          (let [[fel rel]
-                (->> json
-                     (map-indexed
-                      (fn [idx e]
-                        [:div.json.json-array-element
-                         (json->hiccup e
-                                       :custom custom
-                                       :path (conj path idx)
-                                       :key-weights key-weights
-                                       :truncate-after (+ truncate-after
-                                                          truncate-after-mod)
-                                       :truncate-after-min truncate-after-min
-                                       :truncate-after-max truncate-after-max
-                                       :truncate-after-mod truncate-after-mod)]))
-                     (split-at truncate-after))]
-            (-> (if (empty? fel)
-                  [:div.json.json-array.empty]
-                  (if (not-empty rel)
-                    (let [truncator-id (str
-                                        #?(:clj (java.util.UUID/randomUUID)
-                                           :cljs (random-uuid)))]
-                      (-> [:div.json.json-array]
-                          (into fel)
-                          (into [[:input.truncator
-                                  {:type "checkbox"
-                                   :id truncator-id
-                                   :style "display:none;"}]
-                                 [:label.truncator-label
-                                  {:for truncator-id}
-                                  (format "[ %d more ]" (count rel))]])))
-                    (into [:div.json.json-array] fel)))
-                (into
-                 rel)
-                (vary-meta assoc ::rendered true)))
+          (if (link-tuple? json) ;; check for link-tuple-ness and render if so
+            (let [[link text] json]
+              ^::rendered
+              [:div.json.json-scalar
+               [:a
+                {:href link
+                 :target "_blank"}
+                text]])
+            (let [columns? (columnar? json)
+                  arr-k (if (columnar? json)
+                          :div.json.json-array.columnar
+                          :div.json.json-array)
+                  [fel rel]
+                  (->> json
+                       (map-indexed
+                        (fn [idx e]
+                          [:div.json.json-array-element
+                           (json->hiccup e
+                                         :custom custom
+                                         :path (conj path idx)
+                                         :key-weights key-weights
+                                         :truncate-after (+ truncate-after
+                                                            truncate-after-mod)
+                                         :truncate-after-min truncate-after-min
+                                         :truncate-after-max truncate-after-max
+                                         :truncate-after-mod truncate-after-mod)]))
+                       (split-at truncate-after))]
+              (-> (if (empty? fel)
+                    [:div.json.json-array.empty]
+                    (if (not-empty rel)
+                      (let [truncator-id (str
+                                          #?(:clj (java.util.UUID/randomUUID)
+                                             :cljs (random-uuid)))]
+                        (-> [arr-k]
+                            (into fel)
+                            (into [[:input.truncator
+                                    {:type "checkbox"
+                                     :id truncator-id
+                                     :style "display:none;"}]
+                                   [:label.truncator-label
+                                    {:for truncator-id}
+                                    (format "[ %d more ]" (count rel))]])))
+                      (into [arr-k] fel)))
+                  (into
+                   rel)
+                  (vary-meta assoc ::rendered true))))
           ;; all other scalar for now
           :else
           ^::rendered

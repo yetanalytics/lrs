@@ -11,6 +11,25 @@ body {
   height: 100%;
 }
 
+nav.query {
+  display: grid;
+}
+
+nav.query > .json-map {
+  margin-left: 1em;
+  margin-bottom: 1em;
+  border: 1px solid rgba(0,0,0,.05);
+}
+
+label.query-toggle {
+  display: inline-block;
+  margin: 1em;
+}
+
+a.query-remove-link {
+  margin: 1em;
+}
+
 body > main {
   height: 100%;
 }
@@ -19,7 +38,6 @@ body > main {
 
 .json-map {
   display:grid;
-  border-left: 1px solid rgba(0,0,0,.05);
 }
 
 .json-map > .json-map-entry:not(:last-child) {
@@ -28,11 +46,40 @@ body > main {
 
 .json-array {
   display:grid;
+  padding-left: .2em;
 }
 
-.json-array > .json-array-element:not(:last-child) {
+.json-array:not(.columnar) > * {
   border-bottom: 1px solid rgba(0,0,0,.05);
+  border-top: 1px solid rgba(0,0,0,.05);
+  border-left: 1px solid rgba(0,0,0,.05);
 }
+
+.json-array:not(.columnar) > *:not(:first-child) {
+  margin-top: .1em;
+}
+
+.json-array:not(.columnar) > *:not(:last-child) {
+  margin-bottom: .1em;
+}
+
+.json-array:not(.columnar) > :last-child {
+  margin-bottom: .2em;
+}
+
+.json-array.columnar {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.json-array.columnar > :not(:last-child) {
+  border-right: 1px solid rgba(0,0,0,.05);
+}
+
+
+.json-array.columnar > .json-array-element {
+  padding: 1em;
+}
+
 
 
 .json-array-element {
@@ -65,9 +112,18 @@ body > main {
   content: ":";
 }
 
+
+.json-map-entry-val {
+  border-left: 1px solid rgba(0,0,0,.05);
+}
+
 /* leaf outer */
 
 .json-map-entry-val > .json-map {
+  margin-left: .2em;
+  margin-bottom: .2em;
+  border-left: 1px solid rgba(0,0,0,.05);
+  border-bottom: 1px solid rgba(0,0,0,.05);
 }
 
 .json-map-entry-val.scalar {
@@ -98,4 +154,23 @@ input.truncator:checked ~ :not(.no-truncate) {
 
 input.truncator:checked ~ label.truncator-label {
   display: none;
+}
+
+/* togglable */
+input.truncator-toggle ~ :not(.no-truncate,label.truncator-toggle-label) {
+  display: none;
+}
+
+input.truncator-toggle:checked ~ :not(.no-truncate,label.truncator-toggle-label) {
+  display: grid;
+}
+
+label.truncator-toggle-label:after {
+  padding-left: .2em;
+  content: "+";
+  display: inline-block;
+}
+
+input.truncator-toggle:checked ~ label.truncator-toggle-label:after {
+  content: "-";
 }

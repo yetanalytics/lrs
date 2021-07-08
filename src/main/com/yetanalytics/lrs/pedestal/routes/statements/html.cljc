@@ -42,6 +42,40 @@
    [:style
     page-css]])
 
+(defn header
+  "Header with query nav"
+  [path-prefix
+   params]
+  (cond-> [:header]
+    (not-empty params)
+    (conj
+     (let [truncator-id (str
+                         #?(:clj (java.util.UUID/randomUUID)
+                            :cljs (random-uuid)))]
+       [:nav.query
+        [:input.truncator-toggle
+         {:id truncator-id
+          :type "checkbox"
+          :style "display:none;"}]
+        [:label.truncator-toggle-label.query-toggle
+         {:for truncator-id}
+         "Query"]
+        (jr/json->hiccup
+         (reduce-kv
+          (fn [m k v]
+            (assoc m
+                   k
+                   ^::jr/columnar
+                   [v
+                    ^::jr/link-tuple
+                    [(statements-link
+                      path-prefix
+                      (dissoc params k))
+                     "Remove"]]))
+          {}
+          params)
+         :truncate-after 10)]))))
+
 (defn page
   [& hvecs]
   (format "<!DOCTYPE html>\n<html>%s</html>"
@@ -216,7 +250,9 @@
 
 (defn statement-page
   [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
-    :or {path-prefix ""}
+    {params :xapi.statements.GET.request/params} :xapi
+    :or {path-prefix ""
+         params {}}
     :as ctx}
    statement]
   (let [statement-rendered
@@ -233,6 +269,8 @@
       (page
        head
        [:body
+        (header path-prefix
+                params)
         [:main
          statement-rendered]]))))
 
@@ -248,7 +286,9 @@
 
 (defn statements-page
   [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
-    :or {path-prefix ""}
+    {params :xapi.statements.GET.request/params} :xapi
+    :or {path-prefix ""
+         params {}}
     :as ctx}
    {:keys [statements]
     ?more :more}]
@@ -267,6 +307,8 @@
       (page
        head
        [:body
+        (header path-prefix
+                params)
         [:main
          statement-response-rendered]]))))
 
