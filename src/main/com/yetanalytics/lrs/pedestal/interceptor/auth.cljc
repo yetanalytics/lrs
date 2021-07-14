@@ -14,7 +14,10 @@
                result]}]
   (if error
     (assoc ctx ::chain/error error)
-    (if-not (= result ::auth/unauthorized)
+    (if-not (or (= result ::auth/unauthorized)
+                ;; old incorrect keyword accepted for backwards compat
+                ;; TODO: remove!
+                (= result ::auth/forbidden))
       (assoc ctx ::auth/identity result)
       (assoc (chain/terminate ctx)
              :response
