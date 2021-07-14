@@ -324,6 +324,11 @@
    {:name ::path-prefix
     :enter #(assoc % ::path-prefix path-prefix)}))
 
+(def enable-statement-html-interceptor
+  (i/interceptor
+   {:name ::enable-statement-html
+    :enter #(assoc % ::statement-html? true)}))
+
 (defn xapi-default-interceptors
           "Like io.pedestal.http/default-interceptors, but includes support for xapi alt
    request syntax, etc."
@@ -343,6 +348,7 @@
                  secure-headers ::http/secure-headers
                  server-type ::http/type
                  path-prefix ::path-prefix
+                 statement-html? ::enable-statement-html
                  :or {file-path nil
                       #?@(:clj [request-logger http/log-request])
                       router :map-tree
@@ -353,7 +359,8 @@
                       enable-session nil
                       enable-csrf nil
                       secure-headers {}
-                      path-prefix "/xapi"}} service-map
+                      path-prefix "/xapi"
+                      statement-html? true}} service-map
                 processed-routes (cond
                                    (satisfies? route/ExpandableRoutes routes) (route/expand-routes routes)
                                    (fn? routes) routes
@@ -369,6 +376,7 @@
                               ;; Fix for cljs string body TODO: evaluate
                               #?@(:cljs [body-string-interceptor])
                               ]
+                       statement-html? (conj enable-statement-html-interceptor)
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
                        (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
