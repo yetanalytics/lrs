@@ -789,12 +789,19 @@
       (-authenticate [lrs ctx]
         ;; Authenticate is a no-op right now, just returns a dummy
         {:result
-         {:scopes #{:scope/all}
-          :prefix ""
-          :auth {:no-op {}}}})
+         (if (some-> ctx
+                     :request
+                     :headers
+                     (get "authorization")
+                     ;; username:password
+                     (= "Basic dXNlcm5hbWU6cGFzc3dvcmQ="))
+           {:scopes #{:scope/all}
+            :prefix ""
+            :auth {:no-op {}}}
+           :com.yetanalytics.lrs.auth/unauthorized)})
       (-authorize [lrs ctx auth-identity]
         ;; Auth
-        {:result true})
+        {:result (some? auth-identity)})
       p/LRSAuthAsync
       (-authenticate-async [lrs ctx]
         (a/go (p/-authenticate lrs ctx)))
