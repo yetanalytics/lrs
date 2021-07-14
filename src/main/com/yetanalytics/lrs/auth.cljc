@@ -100,8 +100,8 @@
           :opt-un [::xs/agent ;; xapi representation of a person
                    ]))
 
-(s/def ::forbidden #{::forbidden})
+(s/def ::unauthorized #{::unauthorized})
 
 (s/def ::authenticate-result
   (s/or :authenticated ::identity
-        :forbidden ::forbidden))
+        :unauthorized ::unauthorized))

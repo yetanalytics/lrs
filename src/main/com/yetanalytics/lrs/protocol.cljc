@@ -411,7 +411,7 @@
 (defprotocol LRSAuth
   "Protocol for an authenticatable LRS"
   (-authenticate [this ctx]
-    "Given the context, return an identity or ::auth/forbidden (401)")
+    "Given the context, return an identity or ::auth/unauthorized (401)")
   (-authorize [this ctx auth-identity]
     "Given the context and auth identity, return truthy if the user is allowed to do a given thing."))
 
@@ -436,7 +436,7 @@
 (defprotocol LRSAuthAsync
   "Protocol for an authenticatable LRS"
   (-authenticate-async [this ctx]
-    "Given the context, return an identity or ::auth/forbidden (401) on a promise channel")
+    "Given the context, return an identity or ::auth/unauthorized (401) on a promise channel")
   (-authorize-async [this ctx auth-identity]
     "Given the context and auth-identity, return true if the user is allowed to do a given thing, on a promise-channel"))
 
