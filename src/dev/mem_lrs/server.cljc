@@ -73,6 +73,7 @@
               ::lrs lrs
               ;; To disable HTTP statement browsing
               ;; ::i/enable-statement-html false
+              ;; ::i/www-auth-realm "MY REALM"
 
               ;; do not block thread that starts web server
               ::server/join? false

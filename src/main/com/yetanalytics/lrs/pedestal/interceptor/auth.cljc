@@ -61,9 +61,7 @@
 
 ;; When used, will direct users to attempt basic auth
 ;; in the given realm
-(defn www-authenticate
-  "On 401 users are directed to authenticate with Basic auth"
-  [realm]
+(def www-authenticate
   (interceptor
    {:name ::www-authenticate
     :leave
@@ -78,5 +76,5 @@
                    :headers
                    "WWW-Authenticate"]
                   (format "Basic realm=\"%s\""
-                          realm))
+                          (::i/www-auth-realm ctx "LRS")))
         ctx))}))

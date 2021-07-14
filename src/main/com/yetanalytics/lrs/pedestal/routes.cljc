@@ -104,8 +104,7 @@
 
             ;; xapi statements
             [(format "%s/statements" path-prefix)
-             :get (into [(auth-i/www-authenticate
-                          "Statement Viewer")]
+             :get (into [auth-i/www-authenticate]
                         (concat
                          protected-interceptors
                          [statements-i/set-consistent-through
