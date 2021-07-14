@@ -7,6 +7,7 @@
             [io.pedestal.interceptor.chain :as chain]
             [clojure.core.async :as a :include-macros true]
             [com.yetanalytics.lrs.spec.common :as cs]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))
 
@@ -60,21 +61,20 @@
 
 ;; When used, will direct users to attempt basic auth
 ;; in the given realm
-(defn www-authenticate
-  "On 401 users are directed to authenticate with Basic auth"
-  [realm]
+(def www-authenticate
   (interceptor
    {:name ::www-authenticate
     :leave
     (fn [ctx]
-      (if (some-> ctx
-                  :response
-                  :status
-                  (= 401))
+      (if (and (si/accept-html? ctx)
+               (some-> ctx
+                       :response
+                       :status
+                       (= 401)))
         (assoc-in ctx
                   [:response
                    :headers
                    "WWW-Authenticate"]
                   (format "Basic realm=\"%s\""
-                          realm))
+                          (::i/www-auth-realm ctx "LRS")))
         ctx))}))
