@@ -7,6 +7,7 @@
             [io.pedestal.interceptor.chain :as chain]
             [clojure.core.async :as a :include-macros true]
             [com.yetanalytics.lrs.spec.common :as cs]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))
 
@@ -67,10 +68,11 @@
    {:name ::www-authenticate
     :leave
     (fn [ctx]
-      (if (some-> ctx
-                  :response
-                  :status
-                  (= 401))
+      (if (and (si/accept-html? ctx)
+               (some-> ctx
+                       :response
+                       :status
+                       (= 401)))
         (assoc-in ctx
                   [:response
                    :headers
