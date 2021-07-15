@@ -148,7 +148,7 @@ input.truncator ~ :not(.no-truncate,label.truncator-label) {
   display: none;
 }
 
-input.truncator:checked ~ :not(.no-truncate) {
+input.truncator:checked ~ :not(.no-truncate).json {
   display: grid;
 }
 
