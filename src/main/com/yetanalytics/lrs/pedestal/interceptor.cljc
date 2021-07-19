@@ -59,15 +59,7 @@
                       {:status 400
                        :headers {#?(:cljs "Content-Type"
                                     :clj "content-type") "application/json"
-                                 "x-experience-api-version"
-                                 ;; TODO: The new tests are broken and require
-                                 ;; different things in different contexts
-                                 ;; TODO: update when tests are fixed!!!
-                                 ;; HACK: special handling for statements-only xapi updates
-                                 (cond
-                                   (or (.endsWith path-info "/xapi/statements"))
-                                   "2.0.0"
-                                   :else "1.0.3")}
+                                 "x-experience-api-version" "2.0.0"}
                        :body
                        {:error {:message "X-Experience-API-Version header required!"}}})))}))
 
