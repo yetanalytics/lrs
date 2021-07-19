@@ -12,6 +12,17 @@
                        [com.yetanalytics.lrs.util.log :as log]]))
   #?(:clj (:import [java.io InputStream ByteArrayInputStream])))
 
+(defn error!
+  "Return a 400 with the given message"
+  [ctx message]
+  (assoc (chain/terminate ctx)
+         :response
+         {:status 400
+          :headers {#?(:cljs "Content-Type"
+                       :clj "content-type") "application/json"
+                    "x-experience-api-version" "2.0.0"}
+          :body
+          {:error {:message "X-Experience-API-Version header required!"}}}))
 
 (def valid-alt-request-headers
   [:Authorization :X-Experience-API-Version :Content-Type
@@ -36,58 +47,61 @@
             ;; If this is a request with a smuggled verb
             ;; and version is pre-2.0.x
             (if (some-> request :params :method)
-              ;; Version 2.0.0 and up do not allow this so we error
-              (if (.startsWith
-                   ^String (:com.yetanalytics.lrs/version
-                            ctx)
-                   "2.0")
-                (assoc (chain/terminate ctx)
-                       :response
-                       {:status 400
-                        :body {:error
-                               {:message "xAPI alternate request syntax not supported"}}})
-                (if (not= :post (:original-request-method request))
-                  (assoc (chain/terminate ctx)
-                         :response
-                         {:status 400
-                          :body {:error
-                                 {:message "xAPI alternate request syntax must use POST!"}}})
-                  (if-let [extra-params (some-> ctx
-                                                :request
-                                                :query-params
-                                                not-empty)]
-                    ;; We can't have extra query params
-                    (assoc (chain/terminate ctx)
-                           :response
-                           {:status 400
-                            :body {:error {:message "xAPI Alternate Syntax does not allow extra query params."}}})
-                    (let [{:keys [params form-params]} request
-                          {:strs [content-type
-                                  content-length]
-                           :as form-headers}
-                          (reduce conj {}
-                                  (map #(update % 0 (comp cstr/lower-case
-                                                          name))
-                                       (select-keys (:form-params request)
-                                                    valid-alt-request-headers)))
-                          new-params (apply dissoc form-params
-                                            ;; don't let content in
-                                            :content
-                                            valid-alt-request-headers)
-                          {:keys [content]} form-params
-                          ?content-type (or content-type
-                                            (and content
-                                                 "application/json"))
-                          ?content-bytes
-                          #?(:clj (when content
-                                    (.getBytes ^String content "UTF-8"))
-                             :cljs nil)
-                          ?content-length (or content-length
-                                              #?(:clj (and ?content-bytes
-                                                           (count ?content-bytes))
-                                                 :cljs (and content
-                                                            (.-length content))))]
+              ;; destructure and prepare params
+              (if (not= :post (:original-request-method request))
+                (error! ctx "xAPI alternate request syntax must use POST!")
+                (if-let [extra-params (some-> ctx
+                                              :request
+                                              :query-params
+                                              not-empty)]
+                  ;; We can't have extra query params
+                  (error! ctx "xAPI Alternate Syntax does not allow extra query params.")
+                  (let [{:keys [params form-params]} request
+                        {:strs [content-type
+                                content-length
+                                x-experience-api-version]
+                         :as form-headers}
+                        (reduce conj {}
+                                (map #(update % 0 (comp cstr/lower-case
+                                                        name))
+                                     (select-keys (:form-params request)
+                                                  valid-alt-request-headers)))
+                        new-params (apply dissoc form-params
+                                          ;; don't let content in
+                                          :content
+                                          valid-alt-request-headers)
+                        {:keys [content]} form-params
+                        ?content-type (or content-type
+                                          (and content
+                                               "application/json"))
+                        ?content-bytes
+                        #?(:clj (when content
+                                  (.getBytes ^String content "UTF-8"))
+                           :cljs nil)
+                        ?content-length (or content-length
+                                            #?(:clj (and ?content-bytes
+                                                         (count ?content-bytes))
+                                               :cljs (and content
+                                                          (.-length content))))
+                        version (or x-experience-api-version
+                                    (:com.yetanalytics.lrs/version
+                                     ctx))]
 
+                    (cond
+                      (nil? version)
+                      (error! ctx
+                              "X-Experience-API-Version header required!")
+                      ;; Version 2.0.0 and up do not allow this so we error
+                      (.startsWith
+                       ^String version
+                       "2.0")
+                      (assoc (chain/terminate ctx)
+                             :response
+                             {:status 400
+                              :body {:error
+                                     {:message "xAPI alternate request syntax not supported"}}})
+                      ;; a (hopefully) valid version is supplied
+                      :else
                       (cond-> (assoc ctx
                                      :request
                                      (-> request
@@ -106,6 +120,8 @@
                                            (assoc :body #?(:clj (ByteArrayInputStream.
                                                                  ^bytes ?content-bytes)
                                                            :cljs content)))))
+                        version
+                        (assoc :com.yetanalytics.lrs/version version)
                         content
                         ;; TODO: Need to figure out body-params in cljs
                         #?(:clj (execute-next (body-params/body-params

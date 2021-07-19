@@ -36,32 +36,30 @@
         ver-str  (str "^[1-2]\\.0" suffix "$")]
     (re-pattern ver-str)))
 
+(def extract-xapi-version-interceptor
+  (i/interceptor
+   {:name ::extract-xapi-version
+    :enter (fn [ctx]
+             (if-let [version (get-in ctx [:request :headers "x-experience-api-version"])]
+               (assoc ctx
+                      :com.yetanalytics.lrs/version
+                      version)
+               ;; allow without, it will be turned into an error down the line
+               ctx))}))
+
 (def require-xapi-version-interceptor
   (i/interceptor
    {:name ::require-xapi-version
-    :enter (fn [{{:keys [^String path-info]} :request
-                 :as ctx}]
-             (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
+    :enter (fn [ctx]
+             (if-let [version-header (:com.yetanalytics.lrs/version ctx)]
                (if (re-matches xAPIVersionRegEx
                                version-header)
-                 (assoc ctx :com.yetanalytics.lrs/version version-header)
-                 (assoc (chain/terminate ctx)
-                        :response
-                        {:status 400
-                         :headers {#?(:cljs "Content-Type"
-                                      :clj "content-type")
-                                   "application/json"
-                                   "x-experience-api-version" "2.0.0"}
-                         :body
-                         {:error {:message "X-Experience-API-Version header invalid!"}}}))
-               (assoc (chain/terminate ctx)
-                      :response
-                      {:status 400
-                       :headers {#?(:cljs "Content-Type"
-                                    :clj "content-type") "application/json"
-                                 "x-experience-api-version" "2.0.0"}
-                       :body
-                       {:error {:message "X-Experience-API-Version header required!"}}})))}))
+                 ctx
+                 (xapi/error! ctx
+                              "X-Experience-API-Version header invalid!"))
+               (xapi/error!
+                ctx
+                "X-Experience-API-Version header required!")))}))
 
 (def x-forwarded-for-interceptor
   (i/interceptor
@@ -368,16 +366,17 @@
                           json-body-interceptor
                           error-interceptor
                           body-params-interceptor
-                          ;; alternate-request-syntax-interceptor
                           set-xapi-version-interceptor
                           xapi-ltags-interceptor])
 
 (def doc-interceptors-base
   [x-forwarded-for-interceptor
-   require-xapi-version-interceptor
-   alternate-request-syntax-interceptor
    set-xapi-version-interceptor
    xapi-ltags-interceptor])
 
 (def xapi-protected-interceptors
-  [require-xapi-version-interceptor])
+  [;; one of these two will set up a version value
+   extract-xapi-version-interceptor
+   alternate-request-syntax-interceptor
+   ;; for the check here
+   require-xapi-version-interceptor])
