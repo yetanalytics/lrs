@@ -34,7 +34,7 @@
          :error ::error-ret))
 
 ;; About
-;; /xapi/about
+;; /about
 
 (defprotocol AboutResource
   "Protocol for retrieving LRS info"
@@ -211,7 +211,7 @@
    ::delete-documents-ret))
 
 ;; Activities
-;; /xapi/activities
+;; /activities
 (defprotocol ActivityInfoResource
   "Protocol for retrieving activity info."
   (-get-activity [this auth-identity params]
@@ -222,6 +222,9 @@
 
 (s/def ::activity-info-resource-instance
   activity-info-resource?)
+
+(s/def ::get-activity-params
+  (sc/with-conform-gen :xapi.activities.GET.request/params))
 
 (s/def :get-activity-ret/activity
   (s/nilable ::xs/activity))
@@ -247,7 +250,7 @@
    ::get-activity-ret))
 
 ;; Agents
-;; /xapi/agents
+;; /agents
 
 (defprotocol AgentInfoResource
   "Protocol for retrieving information on agents."
@@ -288,7 +291,7 @@
    ::get-person-ret))
 
 ;; Statements
-;; /xapi/statements
+;; /statements
 
 (defprotocol StatementsResource
   "Protocol for storing/retrieving statements, activities, agents."
@@ -408,7 +411,7 @@
 (defprotocol LRSAuth
   "Protocol for an authenticatable LRS"
   (-authenticate [this ctx]
-    "Given the context, return an identity or ::auth/forbidden (401)")
+    "Given the context, return an identity or ::auth/unauthorized (401)")
   (-authorize [this ctx auth-identity]
     "Given the context and auth identity, return truthy if the user is allowed to do a given thing."))
 
@@ -433,7 +436,7 @@
 (defprotocol LRSAuthAsync
   "Protocol for an authenticatable LRS"
   (-authenticate-async [this ctx]
-    "Given the context, return an identity or ::auth/forbidden (401) on a promise channel")
+    "Given the context, return an identity or ::auth/unauthorized (401) on a promise channel")
   (-authorize-async [this ctx auth-identity]
     "Given the context and auth-identity, return true if the user is allowed to do a given thing, on a promise-channel"))
 

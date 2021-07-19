@@ -14,12 +14,15 @@
                result]}]
   (if error
     (assoc ctx ::chain/error error)
-    (if-not (= result ::auth/forbidden)
+    (if-not (or (= result ::auth/unauthorized)
+                ;; old incorrect keyword accepted for backwards compat
+                ;; TODO: remove!
+                (= result ::auth/forbidden))
       (assoc ctx ::auth/identity result)
       (assoc (chain/terminate ctx)
              :response
              {:status 401
-              :body "FORBIDDEN"}))))
+              :body "UNAUTHORIZED"}))))
 
 (def lrs-authenticate
   (interceptor
@@ -44,7 +47,7 @@
       (assoc (chain/terminate ctx)
              :response
              {:status 403
-              :body "UNAUTHORIZED"}))))
+              :body "FORBIDDEN"}))))
 
 (def lrs-authorize
   (interceptor

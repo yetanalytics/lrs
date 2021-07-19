@@ -540,7 +540,7 @@
 (defn new-lrs [{:keys [xapi-path-prefix
                        statements-result-max
                        init-state]
-                :or {xapi-path-prefix ""
+                :or {xapi-path-prefix "/xapi"
                      statements-result-max 50
                      init-state (empty-state)}}]
   (let [state (atom init-state
@@ -634,7 +634,7 @@
                                             statements}
                                      more? (assoc :more
                                                   (str xapi-path-prefix
-                                                       "/xapi/statements?"
+                                                       "/statements?"
                                                        (form-encode
                                                         (cond-> (assoc params :from
                                                                        (-> statements
@@ -702,7 +702,7 @@
                         :more)
                   (a/>! result-chan
                         (str xapi-path-prefix
-                             "/xapi/statements?"
+                             "/statements?"
                              (form-encode
                               (cond-> (assoc params :from
                                              last-id)

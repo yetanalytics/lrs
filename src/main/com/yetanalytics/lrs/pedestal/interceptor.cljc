@@ -281,6 +281,13 @@
                                                                          (.toString body-buffer)))))))
                           ctx-chan)))})))
 
+(defn path-prefix-interceptor
+  "Inject xapi path prefix for use in other interceptors"
+  [path-prefix]
+  (i/interceptor
+   {:name ::path-prefix
+    :enter #(assoc % ::path-prefix path-prefix)}))
+
 (defn xapi-default-interceptors
           "Like io.pedestal.http/default-interceptors, but includes support for xapi alt
    request syntax, etc."
@@ -299,6 +306,7 @@
                  enable-csrf ::http/enable-csrf
                  secure-headers ::http/secure-headers
                  server-type ::http/type
+                 path-prefix ::path-prefix
                  :or {file-path nil
                       #?@(:clj [request-logger http/log-request])
                       router :map-tree
@@ -308,7 +316,8 @@
                       ext-mime-types {}
                       enable-session nil
                       enable-csrf nil
-                      secure-headers {}}} service-map
+                      secure-headers {}
+                      path-prefix "/xapi"}} service-map
                 processed-routes (cond
                                    (satisfies? route/ExpandableRoutes routes) (route/expand-routes routes)
                                    (fn? routes) routes
@@ -319,9 +328,10 @@
                                                          {:routes routes})))]
             (if-not interceptors
               (assoc service-map ::http/interceptors
-                     ;; TODO: remove these debugs
-                     (cond-> [#?@(:cljs [body-string-interceptor
-                                         #_ppman])
+                     (cond-> [(path-prefix-interceptor
+                               path-prefix)
+                              ;; Fix for cljs string body TODO: evaluate
+                              #?@(:cljs [body-string-interceptor])
                               ]
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
@@ -358,7 +368,7 @@
                           json-body-interceptor
                           error-interceptor
                           body-params-interceptor
-                          alternate-request-syntax-interceptor
+                          ;; alternate-request-syntax-interceptor
                           set-xapi-version-interceptor
                           xapi-ltags-interceptor])
 
@@ -368,3 +378,6 @@
    alternate-request-syntax-interceptor
    set-xapi-version-interceptor
    xapi-ltags-interceptor])
+
+(def xapi-protected-interceptors
+  [require-xapi-version-interceptor])

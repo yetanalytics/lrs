@@ -13,7 +13,7 @@
   (s/gen :com.yetanalytics.lrs.impl.memory/lrs))
 
 ;; About
-;; /xapi/about
+;; /about
 (defn get-about
   "Get information about this LRS"
   [lrs auth-identity]
@@ -179,7 +179,7 @@
 
 
 ;; Activities
-;; /xapi/activities
+;; /activities
 (defn get-activity
   "Get the canonical representation of an activity"
   [lrs auth-identity params]
@@ -206,7 +206,7 @@
 
 
 ;; Agents
-;; /xapi/agents
+;; /agents
 (defn get-person
   "Get an object representing an actor"
   [lrs auth-identity params]
@@ -232,10 +232,10 @@
         :ret ::p/get-person-async-ret)
 
 
-;; TODO: /xapi/agents/profile
+;; TODO: /agents/profile
 
 ;; Statements
-;; /xapi/statements
+;; /statements
 (defn store-statements
   "Store statements and attachments in the LRS"
   [lrs auth-identity statements attachments]
@@ -296,7 +296,7 @@
   (p/-consistent-through lrs ctx auth-identity))
 
 (s/fdef consistent-through
-  :args (s/cat :lrs (s/with-gen ::p/statements-resource-async-instance
+  :args (s/cat :lrs (s/with-gen ::p/statements-resource-instance
                       lrs-gen-fn)
                :ctx map?
                :auth-identity ::auth/identity)
