@@ -69,6 +69,7 @@
              truncate-after-min
              truncate-after-max
              truncate-after-mod ;; int
+             url-params ;; passthru for a map of params for linking
              ]
       :or {path []
            custom {}
@@ -77,7 +78,8 @@
            truncate-after 1
            truncate-after-min 0
            truncate-after-max 1000
-           truncate-after-mod 0}}]
+           truncate-after-mod 0
+           url-params {}}}]
   (let [truncate-after
         (->> truncate-after
              (min truncate-after-max)
@@ -105,7 +107,7 @@
           :truncate-after-min truncate-after-min
           :truncate-after-max truncate-after-max
           :truncate-after-mod truncate-after-mod
-          )
+          :url-params url-params)
          assoc ::rendered true)
         (cond
           ;; maps are objects
@@ -130,7 +132,8 @@
                                                           truncate-after-mod)
                                        :truncate-after-min truncate-after-min
                                        :truncate-after-max truncate-after-max
-                                       :truncate-after-mod truncate-after-mod)
+                                       :truncate-after-mod truncate-after-mod
+                                       :url-params url-params)
                          :scalar (not (coll? v)))))
                      (split-at truncate-after))]
             (-> (if (empty? fent)
@@ -180,7 +183,8 @@
                                                             truncate-after-mod)
                                          :truncate-after-min truncate-after-min
                                          :truncate-after-max truncate-after-max
-                                         :truncate-after-mod truncate-after-mod)]))
+                                         :truncate-after-mod truncate-after-mod
+                                         :url-params url-params)]))
                        (split-at truncate-after))]
               (-> (if (empty? fel)
                     [:div.json.json-array.empty]

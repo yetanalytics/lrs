@@ -101,17 +101,19 @@
 (defn actor-custom
   [path-prefix
    json & json->hiccup-args]
-  (conj (apply json->hiccup
-               json
-               :ignore-custom true
-               json->hiccup-args)
-        [:div.json.json-map-action.no-truncate
-         [:div.json.json-scalar
-          [:a {:href
-               (statements-link
-                path-prefix
-                {:agent json})}
-           "Filter..."]]]))
+  (let [[& {:keys [url-params]}] json->hiccup-args]
+    (conj (apply json->hiccup
+                 json
+                 :ignore-custom true
+                 json->hiccup-args)
+          [:div.json.json-map-action.no-truncate
+           [:div.json.json-scalar
+            [:a {:href
+                 (statements-link
+                  path-prefix
+                  (merge url-params
+                         {:agent json}))}
+             "Filter..."]]])))
 
 (defn verb-pred
   [path json]
@@ -123,18 +125,20 @@
 (defn verb-custom
   [path-prefix
    json & json->hiccup-args]
-  (conj (apply json->hiccup
-               json
-               :ignore-custom true
-               json->hiccup-args)
-        [:div.json.json-map-action.no-truncate
-         [:div.json.json-scalar
-          [:a
-           {:href
-            (statements-link
-             path-prefix
-             {:verb (get json "id")})}
-           "Filter..."]]]))
+  (let [[& {:keys [url-params]}] json->hiccup-args]
+    (conj (apply json->hiccup
+                 json
+                 :ignore-custom true
+                 json->hiccup-args)
+          [:div.json.json-map-action.no-truncate
+           [:div.json.json-scalar
+            [:a
+             {:href
+              (statements-link
+               path-prefix
+               (merge url-params
+                      {:verb (get json "id")}))}
+             "Filter..."]]])))
 
 (defn activity-pred
   [path json]
@@ -148,18 +152,20 @@
 (defn activity-custom
   [path-prefix
    json & json->hiccup-args]
-  (conj (apply json->hiccup
-               json
-               :ignore-custom true
-               json->hiccup-args)
-        [:div.json.json-map-action.no-truncate
-         [:div.json.json-scalar
-          [:a
-           {:href
-            (statements-link
-             path-prefix
-             {:activity (get json "id")})}
-           "Filter..."]]]))
+  (let [[& {:keys [url-params]}] json->hiccup-args]
+    (conj (apply json->hiccup
+                 json
+                 :ignore-custom true
+                 json->hiccup-args)
+          [:div.json.json-map-action.no-truncate
+           [:div.json.json-scalar
+            [:a
+             {:href
+              (statements-link
+               path-prefix
+               (merge url-params
+                      {:activity (get json "id")}))}
+             "Filter..."]]])))
 
 (defn reg-pred [path _json]
   (= "registration" (peek path)))
@@ -262,7 +268,8 @@
          :key-weights statement-key-weights
          :truncate-after 10
          :truncate-after-min 1
-         :truncate-after-mod -9)]
+         :truncate-after-mod -9
+         :url-params params)]
     (if (unwrap? ctx)
       #?(:clj (html/html statement-rendered)
          :cljs (hic/render-html statement-rendered))
@@ -300,7 +307,8 @@
          :key-weights statement-key-weights
          :truncate-after 2
          :truncate-after-min 1
-         :truncate-after-mod -1)]
+         :truncate-after-mod -1
+         :url-params params)]
     (if (unwrap? ctx)
       #?(:clj (html/html statement-response-rendered)
          :cljs (hic/render-html statement-response-rendered))
