@@ -15,6 +15,22 @@
                              :refer [load-css!]]))
   #?(:clj (:import [java.net URLEncoder])))
 
+(defn- single?
+  [{:keys [statementId
+           voidedStatementId]
+    :as params}]
+  (some?
+   (or statementId voidedStatementId)))
+
+(defn- merge-params
+  "Only merge multiple statement params, otherwise overwrite"
+  [p0 p1]
+  (if (and
+       (not (single? p0))
+       (not (single? p1)))
+    (merge p0 p1)
+    p1))
+
 (defn- statements-link
   [path-prefix
    params]
@@ -111,8 +127,9 @@
             [:a {:href
                  (statements-link
                   path-prefix
-                  (merge url-params
-                         {:agent json}))}
+                  (merge-params
+                   url-params
+                   {:agent json}))}
              "Filter..."]]])))
 
 (defn verb-pred
@@ -136,8 +153,9 @@
              {:href
               (statements-link
                path-prefix
-               (merge url-params
-                      {:verb (get json "id")}))}
+               (merge-params
+                url-params
+                {:verb (get json "id")}))}
              "Filter..."]]])))
 
 (defn activity-pred
@@ -163,20 +181,23 @@
              {:href
               (statements-link
                path-prefix
-               (merge url-params
-                      {:activity (get json "id")}))}
+               (merge-params
+                url-params
+                {:activity (get json "id")}))}
              "Filter..."]]])))
 
 (defn reg-pred [path _json]
   (= "registration" (peek path)))
 
 (defn reg-custom [path-prefix
-                  json & _]
+                  json & {:keys [url-params]}]
   [:div.json.json-scalar
    [:a
     {:href (statements-link
             path-prefix
-            {:registration json})}
+            (merge-params
+             url-params
+             {:registration json}))}
     json]])
 
 (defn ref-pred [path json]
