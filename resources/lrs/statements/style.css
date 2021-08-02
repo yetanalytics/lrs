@@ -67,19 +67,12 @@ body > main {
 }
 
 .json-array.columnar {
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 2fr);
 }
 
-.json-array.columnar > :not(:last-child) {
-  border-right: 1px solid rgba(0,0,0,.05);
+.json-array.columnar > * {
+  justify-self: center;
 }
-
-
-.json-array.columnar > .json-array-element {
-  padding: 1em;
-}
-
-
 
 .json-array-element {
   display:grid;
@@ -118,15 +111,16 @@ body > main {
 
 /* leaf outer */
 
-.json-map-entry-val > .json-map {
-  margin-left: .2em;
-  margin-bottom: .2em;
-  border-left: 1px solid rgba(0,0,0,.05);
-  border-bottom: 1px solid rgba(0,0,0,.05);
+.json-map-entry-val {
+  padding: 1em;
 }
 
-.json-map-entry-val.scalar {
-  padding: 1em;
+.json-map-entry-val > .json-map {
+  margin: -1em;
+}
+
+.json-map-entry-val > .json-array:not(.columnar) {
+  margin: -1em;
 }
 
 /* leaf inner */

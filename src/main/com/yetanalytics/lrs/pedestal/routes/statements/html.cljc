@@ -10,7 +10,8 @@
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
              :as jr
              :refer [json->hiccup json-map-entry]]
-            [com.yetanalytics.lrs.util :as u])
+            [com.yetanalytics.lrs.util :as u]
+            [com.yetanalytics.lrs.xapi.statements.timestamp :as stamp])
   #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
                              :refer [load-css!]]))
   #?(:clj (:import [java.net URLEncoder])))
@@ -248,6 +249,37 @@
              {:statementId json}))}
     json]])
 
+(defn stored-pred
+  "Detect a stored timestamp"
+  [path
+   json]
+  (and (= "stored"
+          (peek path))
+       (string? json)
+       (some? (stamp/parse-stamp json))))
+
+(defn stored-custom
+  [path-prefix
+   json & {:keys [url-params]}]
+  (json->hiccup
+   ^::jr/columnar
+   [json
+    ^::jr/link-tuple
+    [(statements-link
+      path-prefix
+      (merge-params
+       url-params
+       {:since json}))
+     "Since"]
+    ^::jr/link-tuple
+    [(statements-link
+      path-prefix
+      (merge-params
+       url-params
+       {:until json}))
+     "Until"]]
+   :truncate-after 3))
+
 (defn statement-custom*
   [path-prefix]
   {;; linkable actors
@@ -273,6 +305,10 @@
    ;; linkable statement id
    sid-pred
    (partial sid-custom
+            path-prefix)
+   ;; linking since/until stored stamp
+   stored-pred
+   (partial stored-custom
             path-prefix)})
 
 (def statement-custom
