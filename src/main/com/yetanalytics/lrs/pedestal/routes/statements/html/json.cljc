@@ -141,7 +141,8 @@
                   (if (not-empty rent)
                     (let [truncator-id (str
                                         #?(:clj (java.util.UUID/randomUUID)
-                                           :cljs (random-uuid)))]
+                                           :cljs (random-uuid)))
+                          rent-count (count rent)]
                       (-> [:div.json.json-map]
                           (into fent)
                           (into
@@ -149,9 +150,11 @@
                              {:type "checkbox"
                               :id truncator-id
                               :style "display:none;"}]
-                            [:label.truncator-label
+                            [(if (< 1 rent-count)
+                               :label.truncator-label.plural
+                               :label.truncator-label)
                              {:for truncator-id}
-                             (format "{ %d more }" (count rent))]])))
+                             (format "%d" (count rent))]])))
                     (into [:div.json.json-map] fent)))
                 (into
                  rent)
@@ -191,16 +194,19 @@
                     (if (not-empty rel)
                       (let [truncator-id (str
                                           #?(:clj (java.util.UUID/randomUUID)
-                                             :cljs (random-uuid)))]
+                                             :cljs (random-uuid)))
+                            rel-count (count rel)]
                         (-> [arr-k]
                             (into fel)
                             (into [[:input.truncator
                                     {:type "checkbox"
                                      :id truncator-id
                                      :style "display:none;"}]
-                                   [:label.truncator-label
+                                   [(if (< 1 rel-count)
+                                      :label.truncator-label.plural
+                                      :label.truncator-label)
                                     {:for truncator-id}
-                                    (format "[ %d more ]" (count rel))]])))
+                                    (format "%d" (count rel))]])))
                       (into [arr-k] fel)))
                   (into
                    rel)

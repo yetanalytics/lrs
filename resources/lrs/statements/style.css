@@ -143,6 +143,34 @@ label.truncator-label {
   padding: 1em;
 }
 
+.json-map > label.truncator-label::before {
+  display: contents;
+  content: "{ ";
+}
+
+.json-map > label.truncator-label::after {
+  display: contents;
+  content: " more entry }";
+}
+
+.json-map > label.truncator-label.plural::after {
+  content: " more entries }";
+}
+
+.json-array > label.truncator-label::before {
+  display: contents;
+  content: "[ ";
+}
+
+.json-array > label.truncator-label::after {
+  display: contents;
+  content: " more element ]";
+}
+
+.json-array > label.truncator-label.plural::after {
+  content: " more elements ]";
+}
+
 input.truncator ~ :not(.no-truncate,label.truncator-label) {
   display: none;
 }
