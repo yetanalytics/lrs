@@ -66,7 +66,7 @@
   [path-prefix
    params]
   (cond-> [:header]
-    (not-empty params)
+    (not-empty (dissoc params :unwrap_html))
     (conj
      (let [truncator-id (str
                          #?(:clj (java.util.UUID/randomUUID)
