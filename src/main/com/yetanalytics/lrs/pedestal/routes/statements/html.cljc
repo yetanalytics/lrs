@@ -25,11 +25,14 @@
 (defn- merge-params
   "Only merge multiple statement params, otherwise overwrite"
   [p0 p1]
-  (if (and
-       (not (single? p0))
-       (not (single? p1)))
-    (merge p0 p1)
-    p1))
+  (merge
+   (if (and
+        (not (single? p0))
+        (not (single? p1)))
+     (merge p0 p1)
+     p1)
+   ;; preserve unwrap_html for the ajax folks
+   (select-keys p0 [:unwrap_html])))
 
 (defn- statements-link
   [path-prefix
@@ -79,15 +82,17 @@
         (jr/json->hiccup
          (reduce-kv
           (fn [m k v]
-            (assoc m
-                   k
-                   ^::jr/columnar
-                   [v
-                    ^::jr/link-tuple
-                    [(statements-link
-                      path-prefix
-                      (dissoc params k))
-                     "Remove"]]))
+            (if (= k :unwrap_html)
+              m ;; don't render util param unwrap_html
+              (assoc m
+                     k
+                     ^::jr/columnar
+                     [v
+                      ^::jr/link-tuple
+                      [(statements-link
+                        path-prefix
+                        (dissoc params k))
+                       "Remove"]])))
           {}
           params)
          :truncate-after 10)]))))
@@ -206,18 +211,21 @@
 
 (defn ref-custom [path-prefix
                   json & json->hiccup-args]
-  (conj (apply json->hiccup
-               json
-               :ignore-custom true
-               json->hiccup-args)
-        [:div.json.json-map-action.no-truncate
-         [:div.json.json-scalar
-          [:a
-           {:href
-            (statements-link
-             path-prefix
-             {:statementId (get json "id")})}
-           "View..."]]]))
+  (let [[& {:keys [url-params]}] json->hiccup-args]
+    (conj (apply json->hiccup
+                 json
+                 :ignore-custom true
+                 json->hiccup-args)
+          [:div.json.json-map-action.no-truncate
+           [:div.json.json-scalar
+            [:a
+             {:href
+              (statements-link
+               path-prefix
+               (merge-params
+                (select-keys url-params [:unwrap_html])
+                {:statementId (get json "id")}))}
+             "View..."]]])))
 
 (defn sid-pred
   "Detect a statement id to link"
@@ -230,12 +238,14 @@
 
 (defn sid-custom
   [path-prefix
-   json & _]
+   json & {:keys [url-params]}]
   [:div.json.json-scalar
    [:a
     {:href (statements-link
             path-prefix
-            {:statementId json})}
+            (merge-params
+             (select-keys url-params [:unwrap_html])
+             {:statementId json}))}
     json]])
 
 (defn statement-custom*
