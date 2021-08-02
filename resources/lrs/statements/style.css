@@ -67,11 +67,8 @@ body > main {
 }
 
 .json-array.columnar {
-  grid-template-columns: repeat(4, 2fr);
-}
-
-.json-array.columnar > * {
-  justify-self: center;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1em 1em;
 }
 
 .json-array-element {
