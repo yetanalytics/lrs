@@ -17,7 +17,6 @@ nav.query {
 nav.query > .json-map {
   margin-left: 1em;
   margin-bottom: 1em;
-  border: 1px solid rgba(0,0,0,.05);
 }
 
 label.query-toggle {
@@ -26,7 +25,7 @@ label.query-toggle {
 }
 
 a.query-remove-link {
-  margin: 1em;
+  padding: 1em;
 }
 
 body > main {
@@ -37,52 +36,58 @@ body > main {
 
 .json-map {
   display:grid;
+  grid-template-columns: 1fr;
 }
 
+/* outer maps can have full border */
+:not(.json) > .json-map {
+  border: 1px solid rgba(0,0,0,.05);
+}
+
+/* borders in between map entries */
 .json-map > .json-map-entry:not(:last-child) {
   border-bottom: 1px solid rgba(0,0,0,.05);
 }
 
 .json-array {
   display:grid;
+  gap: 0.25em 0;
   padding-left: .2em;
 }
 
 .json-array:not(.columnar) > * {
-  border-bottom: 1px solid rgba(0,0,0,.05);
-  border-top: 1px solid rgba(0,0,0,.05);
-  border-left: 1px solid rgba(0,0,0,.05);
 }
 
 .json-array:not(.columnar) > *:not(:first-child) {
-  margin-top: .1em;
+  border-top: 1px solid rgba(0,0,0,0.2);
 }
 
 .json-array:not(.columnar) > *:not(:last-child) {
-  margin-bottom: .1em;
 }
 
 .json-array:not(.columnar) > :last-child {
-  margin-bottom: .2em;
 }
 
 .json-array.columnar {
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1em 1em;
+  grid-template-columns: repeat(auto-fill, minmax(max-content, 8em));
+  gap: 0 1em;
 }
 
+.json-array.columnar > *:not(:first-child) {
+  border-left: 1px solid rgba(0,0,0,0.2);
+}
+
+
 .json-array-element {
-  display:grid;
 }
 
 .json-array-action {
-  display: grid;
 }
-
 
 .json-map-entry {
   display:grid;
-  grid-template-columns: 1fr 12fr;
+  grid-template-columns: minmax(max-content, 8em) 1fr;
+  align-items: baseline;
 }
 
 /* json-map-action shares layout styling with json-map-entry but contains actions */
@@ -94,7 +99,6 @@ body > main {
 
 .json-map-entry-key {
   padding: 1em;
-  background-color: rgba(0,0,0,.025);
 }
 
 .json-map-entry-key:after {
@@ -109,28 +113,25 @@ body > main {
 /* leaf outer */
 
 .json-map-entry-val {
-  padding: 1em;
 }
 
 .json-map-entry-val > .json-map {
-  margin: -1em;
 }
 
 .json-map-entry-val > .json-array:not(.columnar) {
-  margin: -1em;
 }
 
 /* leaf inner */
 .json-scalar {
   text-overflow: ellipsis;
   display: inline;
+  padding-left: 1em;
 }
 
 /* truncation.. inline collapse with json in mind */
 /* expects a truncator input, preceded by label. Will hide the rest of the things except .no-truncate */
 label.truncator-label {
   display:grid;
-  grid-template-columns: 1fr;
   padding: 1em;
 }
 
