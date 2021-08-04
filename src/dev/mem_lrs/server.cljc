@@ -25,49 +25,6 @@
       :or {reload-routes? true
            mode :both}}]
 
-  (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
-              :fns (stest/instrument
-                    `[lrs/get-about
-                      lrs/get-about-async
-                      lrs/set-document
-                      lrs/set-document-async
-                      lrs/get-document
-                      lrs/get-document-async
-                      lrs/get-document-ids
-                      lrs/get-document-ids-async
-                      lrs/delete-document
-                      lrs/delete-document-async
-                      lrs/delete-documents
-                      lrs/delete-documents-async
-                      lrs/get-activity
-                      lrs/get-activity-async
-                      lrs/get-person
-                      lrs/get-person-async
-                      lrs/store-statements
-                      lrs/store-statements-async
-                      lrs/get-statements
-                      lrs/get-statements-async
-                      lrs/consistent-through
-                      lrs/consistent-through-async
-                      lrs/authenticate
-                      lrs/authenticate-async
-                      lrs/authorize
-                      lrs/authorize-async
-
-                      ;; response handling
-                      com.yetanalytics.lrs.pedestal.routes.about/get-response
-                      com.yetanalytics.lrs.pedestal.routes.activities/get-response
-                      com.yetanalytics.lrs.pedestal.routes.agents/get-response
-                      com.yetanalytics.lrs.pedestal.routes.documents/put-response
-                      com.yetanalytics.lrs.pedestal.routes.documents/post-response
-                      com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
-                      com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
-                      com.yetanalytics.lrs.pedestal.routes.documents/delete-response
-                      com.yetanalytics.lrs.pedestal.routes.statements/put-response
-                      com.yetanalytics.lrs.pedestal.routes.statements/post-response
-                      com.yetanalytics.lrs.pedestal.routes.statements/get-response
-                      ]))
-
   (let [lrs (or lrs
                 (new-lrs {:mode mode}))]
     (log/info :msg "Creating your [DEV] server..."
@@ -97,6 +54,48 @@
 (defn ^:export -main
   "The entry-point for 'lein run'"
   [& [?mode]]
+  (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
+            :fns (stest/instrument
+                  `[lrs/get-about
+                    lrs/get-about-async
+                    lrs/set-document
+                    lrs/set-document-async
+                    lrs/get-document
+                    lrs/get-document-async
+                    lrs/get-document-ids
+                    lrs/get-document-ids-async
+                    lrs/delete-document
+                    lrs/delete-document-async
+                    lrs/delete-documents
+                    lrs/delete-documents-async
+                    lrs/get-activity
+                    lrs/get-activity-async
+                    lrs/get-person
+                    lrs/get-person-async
+                    lrs/store-statements
+                    lrs/store-statements-async
+                    lrs/get-statements
+                    lrs/get-statements-async
+                    lrs/consistent-through
+                    lrs/consistent-through-async
+                    lrs/authenticate
+                    lrs/authenticate-async
+                    lrs/authorize
+                    lrs/authorize-async
+
+                    ;; response handling
+                    com.yetanalytics.lrs.pedestal.routes.about/get-response
+                    com.yetanalytics.lrs.pedestal.routes.activities/get-response
+                    com.yetanalytics.lrs.pedestal.routes.agents/get-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/put-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/post-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
+                    com.yetanalytics.lrs.pedestal.routes.documents/delete-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/put-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/post-response
+                    com.yetanalytics.lrs.pedestal.routes.statements/get-response
+                    ]))
   (run-dev :reload-routes? false
            :mode (or
                   (some-> ?mode keyword)
