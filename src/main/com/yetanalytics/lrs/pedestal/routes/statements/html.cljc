@@ -35,6 +35,20 @@
    ;; preserve unwrap_html for the ajax folks
    (select-keys p0 [:unwrap_html])))
 
+(def xapi-params
+  [:agent
+   :activity
+   :verb
+   :since
+   :until
+   :statementId
+   :voidedStatementId
+   :registration
+   :related_activities
+   :related_agents
+   :format
+   :ascending])
+
 (defn- statements-link
   [path-prefix
    params]
@@ -43,8 +57,10 @@
          (str
           "?"
           (u/form-encode
-           (cond-> params
-             (:agent params) (update :agent u/json-string)))))))
+           (-> params
+               (select-keys (conj xapi-params :unwrap_html))
+            (cond->
+                (:agent params) (update :agent u/json-string))))))))
 
 (defn- unwrap?
   "Given the pedestal context, is the user asking for unwrapped html?"
@@ -66,37 +82,38 @@
   "Header with query nav"
   [path-prefix
    params]
-  (cond-> [:header]
-    (not-empty (dissoc params :unwrap_html))
-    (conj
-     (let [truncator-id (str
-                         #?(:clj (java.util.UUID/randomUUID)
-                            :cljs (random-uuid)))]
-       [:nav.query
-        [:input.truncator-toggle
-         {:id truncator-id
-          :type "checkbox"
-          :style "display:none;"}]
-        [:label.truncator-toggle-label.query-toggle
-         {:for truncator-id}
-         "Query"]
-        (jr/json->hiccup
-         (reduce-kv
-          (fn [m k v]
-            (if (= k :unwrap_html)
-              m ;; don't render util param unwrap_html
-              (assoc m
-                     k
-                     ^::jr/columnar
-                     [v
-                      ^::jr/link-tuple
-                      [(statements-link
-                        path-prefix
-                        (dissoc params k))
-                       "Remove"]])))
-          {}
-          params)
-         :truncate-after 10)]))))
+  (let [safe-params (select-keys params xapi-params)]
+    (cond-> [:header]
+      (not-empty safe-params)
+      (conj
+       (let [truncator-id (str
+                           #?(:clj (java.util.UUID/randomUUID)
+                              :cljs (random-uuid)))]
+         [:nav.query
+          [:input.truncator-toggle
+           {:id truncator-id
+            :type "checkbox"
+            :style "display:none;"}]
+          [:label.truncator-toggle-label.query-toggle
+           {:for truncator-id}
+           "Query"]
+          (jr/json->hiccup
+           (reduce-kv
+            (fn [m k v]
+              (if (= k :unwrap_html)
+                m ;; don't render util param unwrap_html
+                (assoc m
+                       k
+                       ^::jr/columnar
+                       [v
+                        ^::jr/link-tuple
+                        [(statements-link
+                          path-prefix
+                          (dissoc params k))
+                         "Remove"]])))
+            {}
+            safe-params)
+           :truncate-after 10)])))))
 
 (defn page
   [& hvecs]
