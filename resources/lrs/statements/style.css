@@ -37,6 +37,7 @@ body > main {
 .json-map {
   display:grid;
   grid-template-columns: 1fr;
+  position: relative;
 }
 
 /* outer maps can have full border */
@@ -53,6 +54,7 @@ body > main {
   display:grid;
   gap: 0.25em 0;
   padding-left: .2em;
+  position: relative;
 }
 
 .json-array:not(.columnar) > * {
@@ -76,7 +78,6 @@ body > main {
 .json-array.columnar > *:not(:first-child) {
   border-left: 1px solid rgba(0,0,0,0.2);
 }
-
 
 .json-array-element {
 }
@@ -105,20 +106,8 @@ body > main {
   content: ":";
 }
 
-
 .json-map-entry-val {
   border-left: 1px solid rgba(0,0,0,.05);
-}
-
-/* leaf outer */
-
-.json-map-entry-val {
-}
-
-.json-map-entry-val > .json-map {
-}
-
-.json-map-entry-val > .json-array:not(.columnar) {
 }
 
 /* leaf inner */
@@ -131,36 +120,59 @@ body > main {
 /* truncation.. inline collapse with json in mind */
 /* expects a truncator input, preceded by label. Will hide the rest of the things except .no-truncate */
 label.truncator-label {
-  display:grid;
   padding: 1em;
+  cursor: pointer;
+}
+
+.json-map > input.truncator:checked ~ label.truncator-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+/* Make some space at the end for it */
+.json-map > input.truncator:checked ~ :last-child {
+  margin-bottom: 3em;
+}
+
+.json-array:not(.columnar) > input.truncator:checked ~ :last-child {
+  margin-bottom: 3em;
+}
+
+.json-array:not(.columnar) > input.truncator:checked ~ label.truncator-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
 }
 
 .json-map > label.truncator-label::before {
   display: contents;
-  content: "{ ";
+  content: "{ + ";
+}
+
+.json-map > input.truncator:checked ~ label.truncator-label::before {
+  display: contents;
+  content: "{ - ";
 }
 
 .json-map > label.truncator-label::after {
   display: contents;
-  content: " more entry }";
-}
-
-.json-map > label.truncator-label.plural::after {
-  content: " more entries }";
+  content: " }";
 }
 
 .json-array > label.truncator-label::before {
   display: contents;
-  content: "[ ";
+  content: "[ + ";
+}
+
+.json-array > input.truncator:checked ~ label.truncator-label::before {
+  display: contents;
+  content: "[ - ";
 }
 
 .json-array > label.truncator-label::after {
   display: contents;
-  content: " more element ]";
-}
-
-.json-array > label.truncator-label.plural::after {
-  content: " more elements ]";
+  content: " ]";
 }
 
 input.truncator ~ :not(.no-truncate,label.truncator-label) {
@@ -169,10 +181,6 @@ input.truncator ~ :not(.no-truncate,label.truncator-label) {
 
 input.truncator:checked ~ :not(.no-truncate).json {
   display: grid;
-}
-
-input.truncator:checked ~ label.truncator-label {
-  display: none;
 }
 
 /* togglable */
