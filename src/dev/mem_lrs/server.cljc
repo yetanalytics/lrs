@@ -22,7 +22,8 @@
   [& {:keys [reload-routes?
              lrs
              mode]
-      :or {reload-routes? true}}]
+      :or {reload-routes? true
+           mode :both}}]
 
   (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
               :fns (stest/instrument
