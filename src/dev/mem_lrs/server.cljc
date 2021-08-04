@@ -20,78 +20,86 @@
 (defn run-dev
   "The entry-point for 'lein run-dev'"
   [& {:keys [reload-routes?
-             lrs]
-      :or {reload-routes? true
-           lrs (new-lrs {})}}]
-  (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
-            :fns (stest/instrument
-                  `[lrs/get-about
-                    lrs/get-about-async
-                    lrs/set-document
-                    lrs/set-document-async
-                    lrs/get-document
-                    lrs/get-document-async
-                    lrs/get-document-ids
-                    lrs/get-document-ids-async
-                    lrs/delete-document
-                    lrs/delete-document-async
-                    lrs/delete-documents
-                    lrs/delete-documents-async
-                    lrs/get-activity
-                    lrs/get-activity-async
-                    lrs/get-person
-                    lrs/get-person-async
-                    lrs/store-statements
-                    lrs/store-statements-async
-                    lrs/get-statements
-                    lrs/get-statements-async
-                    lrs/consistent-through
-                    lrs/consistent-through-async
-                    lrs/authenticate
-                    lrs/authenticate-async
-                    lrs/authorize
-                    lrs/authorize-async
+             lrs
+             mode]
+      :or {reload-routes? true}}]
 
-                    ;; response handling
-                    com.yetanalytics.lrs.pedestal.routes.about/get-response
-                    com.yetanalytics.lrs.pedestal.routes.activities/get-response
-                    com.yetanalytics.lrs.pedestal.routes.agents/get-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/put-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/post-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/delete-response
-                    com.yetanalytics.lrs.pedestal.routes.statements/put-response
-                    com.yetanalytics.lrs.pedestal.routes.statements/post-response
-                    com.yetanalytics.lrs.pedestal.routes.statements/get-response
-                    ]))
-  (log/info :msg "Creating your [DEV] server...")
-  (-> service/service ;; start with production configuration
-      (merge {:env :dev
-              ::lrs lrs
-              ;; do not block thread that starts web server
-              ::server/join? false
-              ;; Routes can be a function that resolve routes,
-              ;;  we can use this to set the routes to be reloadable
-              ::server/routes (if reload-routes?
-                                #(route/expand-routes (service/new-routes lrs))
-                                (service/new-routes lrs))
-              ;; all origins are allowed in dev mode
-              ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
-              ;; Content Security Policy (CSP) is mostly turned off in dev mode
-              ;; ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}
-              })
-      ;; Wire up interceptor chains
-      ;; server/default-interceptors
-      i/xapi-default-interceptors
-      ;; server/dev-interceptors
-      server/create-server
-      server/start))
+  (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
+              :fns (stest/instrument
+                    `[lrs/get-about
+                      lrs/get-about-async
+                      lrs/set-document
+                      lrs/set-document-async
+                      lrs/get-document
+                      lrs/get-document-async
+                      lrs/get-document-ids
+                      lrs/get-document-ids-async
+                      lrs/delete-document
+                      lrs/delete-document-async
+                      lrs/delete-documents
+                      lrs/delete-documents-async
+                      lrs/get-activity
+                      lrs/get-activity-async
+                      lrs/get-person
+                      lrs/get-person-async
+                      lrs/store-statements
+                      lrs/store-statements-async
+                      lrs/get-statements
+                      lrs/get-statements-async
+                      lrs/consistent-through
+                      lrs/consistent-through-async
+                      lrs/authenticate
+                      lrs/authenticate-async
+                      lrs/authorize
+                      lrs/authorize-async
+
+                      ;; response handling
+                      com.yetanalytics.lrs.pedestal.routes.about/get-response
+                      com.yetanalytics.lrs.pedestal.routes.activities/get-response
+                      com.yetanalytics.lrs.pedestal.routes.agents/get-response
+                      com.yetanalytics.lrs.pedestal.routes.documents/put-response
+                      com.yetanalytics.lrs.pedestal.routes.documents/post-response
+                      com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
+                      com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
+                      com.yetanalytics.lrs.pedestal.routes.documents/delete-response
+                      com.yetanalytics.lrs.pedestal.routes.statements/put-response
+                      com.yetanalytics.lrs.pedestal.routes.statements/post-response
+                      com.yetanalytics.lrs.pedestal.routes.statements/get-response
+                      ]))
+
+  (let [lrs (or lrs
+                (new-lrs {:mode mode}))]
+    (log/info :msg "Creating your [DEV] server..."
+              :mode mode)
+    (-> service/service ;; start with production configuration
+        (merge {:env :dev
+                ::lrs lrs
+                ;; do not block thread that starts web server
+                ::server/join? false
+                ;; Routes can be a function that resolve routes,
+                ;;  we can use this to set the routes to be reloadable
+                ::server/routes (if reload-routes?
+                                  #(route/expand-routes (service/new-routes lrs))
+                                  (service/new-routes lrs))
+                ;; all origins are allowed in dev mode
+                ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
+                ;; Content Security Policy (CSP) is mostly turned off in dev mode
+                ;; ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}
+                })
+        ;; Wire up interceptor chains
+        ;; server/default-interceptors
+        i/xapi-default-interceptors
+        ;; server/dev-interceptors
+        server/create-server
+        server/start)))
 
 (defn ^:export -main
   "The entry-point for 'lein run'"
-  [& args]
-  (run-dev :reload-routes? false))
+  [& [?mode]]
+  (run-dev :reload-routes? false
+           :mode (or
+                  (some-> ?mode keyword)
+                  :both)))
 
 #?(:cljs (set! *main-cli-fn* -main))
 ;; If you package the service up as a WAR,
