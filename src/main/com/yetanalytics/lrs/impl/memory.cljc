@@ -964,11 +964,29 @@
 
 (s/def ::init-state ::state)
 
-(s/def ::lrs
+(s/def ::lrs-sync
+  (s/with-gen ::p/lrs
+    (fn []
+      (sgen/return (new-lrs {:init-state (fixture-state)
+                             :mode :sync})))))
+
+(s/def ::lrs-async
+  (s/with-gen ::p/lrs-async
+    (fn []
+      (sgen/return (new-lrs {:init-state (fixture-state)
+                             :mode :async})))))
+
+(s/def ::lrs-both
   (s/with-gen (s/and ::p/lrs
                      ::p/lrs-async)
     (fn []
-      (sgen/return (new-lrs {:init-state (fixture-state)})))))
+      (sgen/return (new-lrs {:init-state (fixture-state)
+                             :mode :both})))))
+
+(s/def ::lrs
+  (s/or :sync ::lrs-sync
+        :async ::lrs-async
+        :both ::lrs-both))
 
 (s/fdef new-lrs
         :args (s/cat :options
