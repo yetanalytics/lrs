@@ -75,8 +75,8 @@ body > main {
   padding: 1em 1em 1em 1.25em;
   background-color: rgba(0,0,0,.025);
   height: calc(100% - 2em);
-  border-right: 1px solid rgba(0,0,0,.05);
-  border-bottom: 1px solid rgba(0,0,0,.05);
+  border-right: #EBEBEB solid 0.25em;
+  position: relative;
 }
 
 .json-map-entry-key:after {
@@ -172,4 +172,13 @@ label.truncator-toggle-label:after {
 
 input.truncator-toggle:checked ~ label.truncator-toggle-label:after {
   content: "-";
+}
+
+/* asc/desc control */
+
+.toggle-ascending {
+  position: absolute;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
 }
