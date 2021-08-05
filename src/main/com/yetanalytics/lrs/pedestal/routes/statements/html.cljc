@@ -59,8 +59,8 @@
           (u/form-encode
            (-> params
                (select-keys (conj xapi-params :unwrap_html))
-            (cond->
-                (:agent params) (update :agent u/json-string))))))))
+               (cond->
+                   (:agent params) (update :agent u/json-string))))))))
 
 (defn- unwrap?
   "Given the pedestal context, is the user asking for unwrapped html?"
@@ -375,6 +375,35 @@
           ctx
           statement)})
 
+;; inject some controls for the statements page
+(defn inject-ascending
+  "Inject a control for asc/desc"
+  [hiccup
+   path-prefix
+   params]
+  (let [ascending? (-> params :ascending true?)]
+    (update-in
+     hiccup
+     [1 1]
+     conj
+     [(if ascending?
+        :div.toggle-ascending.asc
+        :div.toggle-ascending.desc)
+      (if ascending?
+        "asc"
+        [:a
+         {:href (statements-link
+                 path-prefix
+                 {:ascending true})}
+         "asc"])
+      (if ascending?
+        [:a
+         {:href (statements-link
+                 path-prefix
+                 {:ascending false})}
+         "desc"]
+        "desc")])))
+
 (defn statements-page
   [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
     {params :xapi.statements.GET.request/params} :xapi
@@ -384,15 +413,17 @@
    {:keys [statements]
     ?more :more}]
   (let [statement-response-rendered
-        (json->hiccup
-         (cond-> {:statements statements}
-           ?more (assoc :more ?more))
-         :custom (statement-custom path-prefix)
-         :key-weights statement-key-weights
-         :truncate-after 2
-         :truncate-after-min 1
-         :truncate-after-mod -1
-         :url-params params)]
+        (-> (json->hiccup
+             (cond-> {:statements statements}
+               ?more (assoc :more ?more))
+             :custom (statement-custom path-prefix)
+             :key-weights statement-key-weights
+             :truncate-after 2
+             :truncate-after-min 1
+             :truncate-after-mod -1
+             :url-params params)
+            (inject-ascending
+             path-prefix params))]
     (if (unwrap? ctx)
       #?(:clj (html/html statement-response-rendered)
          :cljs (hic/render-html statement-response-rendered))
