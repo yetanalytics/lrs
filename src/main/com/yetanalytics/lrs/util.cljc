@@ -7,6 +7,10 @@
   #?(:clj (codec/form-encode params)
      :cljs (.stringify qs (clj->js params))))
 
-(defn json-string [x]
-  #?(:clj (json/generate-string x)
-     :cljs (.stringify js/JSON (clj->js x))))
+(defn json-string [x & {:keys [pretty]
+                        :or {pretty false}}]
+  (if pretty
+    #?(:clj (json/generate-string x {:pretty true})
+       :cljs (.stringify js/JSON (clj->js x) nil 2))
+    #?(:clj (json/generate-string x)
+       :cljs (.stringify js/JSON (clj->js x)))))

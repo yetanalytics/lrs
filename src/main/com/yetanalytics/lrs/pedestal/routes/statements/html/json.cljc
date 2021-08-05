@@ -2,6 +2,7 @@
   "Simple json structural elements for statement data"
   (:require [clojure.walk :as w]
             [com.yetanalytics.lrs.util :as u]
+            [clojure.string :as cs]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))
 
@@ -77,11 +78,31 @@
 
 (defn inject-attrs
   "Inject attributes into a hiccup structure that may or may not have them."
-  [[el-k fr & rr]
+  [[el-k fr & rr :as hiccup]
    attrs]
-  (if (map? fr)
-    (into [el-k (merge fr attrs)] rr)
-    (into [el-k attrs] (cons fr rr))))
+  (with-meta
+    (let [attrs (or attrs {})]
+      (if (map? fr)
+        (into [el-k (merge fr attrs)] rr)
+        (into [el-k attrs] (cons fr rr))))
+    (meta hiccup)))
+
+(defn- node-data-attrs
+  "Commonly"
+  [json path]
+  (->data-attrs
+   (cond-> {:path (cs/join
+                   ","
+                   (map
+                    #(if (keyword? %)
+                       (name %)
+                       (str %))
+                    path))}
+     (coll? json) (assoc
+                   :count (str (count json)))
+     ;; include json for maps so we can generate a CSS <PRE> for instance
+     (map? json) (assoc
+                  :json (u/json-string json :pretty true)))))
 
 (defn json->hiccup
   [json
@@ -119,20 +140,22 @@
                                    cfn))
                                custom))]
         ;; if we have a custom path function, use that
-        (vary-meta
-         (custom-fn
-          json
-          ;; throw the json->hiccup args on the end
-          ;; possibly useful to resume
-          :custom custom
-          :path path
-          :key-weights key-weights
-          :truncate-after truncate-after
-          :truncate-after-min truncate-after-min
-          :truncate-after-max truncate-after-max
-          :truncate-after-mod truncate-after-mod
-          :url-params url-params)
-         assoc ::rendered true)
+        (-> (custom-fn
+             json
+             ;; throw the json->hiccup args on the end
+             ;; possibly useful to resume
+             :custom custom
+             :path path
+             :key-weights key-weights
+             :truncate-after truncate-after
+             :truncate-after-min truncate-after-min
+             :truncate-after-max truncate-after-max
+             :truncate-after-mod truncate-after-mod
+             :url-params url-params)
+         (inject-attrs
+          (node-data-attrs json path))
+         (vary-meta
+          assoc ::rendered true))
         (cond
           ;; maps are objects
           (map? json)
@@ -163,7 +186,8 @@
                                              :url-params url-params)
                                :scalar scalar?)
                               ;; inject name of key
-                              (inject-attrs (->data-attrs {:key-name kn}))))))
+                              (inject-attrs (->data-attrs {:entry-key-name kn
+                                                           :entry-idx (str idx)}))))))
                      (split-at truncate-after))]
             (-> (if (empty? fent)
                   [:div.json.json-map.empty]
@@ -187,6 +211,8 @@
                     (into [:div.json.json-map] fent)))
                 (into
                  rent)
+                (inject-attrs
+                 (node-data-attrs json path))
                 (vary-meta assoc ::rendered true)))
           ;; leave map entries alone entirely
           (map-entry? json)
@@ -207,6 +233,7 @@
                        (map-indexed
                         (fn [idx e]
                           [:div.json.json-array-element
+                           (->data-attrs {:element-idx (str idx)})
                            (json->hiccup e
                                          :custom custom
                                          :path (conj path idx)
@@ -239,11 +266,15 @@
                       (into [arr-k] fel)))
                   (into
                    rel)
+                  (inject-attrs
+                   (node-data-attrs json path))
                   (vary-meta assoc ::rendered true))))
           ;; all other scalar for now
           :else
           ^::rendered
           [:div.json.json-scalar
+           (merge (node-data-attrs json path)
+                  {:data-scalar-value (str json)})
            ;; automatically create links when possible
            (if (and (string? json)
                     (linky? json))
