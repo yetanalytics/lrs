@@ -152,7 +152,8 @@
                   path-prefix
                   (merge-params
                    url-params
-                   {:agent json}))}
+                   {:agent json
+                    :related_agents true}))}
              "Filter..."]]])))
 
 (defn verb-pred
@@ -206,7 +207,8 @@
                path-prefix
                (merge-params
                 url-params
-                {:activity (get json "id")}))}
+                {:activity (get json "id")
+                 :related_activities true}))}
              "Filter..."]]])))
 
 (defn reg-pred [path _json]
