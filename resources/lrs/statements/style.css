@@ -49,6 +49,10 @@ body > main {
   background-color: #D6D6D6;
 }
 
+.json-array:not(.columnar) {
+  padding-bottom: .25em;
+}
+
 .json-array.columnar {
   grid-template-columns: repeat(auto-fill, minmax(max-content, 8em));
   gap: 0 0.25em;
@@ -96,6 +100,7 @@ body > main {
 label.truncator-label {
   padding: 1em;
   cursor: pointer;
+  background-color: #F5F5F5;
 }
 
 .json-map > input.truncator:checked ~ label.truncator-label {
@@ -106,11 +111,11 @@ label.truncator-label {
 
 /* Make some space at the end for it */
 .json-map > input.truncator:checked ~ :last-child {
-  margin-bottom: 3em;
+  margin-bottom: 3.25em;
 }
 
 .json-array:not(.columnar) > input.truncator:checked ~ :last-child {
-  margin-bottom: 3em;
+  margin-bottom: 3.25em;
 }
 
 .json-array:not(.columnar) > input.truncator:checked ~ label.truncator-label {
