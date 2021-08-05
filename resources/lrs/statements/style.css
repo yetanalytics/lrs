@@ -33,62 +33,37 @@ body > main {
 }
 
 /* JSON-specific */
-
 .json-map {
   display:grid;
+  gap: 0.25em 0;
   grid-template-columns: 1fr;
   position: relative;
-}
-
-/* outer maps can have full border */
-:not(.json) > .json-map {
-  border: 1px solid rgba(0,0,0,.05);
-}
-
-/* borders in between map entries */
-.json-map > .json-map-entry:not(:last-child) {
-  border-bottom: 1px solid rgba(0,0,0,.05);
+  background-color: #EBEBEB;
 }
 
 .json-array {
   display:grid;
   gap: 0.25em 0;
-  padding-left: .2em;
+  padding-left: .25em;
   position: relative;
-}
-
-.json-array:not(.columnar) > * {
-}
-
-.json-array:not(.columnar) > *:not(:first-child) {
-  border-top: 1px solid rgba(0,0,0,0.2);
-}
-
-.json-array:not(.columnar) > *:not(:last-child) {
-}
-
-.json-array:not(.columnar) > :last-child {
+  background-color: #D6D6D6;
 }
 
 .json-array.columnar {
   grid-template-columns: repeat(auto-fill, minmax(max-content, 8em));
-  gap: 0 1em;
-}
-
-.json-array.columnar > *:not(:first-child) {
-  border-left: 1px solid rgba(0,0,0,0.2);
+  gap: 0 0.25em;
+  background-color: #F5F5F5;
 }
 
 .json-array-element {
-}
-
-.json-array-action {
+  background-color: #F5F5F5;
 }
 
 .json-map-entry {
   display:grid;
-  grid-template-columns: minmax(max-content, 8em) 1fr;
+  grid-template-columns: minmax(max-content, 9em) 1fr;
   align-items: baseline;
+  background-color: #F5F5F5;
 }
 
 /* json-map-action shares layout styling with json-map-entry but contains actions */
@@ -100,14 +75,12 @@ body > main {
 
 .json-map-entry-key {
   padding: 1em;
+  background-color: #F0F0F0;
+  height: calc(100% - 2em);
 }
 
 .json-map-entry-key:after {
   content: ":";
-}
-
-.json-map-entry-val {
-  border-left: 1px solid rgba(0,0,0,.05);
 }
 
 /* leaf inner */
