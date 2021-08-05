@@ -38,15 +38,12 @@ body > main {
   gap: 0.25em 0;
   grid-template-columns: 1fr;
   position: relative;
-  background-color: #EBEBEB;
 }
 
 .json-array {
   display:grid;
   gap: 0.25em 0;
-  padding-left: .25em;
   position: relative;
-  background-color: #D6D6D6;
 }
 
 .json-array:not(.columnar) {
@@ -56,32 +53,30 @@ body > main {
 .json-array.columnar {
   grid-template-columns: repeat(auto-fill, minmax(max-content, 8em));
   gap: 0 0.25em;
-  background-color: #F5F5F5;
 }
 
 .json-array-element {
-  background-color: #F5F5F5;
 }
 
 .json-map-entry {
   display:grid;
   grid-template-columns: minmax(max-content, 9em) 1fr;
   align-items: baseline;
-  background-color: #F5F5F5;
 }
 
 /* json-map-action shares layout styling with json-map-entry but contains actions */
 .json-map-action {
   display:grid;
   grid-template-columns: 1fr;
-  padding: 1em;
+  padding: 1em 0em;
 }
 
 .json-map-entry-key {
-  padding: 1em;
-  background-color: #F0F0F0;
+  padding: 1em 1em 1em 1.25em;
+  background-color: rgba(0,0,0,.025);
   height: calc(100% - 2em);
-  border-right: #EBEBEB solid 0.25em;
+  border-right: 1px solid rgba(0,0,0,.05);
+  border-bottom: 1px solid rgba(0,0,0,.05);
 }
 
 .json-map-entry-key:after {
@@ -98,9 +93,8 @@ body > main {
 /* truncation.. inline collapse with json in mind */
 /* expects a truncator input, preceded by label. Will hide the rest of the things except .no-truncate */
 label.truncator-label {
-  padding: 1em;
+  padding: 1em 1em 1em 1.25em;
   cursor: pointer;
-  background-color: #F5F5F5;
 }
 
 .json-map > input.truncator:checked ~ label.truncator-label {
@@ -172,7 +166,6 @@ input.truncator-toggle:checked ~ :not(.no-truncate,label.truncator-toggle-label)
 }
 
 label.truncator-toggle-label:after {
-  padding-left: .2em;
   content: "+";
   display: inline-block;
 }
