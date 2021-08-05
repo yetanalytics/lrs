@@ -62,6 +62,7 @@ body > main {
   display:grid;
   grid-template-columns: minmax(max-content, 9em) 1fr;
   align-items: baseline;
+  border-bottom: #EBEBEB solid 0.1em;
 }
 
 /* json-map-action shares layout styling with json-map-entry but contains actions */
@@ -75,7 +76,7 @@ body > main {
   padding: 1em 1em 1em 1.25em;
   background-color: rgba(0,0,0,.025);
   height: calc(100% - 2em);
-  border-right: #EBEBEB solid 0.25em;
+  border-right: #EBEBEB solid 0.1em;
   position: relative;
 }
 
@@ -95,6 +96,7 @@ body > main {
 label.truncator-label {
   padding: 1em 1em 1em 1.25em;
   cursor: pointer;
+  border-bottom: #EBEBEB solid 0.1em;
 }
 
 .json-map > input.truncator:checked ~ label.truncator-label {
