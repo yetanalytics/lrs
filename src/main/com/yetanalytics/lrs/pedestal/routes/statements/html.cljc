@@ -386,7 +386,7 @@
   (let [ascending? (-> params :ascending true?)]
     (update-in
      hiccup
-     [1 1]
+     [1 2]
      conj
      [(if ascending?
         :div.toggle-ascending.asc

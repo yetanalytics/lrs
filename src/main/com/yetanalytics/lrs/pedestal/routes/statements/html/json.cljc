@@ -1,6 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html.json
   "Simple json structural elements for statement data"
   (:require [clojure.walk :as w]
+            [com.yetanalytics.lrs.util :as u]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))
 
@@ -58,6 +59,29 @@
       :div.json.json-map-entry-val.scalar
       :div.json.json-map-entry-val)
     v]])
+
+(defn ->data-attrs
+  [data]
+  (reduce-kv
+   (fn [m k v]
+     (assoc
+      m
+      (keyword
+       nil
+       (format
+        "data-%s"
+        (name k)))
+      v))
+   (empty data)
+   data))
+
+(defn inject-attrs
+  "Inject attributes into a hiccup structure that may or may not have them."
+  [[el-k fr & rr]
+   attrs]
+  (if (map? fr)
+    (into [el-k (merge fr attrs)] rr)
+    (into [el-k attrs] (cons fr rr))))
 
 (defn json->hiccup
   [json
@@ -119,22 +143,27 @@
                       >)
                      (map-indexed
                       (fn [idx [k v]]
-                        (json-map-entry
-                         (let [kn (name k)]
-                           (if (linky? kn)
-                             (a kn kn)
-                             kn))
-                         (json->hiccup v
-                                       :custom custom
-                                       :path (conj path k)
-                                       :key-weights key-weights
-                                       :truncate-after (+ truncate-after
-                                                          truncate-after-mod)
-                                       :truncate-after-min truncate-after-min
-                                       :truncate-after-max truncate-after-max
-                                       :truncate-after-mod truncate-after-mod
-                                       :url-params url-params)
-                         :scalar (not (coll? v)))))
+                        (let [kn (name k)
+                              scalar? (and (not (rendered? v))
+                                           (or (link-tuple? v)
+                                               (not (coll? v))))]
+                          (-> (json-map-entry
+                               (if (linky? kn)
+                                 (a kn kn)
+                                 kn)
+                               (json->hiccup v
+                                             :custom custom
+                                             :path (conj path k)
+                                             :key-weights key-weights
+                                             :truncate-after (+ truncate-after
+                                                                truncate-after-mod)
+                                             :truncate-after-min truncate-after-min
+                                             :truncate-after-max truncate-after-max
+                                             :truncate-after-mod truncate-after-mod
+                                             :url-params url-params)
+                               :scalar scalar?)
+                              ;; inject name of key
+                              (inject-attrs (->data-attrs {:key-name kn}))))))
                      (split-at truncate-after))]
             (-> (if (empty? fent)
                   [:div.json.json-map.empty]
