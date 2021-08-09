@@ -6,6 +6,7 @@
   com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
                                 :sha "92876f9e7c9d0df69db27c7e268d9517a880591b"
                                 :exclusions [org.clojure/clojurescript]}
+  cheshire/cheshire {:mvn/version "5.10.0"}
   io.pedestal/pedestal.service {:mvn/version "0.5.7"}
   macchiato/core {:mvn/version "0.2.17"
                   :exclusions [funcool/cuerdas]
@@ -16,7 +17,8 @@
   tailrecursion/cljs-priority-map {:mvn/version "1.2.1"
                                    :exclusions [org.clojure/clojure
                                                 org.clojure/clojurescript]}
-  }
+  hiccup/hiccup {:mvn/version "1.0.5"}
+  hiccups/hiccups {:mvn/version "0.3.0"}}
  :aliases
  {:test-cljs
   {:main-opts ["-m" "cljs.main" "-t" "nodejs" "-o" "out/test.js"]}
@@ -33,12 +35,14 @@
     org.slf4j/log4j-over-slf4j {:mvn/version "1.7.25"}
     io.pedestal/pedestal.service-tools {:mvn/version "0.5.7"}
     com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
-                              :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}}}
+                              :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
+    com.yetanalytics/lrs-test-runner
+    {:git/url "git@github.com:yetanalytics/lrs-test-runner.git"
+     :sha "8bd5be7816288e85f5c07fc11bf8cf53667e72da"}}}
   ;; bench utils for LRS implementations
   :bench
   {:extra-paths ["src/bench"]
-   :extra-deps {cheshire/cheshire {:mvn/version "5.10.0"}
-                hato/hato {:mvn/version "0.5.0"}
+   :extra-deps {hato/hato {:mvn/version "0.5.0"}
                 org.clojure/tools.cli {:mvn/version "1.0.194"}
                 com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
                                           :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
