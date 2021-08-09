@@ -16,6 +16,7 @@
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [com.yetanalytics.lrs.spec.common :as cs]
             [clojure.core.async :as a :include-macros true]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             #?@(:cljs [[cljs.nodejs :as node]
                        [cljs.pprint :refer [pprint]]
                        [concat-stream]
@@ -34,36 +35,42 @@
   (i/interceptor
    {:name ::require-xapi-version
     :enter (fn [ctx]
-             (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
-               (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
-                      ;; 1.0 must be accepted as if 1.0.0
-                      "1.0.0"
-                      "1.0.1"
-                      "1.0.2"
-                      "1.0.3"} version-header)
-                 ctx
+             ;; if this is an html request, don't require this
+             ;; browsers can't provide it
+             (if (si/accept-html? ctx)
+               (assoc-in ctx
+                         [:request :headers "x-experience-api-version"]
+                         "1.0.3")
+               (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
+                 (if (#{"1.0"   ;; Per spec, if we accept 1.0.0,
+                        ;; 1.0 must be accepted as if 1.0.0
+                        "1.0.0"
+                        "1.0.1"
+                        "1.0.2"
+                        "1.0.3"} version-header)
+                   ctx
+                   (assoc (chain/terminate ctx)
+                          :response
+                          #?(:cljs {:status 400
+                                    :headers {"Content-Type" "application/json"}
+                                    :body
+                                    {:error {:message "X-Experience-API-Version header invalid!"}}}
+                             ;; TODO: Figure this out and dix
+                             ;; this is odd. For some reason, the conformance
+                             ;; tests intermittently fail when this error response
+                             ;; comes in w/o content-length. So we string it out
+                             ;; and set it. Who knows.
+                             :clj
+                             {:status 400
+                              :headers {"Content-Type" "application/json"
+                                        "Content-Length" "66"}
+                              :body "{\"error\": {\"message\": \"X-Experience-API-Version header invalid!\"}}"})))
                  (assoc (chain/terminate ctx)
                         :response
-                        #?(:cljs {:status 400
-                                  :headers {"Content-Type" "application/json"}
-                                  :body
-                                  {:error {:message "X-Experience-API-Version header invalid!"}}}
-                           ;; TODO: Figure this out and dix
-                           ;; this is odd. For some reason, the conformance
-                           ;; tests intermittently fail when this error response
-                           ;; comes in w/o content-length. So we string it out
-                           ;; and set it. Who knows.
-                           :clj
-                           {:status 400
-                            :headers {"Content-Type" "application/json"
-                                      "Content-Length" "66"}
-                            :body "{\"error\": {\"message\": \"X-Experience-API-Version header invalid!\"}}"})))
-               (assoc (chain/terminate ctx)
-                      :response
-                      {:status 400
-                       :headers {"Content-Type" "application/json"}
-                       :body
-                       {:error {:message "X-Experience-API-Version header required!"}}})))}))
+                        {:status 400
+                         :headers {"Content-Type" "application/json"}
+                         :body
+                         {:error {:message "X-Experience-API-Version header required!"}}}))))}))
 
 (def x-forwarded-for-interceptor
   (i/interceptor
@@ -317,6 +324,17 @@
    {:name ::path-prefix
     :enter #(assoc % ::path-prefix path-prefix)}))
 
+(def enable-statement-html-interceptor
+  (i/interceptor
+   {:name ::enable-statement-html
+    :enter #(assoc % ::statement-html? true)}))
+
+(defn www-auth-realm-interceptor
+  [realm]
+  (i/interceptor
+   {:name ::www-auth-realm
+    :enter #(assoc % ::www-auth-realm realm)}))
+
 (defn xapi-default-interceptors
           "Like io.pedestal.http/default-interceptors, but includes support for xapi alt
    request syntax, etc."
@@ -335,7 +353,10 @@
                  enable-csrf ::http/enable-csrf
                  secure-headers ::http/secure-headers
                  server-type ::http/type
+                 ;; LRS Specific:
                  path-prefix ::path-prefix
+                 statement-html? ::enable-statement-html
+                 www-auth-realm ::www-auth-realm
                  :or {file-path nil
                       #?@(:clj [request-logger http/log-request])
                       router :map-tree
@@ -346,7 +367,9 @@
                       enable-session nil
                       enable-csrf nil
                       secure-headers {}
-                      path-prefix "/xapi"}} service-map
+                      path-prefix "/xapi"
+                      statement-html? true
+                      www-auth-realm "LRS"}} service-map
                 processed-routes (cond
                                    (satisfies? route/ExpandableRoutes routes) (route/expand-routes routes)
                                    (fn? routes) routes
@@ -359,9 +382,12 @@
               (assoc service-map ::http/interceptors
                      (cond-> [(path-prefix-interceptor
                                path-prefix)
+                              (www-auth-realm-interceptor
+                               www-auth-realm)
                               ;; Fix for cljs string body TODO: evaluate
                               #?@(:cljs [body-string-interceptor])
                               ]
+                       statement-html? (conj enable-statement-html-interceptor)
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
                        (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))

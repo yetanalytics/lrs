@@ -104,11 +104,13 @@
 
             ;; xapi statements
             [(format "%s/statements" path-prefix)
-             :get (conj protected-interceptors
-                        statements-i/set-consistent-through
-                        (xapi-i/params-interceptor
-                         :xapi.statements.GET.request/params)
-                        statements/handle-get)]
+             :get (into [auth-i/www-authenticate]
+                        (concat
+                         protected-interceptors
+                         [statements-i/set-consistent-through
+                          (xapi-i/params-interceptor
+                           :xapi.statements.GET.request/params)
+                          statements/handle-get]))]
             [(format "%s/statements" path-prefix)
              :head (conj protected-interceptors
                          statements-i/set-consistent-through

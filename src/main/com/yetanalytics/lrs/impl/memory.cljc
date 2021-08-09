@@ -6,6 +6,8 @@
             [com.yetanalytics.lrs.xapi.agents :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
             [com.yetanalytics.lrs.xapi.document :as doc]
+            [com.yetanalytics.lrs.util :refer [form-encode
+                                               json-string]]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
@@ -20,7 +22,6 @@
                       [clojure.java.io :as io]
                       [ring.util.codec :as codec]]
                 :cljs [[cljs.nodejs :as node]
-                       [qs]
                        [fs]
                        [tmp]
                        [cljs.reader :refer [read-string]]])
@@ -525,14 +526,6 @@
 (s/fdef fixture-state
   :args (s/cat)
   :ret ::state)
-
-(defn form-encode [params]
-  #?(:clj (codec/form-encode params)
-     :cljs (.stringify qs (clj->js params))))
-
-(defn json-string [x]
-  #?(:clj (json/write-str x)
-     :cljs (.stringify js/JSON (clj->js x))))
 
 (defprotocol DumpableMemoryLRS
   (dump [_] "Return the LRS's state in EDN"))
