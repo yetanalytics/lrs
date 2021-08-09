@@ -20,9 +20,40 @@
 (defn run-dev
   "The entry-point for 'lein run-dev'"
   [& {:keys [reload-routes?
-             lrs]
+             lrs
+             mode]
       :or {reload-routes? true
-           lrs (new-lrs {})}}]
+           mode :both}}]
+
+  (let [lrs (or lrs
+                (new-lrs {:mode mode}))]
+    (log/info :msg "Creating your [DEV] server..."
+              :mode mode)
+    (-> service/service ;; start with production configuration
+        (merge {:env :dev
+                ::lrs lrs
+                ;; do not block thread that starts web server
+                ::server/join? false
+                ;; Routes can be a function that resolve routes,
+                ;;  we can use this to set the routes to be reloadable
+                ::server/routes (if reload-routes?
+                                  #(route/expand-routes (service/new-routes lrs))
+                                  (service/new-routes lrs))
+                ;; all origins are allowed in dev mode
+                ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
+                ;; Content Security Policy (CSP) is mostly turned off in dev mode
+                ;; ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}
+                })
+        ;; Wire up interceptor chains
+        ;; server/default-interceptors
+        i/xapi-default-interceptors
+        ;; server/dev-interceptors
+        server/create-server
+        server/start)))
+
+(defn ^:export -main
+  "The entry-point for 'lein run'"
+  [& [?mode]]
   (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
             :fns (stest/instrument
                   `[lrs/get-about
@@ -65,39 +96,10 @@
                     com.yetanalytics.lrs.pedestal.routes.statements/post-response
                     com.yetanalytics.lrs.pedestal.routes.statements/get-response
                     ]))
-  (log/info :msg "Creating your [DEV] server...")
-  (-> service/service ;; start with production configuration
-      (merge {:env :dev
-
-              ;; LRS-specific
-              ::lrs lrs
-              ;; To disable HTTP statement browsing
-              ;; ::i/enable-statement-html false
-              ;; ::i/www-auth-realm "MY REALM"
-
-              ;; do not block thread that starts web server
-              ::server/join? false
-              ;; Routes can be a function that resolve routes,
-              ;;  we can use this to set the routes to be reloadable
-              ::server/routes (if reload-routes?
-                                #(route/expand-routes (service/new-routes lrs))
-                                (service/new-routes lrs))
-              ;; all origins are allowed in dev mode
-              ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
-              ;; Content Security Policy (CSP) is mostly turned off in dev mode
-              ;; ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}
-              })
-      ;; Wire up interceptor chains
-      ;; server/default-interceptors
-      i/xapi-default-interceptors
-      ;; server/dev-interceptors
-      server/create-server
-      server/start))
-
-(defn ^:export -main
-  "The entry-point for 'lein run'"
-  [& args]
-  (run-dev :reload-routes? false))
+  (run-dev :reload-routes? false
+           :mode (or
+                  (some-> ?mode keyword)
+                  :both)))
 
 #?(:cljs (set! *main-cli-fn* -main))
 ;; If you package the service up as a WAR,
