@@ -68,7 +68,13 @@
   (log/info :msg "Creating your [DEV] server...")
   (-> service/service ;; start with production configuration
       (merge {:env :dev
+
+              ;; LRS-specific
               ::lrs lrs
+              ;; To disable HTTP statement browsing
+              ;; ::i/enable-statement-html false
+              ;; ::i/www-auth-realm "MY REALM"
+
               ;; do not block thread that starts web server
               ::server/join? false
               ;; Routes can be a function that resolve routes,

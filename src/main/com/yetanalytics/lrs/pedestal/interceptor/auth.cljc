@@ -6,7 +6,10 @@
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [io.pedestal.interceptor.chain :as chain]
             [clojure.core.async :as a :include-macros true]
-            [com.yetanalytics.lrs.spec.common :as cs]))
+            [com.yetanalytics.lrs.spec.common :as cs]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
+            #?@(:cljs [[goog.string :refer [format]]
+                       goog.string.format])))
 
 (defn handle-authenticate
   "Logic for handling authentication results, common sync + async"
@@ -58,3 +61,23 @@
                (a/go
                  (handle-authorize ctx (a/<! (lrs/authorize-async lrs ctx auth-identity))))
                (handle-authorize ctx (lrs/authorize lrs ctx auth-identity))))}))
+
+;; When used, will direct users to attempt basic auth
+;; in the given realm
+(def www-authenticate
+  (interceptor
+   {:name ::www-authenticate
+    :leave
+    (fn [ctx]
+      (if (and (si/accept-html? ctx)
+               (some-> ctx
+                       :response
+                       :status
+                       (= 401)))
+        (assoc-in ctx
+                  [:response
+                   :headers
+                   "WWW-Authenticate"]
+                  (format "Basic realm=\"%s\""
+                          (::i/www-auth-realm ctx "LRS")))
+        ctx))}))
