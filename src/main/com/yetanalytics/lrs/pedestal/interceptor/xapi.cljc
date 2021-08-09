@@ -150,12 +150,14 @@
                    (not-empty (dissoc params
                                       :statementId
                                       :format
-                                      :attachments))
+                                      :attachments
+                                      :unwrap_html))
                    voidedStatementId
                    (not-empty (dissoc params
                                       :voidedStatementId
                                       :format
-                                      :attachments))
+                                      :attachments
+                                      :unwrap_html))
                    :else
                    (not-empty (dissoc params
                                       :agent
@@ -172,7 +174,8 @@
                                       :ascending
                                       ;; TODO: handle param-based MORE implementations
                                       :page
-                                      :from))))
+                                      :from
+                                      :unwrap_html))))
       nil)
     :else nil))
 

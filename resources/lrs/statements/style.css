@@ -1,0 +1,186 @@
+/* global */
+
+html {
+  height: 100%;
+}
+
+body {
+  margin: 0 0 0 0;
+  font-family: monospace;
+  height: 100%;
+}
+
+nav.query {
+  display: grid;
+}
+
+nav.query > .json-map {
+  margin-left: 1em;
+  margin-bottom: 1em;
+}
+
+label.query-toggle {
+  display: inline-block;
+  margin: 1em;
+}
+
+a.query-remove-link {
+  padding: 1em;
+}
+
+body > main {
+  height: 100%;
+}
+
+/* JSON-specific */
+.json-map {
+  display:grid;
+  gap: 0.25em 0;
+  grid-template-columns: 1fr;
+  position: relative;
+}
+
+.json-array {
+  display:grid;
+  gap: 0.25em 0;
+  position: relative;
+}
+
+.json-array:not(.columnar) {
+  padding-bottom: .25em;
+}
+
+.json-array.columnar {
+  grid-template-columns: repeat(auto-fill, minmax(max-content, 8em));
+  gap: 0 0.25em;
+}
+
+.json-array-element {
+}
+
+.json-map-entry {
+  display:grid;
+  grid-template-columns: minmax(max-content, 9em) 1fr;
+  align-items: baseline;
+  border-bottom: #EBEBEB solid 0.1em;
+}
+
+/* json-map-action shares layout styling with json-map-entry but contains actions */
+.json-map-action {
+  display:grid;
+  grid-template-columns: 1fr;
+  padding: 1em 0em;
+}
+
+.json-map-entry-key {
+  padding: 1em 1em 1em 1.25em;
+  background-color: rgba(0,0,0,.025);
+  height: calc(100% - 2em);
+  border-right: #EBEBEB solid 0.1em;
+  position: relative;
+}
+
+.json-map-entry-key:after {
+  content: ":";
+}
+
+/* leaf inner */
+.json-scalar {
+  text-overflow: ellipsis;
+  display: inline;
+  padding-left: 1em;
+}
+
+/* truncation.. inline collapse with json in mind */
+/* expects a truncator input, preceded by label. Will hide the rest of the things except .no-truncate */
+label.truncator-label {
+  padding: 1em 1em 1em 1.25em;
+  cursor: pointer;
+  border-bottom: #EBEBEB solid 0.1em;
+}
+
+.json-map > input.truncator:checked ~ label.truncator-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+/* Make some space at the end for it */
+.json-map > input.truncator:checked ~ :last-child {
+  margin-bottom: 3.25em;
+}
+
+.json-array:not(.columnar) > input.truncator:checked ~ :last-child {
+  margin-bottom: 3.25em;
+}
+
+.json-array:not(.columnar) > input.truncator:checked ~ label.truncator-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+.json-map > label.truncator-label::before {
+  display: contents;
+  content: "{ + ";
+}
+
+.json-map > input.truncator:checked ~ label.truncator-label::before {
+  display: contents;
+  content: "{ - ";
+}
+
+.json-map > label.truncator-label::after {
+  display: contents;
+  content: " }";
+}
+
+.json-array > label.truncator-label::before {
+  display: contents;
+  content: "[ + ";
+}
+
+.json-array > input.truncator:checked ~ label.truncator-label::before {
+  display: contents;
+  content: "[ - ";
+}
+
+.json-array > label.truncator-label::after {
+  display: contents;
+  content: " ]";
+}
+
+input.truncator ~ :not(.no-truncate,label.truncator-label) {
+  display: none;
+}
+
+input.truncator:checked ~ :not(.no-truncate).json {
+  display: grid;
+}
+
+/* togglable */
+input.truncator-toggle ~ :not(.no-truncate,label.truncator-toggle-label) {
+  display: none;
+}
+
+input.truncator-toggle:checked ~ :not(.no-truncate,label.truncator-toggle-label) {
+  display: grid;
+}
+
+label.truncator-toggle-label:after {
+  content: "+";
+  display: inline-block;
+}
+
+input.truncator-toggle:checked ~ label.truncator-toggle-label:after {
+  content: "-";
+}
+
+/* asc/desc control */
+
+.toggle-ascending {
+  position: absolute;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}

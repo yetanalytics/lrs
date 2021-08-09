@@ -280,3 +280,29 @@
             (a/>! body-chan "]}"))))
       (a/close! body-chan))
     body-chan))
+
+(defn accept-html?
+  "Did the user request html?"
+  [ctx]
+  (and
+   (:com.yetanalytics.lrs.pedestal.interceptor/statement-html? ctx)
+   (some-> ctx
+           ^String (get-in [:request
+                            :headers
+                            "accept"])
+           (.startsWith "text/html"))))
+
+(defn collect-result
+  "Collect an async statement result as clojure data"
+  [statement-result-chan]
+  (a/go
+    (let [[_
+           statements
+           _
+           [?more]] (partition-by
+                     keyword?
+                     (a/<!
+                      (a/into []
+                              statement-result-chan)))]
+      (cond-> {:statements statements}
+        ?more (assoc :more ?more)))))

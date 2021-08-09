@@ -16,6 +16,7 @@
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [com.yetanalytics.lrs.spec.common :as cs]
             [clojure.core.async :as a :include-macros true]
+            [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             #?@(:cljs [[cljs.nodejs :as node]
                        [cljs.pprint :refer [pprint]]
                        [concat-stream]
@@ -51,15 +52,17 @@
   (i/interceptor
    {:name ::require-xapi-version
     :enter (fn [ctx]
-             (if-let [version-header (:com.yetanalytics.lrs/version ctx)]
-               (if (re-matches xAPIVersionRegEx
-                               version-header)
-                 ctx
-                 (xapi/error! ctx
-                              "X-Experience-API-Version header invalid!"))
-               (xapi/error!
-                ctx
-                "X-Experience-API-Version header required!")))}))
+             (if (si/accept-html? ctx)
+               (assoc ctx :com.yetanalytics.lrs/version "2.0.0")
+               (if-let [version-header (:com.yetanalytics.lrs/version ctx)]
+                 (if (re-matches xAPIVersionRegEx
+                                 version-header)
+                   ctx
+                   (xapi/error! ctx
+                                "X-Experience-API-Version header invalid!"))
+                 (xapi/error!
+                  ctx
+                  "X-Experience-API-Version header required!"))))}))
 
 (def x-forwarded-for-interceptor
   (i/interceptor
@@ -127,7 +130,7 @@
    {:name ::set-xapi-version
     :leave (fn [ctx]
              (assoc-in ctx
-                       [:response :headers "X-Experience-API-Version"]
+                       [:response :headers "x-experience-api-version"]
                        ;; Should be latest patch version
                        "2.0.0"))}))
 
@@ -286,6 +289,17 @@
    {:name ::path-prefix
     :enter #(assoc % ::path-prefix path-prefix)}))
 
+(def enable-statement-html-interceptor
+  (i/interceptor
+   {:name ::enable-statement-html
+    :enter #(assoc % ::statement-html? true)}))
+
+(defn www-auth-realm-interceptor
+  [realm]
+  (i/interceptor
+   {:name ::www-auth-realm
+    :enter #(assoc % ::www-auth-realm realm)}))
+
 (defn xapi-default-interceptors
           "Like io.pedestal.http/default-interceptors, but includes support for xapi alt
    request syntax, etc."
@@ -304,7 +318,10 @@
                  enable-csrf ::http/enable-csrf
                  secure-headers ::http/secure-headers
                  server-type ::http/type
+                 ;; LRS Specific:
                  path-prefix ::path-prefix
+                 statement-html? ::enable-statement-html
+                 www-auth-realm ::www-auth-realm
                  :or {file-path nil
                       #?@(:clj [request-logger http/log-request])
                       router :map-tree
@@ -315,7 +332,9 @@
                       enable-session nil
                       enable-csrf nil
                       secure-headers {}
-                      path-prefix "/xapi"}} service-map
+                      path-prefix "/xapi"
+                      statement-html? true
+                      www-auth-realm "LRS"}} service-map
                 processed-routes (cond
                                    (satisfies? route/ExpandableRoutes routes) (route/expand-routes routes)
                                    (fn? routes) routes
@@ -328,9 +347,12 @@
               (assoc service-map ::http/interceptors
                      (cond-> [(path-prefix-interceptor
                                path-prefix)
+                              (www-auth-realm-interceptor
+                               www-auth-realm)
                               ;; Fix for cljs string body TODO: evaluate
                               #?@(:cljs [body-string-interceptor])
                               ]
+                       statement-html? (conj enable-statement-html-interceptor)
                        ;; For Jetty, ensure that request bodies are drained.
                        ;; (= server-type :jetty) (conj util/ensure-body-drained)
                        (some? request-logger) (conj (io.pedestal.interceptor/interceptor request-logger))
