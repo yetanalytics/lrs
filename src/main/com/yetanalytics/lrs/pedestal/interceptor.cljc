@@ -135,7 +135,7 @@
    {:name ::set-xapi-version
     :leave (fn [ctx]
              (assoc-in ctx
-                       [:response :headers "X-Experience-API-Version"]
+                       [:response :headers "x-experience-api-version"]
                        ;; Should be latest patch version
                        "2.0.0"))}))
 
