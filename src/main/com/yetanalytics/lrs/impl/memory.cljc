@@ -9,6 +9,7 @@
             [com.yetanalytics.lrs.util :refer [form-encode
                                                json-string]]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
+            [com.yetanalytics.squuid :as squuid]
             [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec :as xs]
@@ -544,11 +545,15 @@
   [state statements attachments]
   (try (let [prepared-statements
              (map
-              (fn [s stamp]
+              (fn [s {:keys [squuid timestamp]}]
                 (ss/prepare-statement
-                 (assoc s "stored" stamp)))
+                 (cond-> (assoc s "stored" (timestamp/normalize-inst timestamp))
+                   (not (get s "id"))
+                   (assoc "id" (-> squuid
+                                   str
+                                   ss/normalize-id)))))
               statements
-              (timestamp/stamp-seq))]
+              (repeatedly squuid/generate-squuid*))]
          (swap! state
                 transact-statements
                 prepared-statements
