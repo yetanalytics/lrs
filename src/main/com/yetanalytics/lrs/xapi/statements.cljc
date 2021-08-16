@@ -153,11 +153,16 @@
         :args (s/cat :statement ::xs/statement)
         :ret ::xs/statement)
 
+(defn- gen-uuid []
+  #?(:clj (java.util.UUID/randomUUID)
+     :cljs (random-uuid)))
+
 (defn prepare-statement
   "Assign an ID, stored, timestamp, etc prior to storage"
-  [{:strs [id stored timestamp version] :as statement}]
-  (let [id (or id (str #?(:clj (java.util.UUID/randomUUID)
-                          :cljs (random-uuid))))
+  [{:strs [id stored timestamp version] :as statement}
+   & {:keys [gen-uuid-fn]
+      :or {gen-uuid-fn gen-uuid}}]
+  (let [id (or id (str (gen-uuid-fn)))
         stored (or stored (now-stamp))
         timestamp (or timestamp stored)
         authority {"name" "Memory LRS"
@@ -172,8 +177,13 @@
                "authority" authority
                "version" "1.0.3"))))
 
+(s/def ::gen-uuid-fn
+  (s/fspec :args (s/cat)
+           :ret uuid?))
+
 (s/fdef prepare-statement
-        :args (s/cat :statement ::xs/statement)
+  :args (s/cat :statement ::xs/statement
+               :options (s/keys* :opt-un [::gen-uuid-fn]))
         :ret ::xs/lrs-statement)
 
 
