@@ -18,7 +18,10 @@
                                    :exclusions [org.clojure/clojure
                                                 org.clojure/clojurescript]}
   hiccup/hiccup {:mvn/version "1.0.5"}
-  hiccups/hiccups {:mvn/version "0.3.0"}}
+  hiccups/hiccups {:mvn/version "0.3.0"}
+  com.yetanalytics/colossal-squuid
+  {:git/url "git@github.com:yetanalytics/colossal-squuid.git"
+   :sha "414028f07fae5d0e49c395bf145d141310780f71"}}
  :aliases
  {:test-cljs
   {:main-opts ["-m" "cljs.main" "-t" "nodejs" "-o" "out/test.js"]}
