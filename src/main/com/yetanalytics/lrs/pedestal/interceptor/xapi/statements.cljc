@@ -242,10 +242,11 @@
                 (.write w ",")
                 (json/with-writer [w {}]
                   (json/write x))))
-            (.write w
-                    (if more
-                      (fmt "], \"more\": \"%s\"}" more)
-                      "]}")))))
+            (let [^String terminal (if more
+                                     (fmt "], \"more\": \"%s\"}" more)
+                                     "]}")]
+              (.write w
+                      terminal)))))
 
 (defn json-string [x]
   #?(:clj (json/generate-string x)
