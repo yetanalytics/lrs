@@ -12,6 +12,8 @@
        :cljs com.yetanalytics.lrs.util.log) :as log]
    [clojure.spec.test.alpha :as stest :include-macros true]))
 
+#?(:clj (set! *warn-on-reflection* true))
+
 ;; This is an adapted service map, that can be started and stopped
 ;; From the REPL you can call server/start and server/stop on this service
 (defonce runnable-service (server/create-server (i/xapi-default-interceptors
