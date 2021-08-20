@@ -11,8 +11,6 @@
             [com.yetanalytics.lrs.xapi.document :as doc]
             [com.yetanalytics.lrs.auth :as auth]))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 ;; TODO: multiple error returns
 (s/def :ret/error
   (s/with-gen

@@ -14,8 +14,6 @@
               [goog.crypt.Sha384 :as Sha384]
               [goog.crypt.Sha512 :as Sha512])]))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 #?(:cljs (defn string->bytes [s]
            (crypt/stringToUtf8ByteArray s)))
 
