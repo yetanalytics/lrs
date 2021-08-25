@@ -18,8 +18,6 @@
                    [clojure.data.priority_map PersistentPriorityMap]
                    [java.io File])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 (s/fdef normalize-id
   :args (s/cat :id :statement/id)
   :ret :statement/id)

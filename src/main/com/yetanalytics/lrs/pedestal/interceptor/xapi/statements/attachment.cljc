@@ -19,10 +19,6 @@
                     IOException]
                    [java.util Base64])))
 
-
-;; TODO: tmp externs
-#?(:clj (set! *warn-on-reflection* true))
-
 (s/def :xapi.statements/attachments
   (s/coll-of ::attachment :gen-max 10))
 
