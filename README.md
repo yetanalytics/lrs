@@ -41,6 +41,6 @@ This will bench the LRS with 1000 statements in POST batches of 100.
 
 ## License
 
-Copyright © 2018-2020 Yet Analytics Inc.
+Copyright © 2018-2021 Yet Analytics Inc.
 
 Licensed under the Apache License, Version 2.0.
