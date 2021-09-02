@@ -1,4 +1,4 @@
-# lrs
+# com.yetanalytics/lrs
 
 [![CI](https://github.com/yetanalytics/lrs/actions/workflows/main.yml/badge.svg)](https://github.com/yetanalytics/lrs/actions/workflows/main.yml)
 
