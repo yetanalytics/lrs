@@ -44,7 +44,7 @@
                       {:type ::cljs-lrs-start-error
                        :ret ret})))))
 
-(use-fixtures :once runner/test-suite-fixture)
+(use-fixtures :once #(runner/test-suite-fixture % :branch "LRS-2.0"))
 
 (deftest test-cljs-lrs
   (testing "cljs/javascript async"
