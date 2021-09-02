@@ -4,6 +4,9 @@ on: [push, pull_request]
 
 jobs:
   test:
+    strategy:
+      matrix:
+        target: [test-lib-clj, test-lib-cljs, test-conformance]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -24,5 +27,5 @@ jobs:
         with:
           cli: 1.10.3.943 # Clojure CLI based on tools.deps
 
-      - name: Run CI make phony
-        run: make ci
+      - name: Run make target ${{ matrix.target }}
+        run: make ${{ matrix.target }}
