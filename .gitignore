@@ -20,3 +20,4 @@ npm-debug.log
 package.json
 package-lock.json
 *.log
+/out_test

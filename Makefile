@@ -1,7 +1,7 @@
-.phony: clean repl repl-cljs run-dev run-dev-cljs test-lib test-lib-cljs test-lib-clj test-conformance test-all ci
+.phony: clean repl repl-cljs run-dev run-dev-cljs test-lib test-lib-cljs test-lib-clj test-conformance test-conformance-clj-sync test-conformance-clj-async test-conformance-cljs test-all ci
 
 clean:
-	rm -rf target pom.xml.asc logs out node_modules .cljs_node_repl package.json package-lock.json
+	rm -rf target pom.xml.asc logs out node_modules .cljs_node_repl package.json package-lock.json out_test
 
 node_modules:
 	clojure -Mdev -m cljs.main --install-deps
@@ -22,19 +22,27 @@ out/main.js: node_modules
 run-dev-cljs: out/main.js
 	node out/main.js
 
-out/test.js: node_modules
-	clojure -Mdev -m cljs.main -re node -d out -o "out/test.js" -t nodejs -O none -c com.yetanalytics.test-runner
+out_test/test.js: node_modules
+	clojure -Mdev -m cljs.main -re node -d out_test -o "out_test/test.js" -t nodejs -O none -c com.yetanalytics.test-runner
 
-test-lib-cljs: out/test.js
-	node out/test.js
+test-lib-cljs: out_test/test.js
+	node out_test/test.js
 
 test-lib-clj:
 	clojure -Mdev -m com.yetanalytics.test-runner
 
 test-lib: test-lib-clj test-lib-cljs
 
-test-conformance: out/main.js
-	clojure -Mdev -m com.yetanalytics.conformance-test
+test-conformance-clj-sync:
+	clojure -Mdev -m com.yetanalytics.conformance-test clj-sync
+
+test-conformance-clj-async:
+	clojure -Mdev -m com.yetanalytics.conformance-test clj-async
+
+test-conformance-cljs: out/main.js
+	clojure -Mdev -m com.yetanalytics.conformance-test cljs
+
+test-conformance: test-conformance-clj-sync test-conformance-clj-async test-conformance-cljs
 
 test-all: test-lib test-conformance
 

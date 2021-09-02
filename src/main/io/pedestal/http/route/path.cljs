@@ -12,8 +12,7 @@
 
 (ns io.pedestal.http.route.path
   (:require [clojure.string :as str]
-            [goog.string :as gstring])
-  #_(:import (java.util.regex Pattern)))
+            [goog.string :as gstring]))
 
 ;;; Parsing pattern strings to match URI paths
 

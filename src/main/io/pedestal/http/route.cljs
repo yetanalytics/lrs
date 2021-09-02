@@ -12,10 +12,8 @@
 
 (ns io.pedestal.http.route
   (:require [clojure.string :as str]
-            ;; [clojure.core.incubator :refer [dissoc-in]]
             [io.pedestal.interceptor :as interceptor]
             [io.pedestal.interceptor.chain :as interceptor.chain]
-            ;; [io.pedestal.log :as log]
             [io.pedestal.http.route.definition :as definition]
             [io.pedestal.http.route.definition.terse :as terse]
             [io.pedestal.http.route.definition.table :as table]
@@ -26,8 +24,7 @@
             [goog.string :as gstring :refer [format]]
             [goog.string.format]
             )
-  (:import [goog.string StringBuffer])
-  #_(:import (java.net URLEncoder URLDecoder)))
+  (:import [goog.string StringBuffer]))
 
 
 (defn dissoc-in [m ks]
@@ -186,10 +183,6 @@
   :params are added to :query-params. Returns updated opts."
   [opts route]
   (let [{:keys [params request]} opts]
-    #_(log/debug :msg "MERGE-PARAM-OPTIONS"
-               :opts opts
-               :params params
-               :request request)
     (-> opts
         (dissoc :params)
         (update-in [:path-params] #(merge (:path-params request) params %))
@@ -217,11 +210,6 @@
 
 (defn- context-path
   [{:keys [context request] :as opts}]
-  #_(log/debug :in :context-path
-             :context context
-             :context-type (type context)
-             :resolved-context (when (symbol? context) (resolve context))
-             :request request)
   (when-let [context-str (cond
                           (string? context) context
                           (fn? context) (context)
@@ -253,14 +241,10 @@
          override-scheme :scheme} opts
         {:keys [scheme host port path-parts path]} route
         context-path-parts (context-path opts)
-        path-parts (do #_(log/debug :in :link-str
-                                  :path-parts path-parts
-                                  :context-path-parts context-path-parts)
-                       ;;(concat context-path-parts path-parts)
-                       (cond
-                         (and context-path-parts (empty? (first path-parts))) (concat context-path-parts (rest path-parts))
-                         context-path-parts (concat context-path-parts path-parts)
-                         :else path-parts))
+        path-parts (cond
+                     (and context-path-parts (empty? (first path-parts))) (concat context-path-parts (rest path-parts))
+                     context-path-parts (concat context-path-parts path-parts)
+                     :else path-parts)
         _ (when (and (true? strict-path-params?)
                      (not= (keys path-params) ;; Do the params passed in...
                            (seq (:path-params route)) ;; match the params from the route?  `seq` is used to handle cases where no `path-params` are required

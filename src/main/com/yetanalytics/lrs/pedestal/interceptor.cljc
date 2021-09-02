@@ -83,6 +83,14 @@
                (assoc ctx :xapi/attachments attachments)
                ctx))}))
 
+(def valid-alt-request-headers
+  [:Authorization :X-Experience-API-Version :Content-Type
+   :Content-Length :If-Match :If-None-Match
+   ;; :Accept-Language
+   ;; :Accept
+   ;; :Accept-Encoding
+   ])
+
 (defn parse-accept-language
   "Parse an Accept-Language header and return a vector in order of quality"
   [^String header]

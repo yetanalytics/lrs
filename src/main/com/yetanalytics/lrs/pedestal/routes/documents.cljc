@@ -41,7 +41,7 @@
                                               "Content-Length" (str content-length)
                                               "Last-Modified" updated}
                                        ?etag (assoc "etag" ?etag))
-                            :body contents #_(ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
+                            :body contents})
       (assoc ctx :response {:status 404}))))
 
 (s/fdef get-multiple-response
@@ -178,8 +178,8 @@
                   (a/<! (enter-fn ctx))
                   (assoc ctx :response
                          (let [{{:keys [status] :as get-response} :response} get-ctx]
-                           (case status
-                             400 get-response
+                           (if (= 400 status)
+                             get-response
                              {:status 412}))))))
             (let [get-ctx (-> ctx
                               (update :request dissoc :body)
@@ -210,8 +210,8 @@
                 (enter-fn ctx)
                 (assoc ctx :response
                        (let [{{:keys [status] :as get-response} :response} get-ctx]
-                         (case status
-                           400 get-response
+                         (if (= 400 status)
+                           get-response
                            {:status 412})))))))))))
 
 (s/fdef put-response
