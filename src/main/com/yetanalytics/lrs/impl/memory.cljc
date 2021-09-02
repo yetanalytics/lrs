@@ -24,13 +24,8 @@
                 :cljs [[cljs.nodejs :as node]
                        [fs]
                        [tmp]
-                       [cljs.reader :refer [read-string]]])
-
-            )
-  #?(:clj (:import [java.io InputStream ByteArrayOutputStream]
-                   )))
-
-#?(:clj (set! *warn-on-reflection* true))
+                       [cljs.reader :refer [read-string]]]))
+  #?(:clj (:import [java.io InputStream ByteArrayOutputStream])))
 
 ;; State
 (s/def :state/statements

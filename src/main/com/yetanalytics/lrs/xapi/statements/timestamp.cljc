@@ -10,8 +10,6 @@
                     ;; for cljs repro
                     [goog.i18n DateTimeFormat TimeZone])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 ;; Strict normalization of timestamp strings.
 ;; Intended for storage + consistency, but may be used for sortable stamp strings
 (defonce #?@(:clj [^ZoneId UTC]

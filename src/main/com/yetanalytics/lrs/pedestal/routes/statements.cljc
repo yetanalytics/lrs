@@ -22,8 +22,7 @@
               :body
               {:error
                ;; TODO: why are we returning the message here?
-               (merge {:message (#?(:clj .getMessage
-                                    :cljs .-message) exi)}
+               (merge {:message (ex-message exi)}
                       (select-keys exd [:statement
                                         :extant-statement]))}})
       ::p/invalid-voiding-statement
@@ -32,8 +31,7 @@
              {:status 400
               :body
               {:error
-               (merge {:message (#?(:clj .getMessage
-                                    :cljs .-message) exi)}
+               (merge {:message (ex-message exi)}
                       (select-keys exd [:statement]))}})
       (assoc ctx
              :io.pedestal.interceptor.chain/error
