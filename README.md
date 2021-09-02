@@ -1,5 +1,7 @@
 # lrs
 
+[![CI](https://github.com/yetanalytics/lrs/actions/workflows/main.yml/badge.svg)](https://github.com/yetanalytics/lrs/actions/workflows/main.yml)
+
 Yet's Core LRS Library. Includes a protocol `com.yetanalytics.lrs.protocol` and spec'd functions in `com.yetanalytics.lrs` to implement a learning record store.
 
 ## Usage
