@@ -14,7 +14,6 @@
   (:require [io.pedestal.http.route.definition :as definition]
             [io.pedestal.http.route.path :as path]
             [io.pedestal.interceptor :refer [interceptor?]]
-            #_[io.pedestal.interceptor.helpers :as interceptor]
             [clojure.string :as string]))
 
 (defn handler-interceptor
@@ -31,29 +30,15 @@
 (defn resolve-interceptor [interceptor name]
   (if (interceptor? interceptor)
     (handler-interceptor interceptor name)
-    (handler-interceptor (io.pedestal.interceptor/interceptor interceptor) name)
-
-   ;(symbol? interceptor) (if (-> (resolve interceptor)
-   ;                              fn?)
-   ;                        (handler-interceptor ((resolve interceptor)) name)
-   ;                        (handler-interceptor @(resolve interceptor) name))
-   ;(seq? interceptor) (handler-interceptor (eval interceptor) name)
-
-   ))
+    (handler-interceptor (io.pedestal.interceptor/interceptor interceptor) name)))
 
 
 
 (defn handler-map [m]
   (cond
-   #_(symbol? m)
-   #_(let [handler-name (definition/symbol->keyword m)]
-     {:route-name handler-name
-      :handler (resolve-interceptor m handler-name)})
-   ;(isa? (type m) clojure.lang.APersistentMap)
    (instance? clojure.lang.IPersistentMap m)
    (let [{:keys [route-name handler interceptors]} m
          handler-name (cond
-                       ;; (symbol? handler) (definition/symbol->keyword handler)
                        (interceptor? handler) (:name handler))
          interceptor (resolve-interceptor handler (or route-name handler-name))
          interceptor-name (:name interceptor)]
