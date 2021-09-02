@@ -15,14 +15,6 @@
 (def schemes #{:http :https})
 (def allowed-keys #{:route-name :app-name :path :method :scheme :host :port :interceptors :path-re :path-parts :path-params :path-constraints :query-constraints :matcher})
 
-#_(defn symbol->keyword
-  [s]
-  (let [resolved (resolve s)
-        {ns :ns n :name} (meta resolved)]
-    (if resolved
-      (keyword (name (ns-name ns)) (name n))
-      (throw (ex-info "Could not resolve symbol" {:symbol s})))))
-
 (defn capture-constraint
   "Add parenthesis to a regex in order to capture its value during evaluation."
   [[k v]]
@@ -72,11 +64,3 @@
   (-> route-maps
       prioritize-constraints
       verify-unique-route-names))
-
-
-;; TODO: Remove and refactor across the codebase
-#_(defmacro defroutes
-  "Deprecated. -- Prefer `def` and program against ExpandableRoutes
-  Define a routing table from the terse routing syntax."
-  [name route-spec]
-  `(def ~name (io.pedestal.http.route/expand-routes (quote ~route-spec))))

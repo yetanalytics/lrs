@@ -11,23 +11,16 @@
 ; You must not remove this notice, or any other, from this software.
 
 (ns io.pedestal.http.body-params
-  (:require ;; [clojure.edn :as edn]
-            ;; [cheshire.core :as json]
-            ;; [cheshire.parse :as parse]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [io.pedestal.http.params :as pedestal-params]
-            ;; [io.pedestal.interceptor.helpers :as interceptor]
-            ;; [io.pedestal.log :as log]
             [cognitect.transit :as transit]
-            ;; [ring.middleware.params :as params]
             [macchiato.middleware.params :as params]
             [goog.string :as gstring]
             [cljs.reader :refer [read-string]]
             [io.pedestal.interceptor :as i]
             [clojure.core.async :as a :include-macros true]
             [concat-stream]
-            [clojure.walk :as w])
-  #_(:import [java.util.regex Pattern]))
+            [clojure.walk :as w]))
 
 (defn body-string-chan
   [body]
@@ -106,23 +99,13 @@
 (defn- json-read
   "Parse json stream, supports parser-options with key-val pairs:
 
-    :bigdec Boolean value which defines if numbers are parsed as BigDecimal
-            or as Number with simplest/smallest possible numeric value.
-            Defaults to false.
     :key-fn Key coercion, where true coerces keys to keywords, false leaves
-            them as strings, or a function to provide custom coercion.
-    :array-coerce-fn Define a collection to be used for array values by name."
+            them as strings, or a function to provide custom coercion."
   [s & options]
   (js->clj (.parse js/JSON s)
            :keywordize-keys (if (true? (:key-fn options))
                               true
-                              false))
-  #_(let [{:keys [bigdec key-fn array-coerce-fn]
-         :or {bigdec false
-              key-fn keyword
-              array-coerce-fn nil}} options]
-    (binding [parse/*use-bigdecimals?* bigdec]
-      (json/parse-stream (java.io.PushbackReader. reader) key-fn array-coerce-fn))))
+                              false)))
 
 (defn custom-json-parser
   "Return a json-parser fn that, given a request, will read the body of that
@@ -142,14 +125,7 @@
                                           {:type ::json-parse-error}
                                           e))))))
         ;; Sync body
-        (assoc request :json-params (apply json-read (:body request) options)))
-      #_(assoc request
-             :json-params
-             (apply json-read
-                    (java.io.InputStreamReader.
-                      ^java.io.InputStream (:body request)
-                      ^String encoding)
-                    options)))))
+        (assoc request :json-params (apply json-read (:body request) options))))))
 
 (def json-parser
   "Take a request and parse its body as json."
@@ -175,13 +151,7 @@
                                         e))))))
       ;; Sync body
       (assoc request :transit-params (transit/read (apply transit/reader options)
-                                                (:body request))))
-
-    #_(if (zero? (.available ^java.io.InputStream body))
-      request
-      (assoc request
-             :transit-params
-             (transit/read (apply transit/reader body options))))))
+                                                (:body request))))))
 
 (def transit-parser
   "Take a request and parse its body as transit."
@@ -210,11 +180,7 @@
     (update (params/assoc-form-params
              request)
             :form-params
-            (fnil w/keywordize-keys {})))
-
-  #_(let [encoding (or (:character-encoding request) "UTF-8")
-        request  (params/assoc-form-params request encoding)]
-    (update request :form-params pedestal-params/keywordize-keys)))
+            (fnil w/keywordize-keys {}))))
 
 (defn default-parser-map
   "Return a map of MIME-type to parsers. Included types are edn, json and
@@ -279,6 +245,4 @@
                                            parsed-request-chan
                                            ::parse-error-chan
                                            parse-error-chan))
-                        ctx-chan)))})
-     #_(interceptor/on-request ::body-params
-                             (fn [request] (parse-content-type parser-map request)))))
+                        ctx-chan)))})))

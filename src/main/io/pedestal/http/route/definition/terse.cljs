@@ -15,8 +15,7 @@
             [io.pedestal.http.route.definition.verbose :as verbose]
             [io.pedestal.interceptor :as interceptor]
             [goog.string :refer [format]]
-            [goog.string.format]
-            #_[io.pedestal.log :as log]))
+            [goog.string.format]))
 
 (defn- unexpected-vector-in-route [spec]
   (format "The route specification probably has too many levels of nested vectors: %s" spec))
@@ -125,7 +124,7 @@
   "Expand a query constraint node in the routing tree to a node
   specifying its constraints, verbs, and children."
   [specs]
-  (expand-abstract-constraint {:constraints {} #_query-constraint} specs))
+  (expand-abstract-constraint {:constraints {}} specs))
 
 (defn- extract-children
   "Return the children, if present, from route-domain."
@@ -196,7 +195,6 @@
   [route-spec]
   (let [[preamble routes] (split-with preamble? route-spec)]
     (assert (count routes) "There should be at least one route in the application vector")
-    #_(log/debug :app-name (extract-app-name preamble) :route-count (count routes))
     (->> {:app-name (extract-app-name preamble)
           :host     (extract-host     preamble)
           :scheme   (extract-scheme   preamble)

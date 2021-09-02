@@ -1,4 +1,4 @@
-.phony: clean repl repl-cljs run-dev run-dev-cljs test-lib test-lib-cljs test-lib-clj test-conformance test-all ci
+.phony: clean repl repl-cljs run-dev run-dev-cljs test-lib test-lib-cljs test-lib-clj test-conformance test-conformance-clj-sync test-conformance-clj-async test-conformance-cljs test-all ci
 
 clean:
 	rm -rf target pom.xml.asc logs out node_modules .cljs_node_repl package.json package-lock.json out_test
@@ -33,8 +33,16 @@ test-lib-clj:
 
 test-lib: test-lib-clj test-lib-cljs
 
-test-conformance: out/main.js
-	clojure -Mdev -m com.yetanalytics.conformance-test
+test-conformance-clj-sync:
+	clojure -Mdev -m com.yetanalytics.conformance-test clj-sync
+
+test-conformance-clj-async:
+	clojure -Mdev -m com.yetanalytics.conformance-test clj-async
+
+test-conformance-cljs: out/main.js
+	clojure -Mdev -m com.yetanalytics.conformance-test cljs
+
+test-conformance: test-conformance-clj-sync test-conformance-clj-async test-conformance-cljs
 
 test-all: test-lib test-conformance
 

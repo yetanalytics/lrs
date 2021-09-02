@@ -403,11 +403,7 @@
                      statements)
         ;; not sure if span should be t-zero to last stored or t-end
         ^Duration span (t/duration t-zero
-                                   t-end
-                                   #_(-> statements
-                                       last
-                                       (get "stored")
-                                       t/instant))
+                                   t-end)
         span-ms (t/as span
                       :millis)
         per-ms (/ statement-count

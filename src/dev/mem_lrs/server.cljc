@@ -124,9 +124,7 @@
 ;;  (reset! servlet nil))
 
 (comment
-  (def lrs (new-lrs {}
-                    #_{:init-state
-                       (lrs-impl/fixture-state)}))
+  (def lrs (new-lrs {}))
 
   (clojure.pprint/pprint (lrs-impl/dump lrs))
 
