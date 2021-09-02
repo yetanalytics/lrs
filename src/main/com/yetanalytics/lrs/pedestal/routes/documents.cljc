@@ -41,7 +41,7 @@
                                               "Content-Length" (str content-length)
                                               "Last-Modified" updated}
                                        ?etag (assoc "etag" ?etag))
-                            :body contents #_(ByteBuffer/wrap ^bytes contents) #_(ByteArrayOutputStream. ^bytes contents)})
+                            :body contents})
       (assoc ctx :response {:status 404}))))
 
 (s/fdef get-multiple-response

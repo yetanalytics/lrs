@@ -337,8 +337,6 @@
      (concat
       ;; Don't include authority, is not interesting
       ;; and is a +1 for every authority
-      #_(when authority
-        (actor-seq authority))
       (when-let [{:strs [instructor team]} context]
         (concat
          (when team

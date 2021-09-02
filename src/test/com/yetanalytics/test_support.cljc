@@ -31,10 +31,7 @@
                 stc-ret
                 :result
                 true?)
-           check-results
-           #_(apply concat
-                  (for [[sym opts] syms-opts]
-                    (stest/check sym (or opts {})))))))
+           check-results)))
 
 #?(:clj (defmacro deftest-check-ns
           "Check all instrumented symbols in an ns. A map of overrides
