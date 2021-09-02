@@ -18,16 +18,18 @@ To use the dev profile, which contains all dev/repl/test stuff, use the `:dev` a
 * `repl-cljs` - Run a Clojurescript node repl.
 * `run-dev` - Start an in-memory implementation of the LRS in Clojure.
 * `run-dev-cljs` - Start an in-memory implementation of the LRS in ClojureScript.
-* `run-dev-cljs-simple` - Start an in-memory implementation of the LRS in ClojureScript with simple optimizations.
 * `test-lib-clj` - Run the tests in Clojure.
 * `test-lib-cljs` - Run the tests in ClojureScript.
 * `test-lib` - Run the tests on both Clojure and ClojureScript.
-* `test-conformance` - Download and run ADL's `lrs-conformance-test-suite` against the in-memory implementation (Clojure only)
+* `test-conformance-clj-sync` - Run ADL LRS Conformance Test Suite on a synchronous Clojure LRS on the JVM.
+* `test-conformance-clj-async` - Run ADL LRS Conformance Test Suite on an asynchronous Clojure LRS on the JVM.
+* `test-conformance-cljs` - Run ADL LRS Conformance Test Suite on an (always asynchronous) ClojureScript LRS on node.
+* `test-conformance` - Run all conformance tests.
 * `test-all` - Run all lib and conformance tests.
 
 ## Deploying New Versions
 
-No need, just refer to it with git deps
+No need, just refer to it with git deps.
 
 ## Bench Testing
 
