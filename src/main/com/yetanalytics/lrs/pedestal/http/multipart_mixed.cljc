@@ -4,8 +4,6 @@
            [java.util Scanner]
            [java.io ByteArrayInputStream InputStream])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 ;; TODO: configurable temp dir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

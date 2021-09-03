@@ -13,8 +13,6 @@
   #?(:clj (:import [java.io ByteArrayOutputStream]
                    [clojure.data.priority_map PersistentPriorityMap])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 (defn updated-stamp-now []
   (timestamp/stamp-now))
 

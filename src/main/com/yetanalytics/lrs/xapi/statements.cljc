@@ -16,8 +16,6 @@
               [fs]]))
   #?(:clj (:import [clojure.data.priority_map PersistentPriorityMap])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 (s/fdef normalize-id
   :args (s/cat :id :statement/id)
   :ret :statement/id)
@@ -337,8 +335,6 @@
      (concat
       ;; Don't include authority, is not interesting
       ;; and is a +1 for every authority
-      #_(when authority
-        (actor-seq authority))
       (when-let [{:strs [instructor team]} context]
         (concat
          (when team

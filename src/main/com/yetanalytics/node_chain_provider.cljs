@@ -1,3 +1,17 @@
+;; Copyright 2013 Relevance, Inc.
+;; Copyright 2014-2019 Cognitect, Inc.
+;;
+;; The use and distribution terms for this software are covered by the
+;; Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0)
+;; which can be found in the file epl-v10.html at the root of this distribution.
+;;
+;; By using this software in any fashion, you are agreeing to be bound by
+;; the terms of this license.
+;;
+;; You must not remove this notice, or any other, from this software.
+;;
+;; Adapted from https://github.com/pedestal/pedestal/blob/master/service/src/io/pedestal/http/impl/servlet_interceptor.clj
+
 (ns com.yetanalytics.node-chain-provider
   (:require [cljs.nodejs :as node]
             [fs]
@@ -38,26 +52,14 @@
    {:name ::terminator-injector
     :enter terminator-inject}))
 
+;; Noops in our impl
 (defn- enter-stylobate
   [{:keys [request] :as ctx}]
   (assert request "Macchiato stylobate expects a request to be added")
-  ctx
-  #_[{:keys [servlet servlet-request servlet-response] :as context}]
-  #_(-> context
-      (assoc :request (request-map/servlet-request-map servlet servlet-request servlet-response)
-             ;; While the zero-copy saves GCs and Heap utilization, Pedestal is still dominated by Interceptors
-                                        ;:request (request-zerocopy/call-through-request servlet-request
-                                        ;                                                {:servlet servlet
-                                        ;                                                 :servlet-request servlet-request
-                                        ;                                                 :servlet-response servlet-response})
-             :async? servlet-async?)
-      (update-in [:enter-async] (fnil conj []) start-servlet-async)))
+  ctx)
 
 (defn- leave-stylobate
   [context]
-  #_[{:keys [^HttpServletRequest servlet-request async?] :as context}]
-  #_(when (async? context)
-    (.complete (.getAsyncContext servlet-request)))
   context)
 
 (defn- error-stylobate
@@ -109,15 +111,10 @@
     response-fn :node/response-fn
     raise-fn :node/raise-fn
     :as context}]
-  #_(log/debug :in :leave-ring-response :response response)
-
   (cond
     (nil? response) (do (raise-fn (ex-info "No response."
                                            {:type ::no-response}))
                         context)
-    #_(satisfies? WriteableBodyAsync body) #_(let [chan (::resume-channel context (async/chan))]
-                                           (send-response (assoc context ::resume-channel chan))
-                                           chan)
     :else (do (response-fn (ensure-body response))
              context)))
 
@@ -178,7 +175,6 @@
                                   {:request req
                                    :node/response-fn res
                                    :node/raise-fn raise})]
-               #_(println (:path-info req) (:request-method req) (:params req))
                (chain/execute context (concat [terminator-injector
                                                stylobate
                                                ring-response]
@@ -207,65 +203,3 @@
      :stop-fn (fn []
                 (.close @server (fn [_] (.log js/console "macchiato server shutdown")))
                 server)}))
-
-(comment
-
-
-  (defn body-string [body]
-    (if (string? body)
-      body
-      (.pipe body
-             (concat-stream. (fn [body-str] (println body-str))))))
-
-  (def body-string-interceptor
-    (interceptor/interceptor
-     {:name ::body-string
-      :enter (fn [{{body :body} :request :as ctx}]
-               (if (string? body)
-                 ctx
-                 (let [ctx-chan (a/promise-chan)]
-                   (.pipe body
-                          (concat-stream. (fn [body-buffer]
-                                            (a/go (a/>! ctx-chan
-                                                        (assoc-in ctx
-                                                                  [:request :body]
-                                                                  (.toString body-buffer)))))))
-                   ctx-chan)))}))
-  (def server #_(server/start
-               {:handler (fn [req res raise]
-                           (println req)
-                           (res {:status 200}))
-                :host "127.0.0.1"
-                :port 8080
-                :on-success #(.log js/console
-                                   (str "macchiato server started on " "0.0.0.0" ":" 8080))})
-    (macchiato-server-fn
-     (macchiato-provider {:io.pedestal.http/interceptors
-                          [body-string-interceptor
-                           (interceptor/interceptor
-                            {:name ::foo
-                             :enter (fn [{:keys [request] :as ctx}]
-                                      #_(body-string (:body request))
-                                      #_(let [bod (a/chan)]
-                                        (doto (:body request)
-                                          (.on "data"
-                                               (fn [chunk]
-                                                 (println "chunk" (.toString chunk))
-                                                 (a/go (a/>! bod (.toString chunk)))))
-                                          (.on "end"
-                                               (fn []
-                                                 (a/go
-                                                   (a/close! bod)
-                                                   (println (a/<! (a/into [] bod))))))))
-                                      (println (:body request))
-                                      (a/go (assoc ctx :response
-                                                   {:status 200
-                                                    :body (a/go "here's a bod")})))})]})
-     {:host "0.0.0.0"
-      :port 8080}))
-
-  (deref (:server server))
-  ((:stop-fn server))
-  (.close (deref (:server server)))
-  (node/require "concat-stream")
-  )

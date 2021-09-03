@@ -12,10 +12,8 @@
 
 (ns io.pedestal.http.cors
   (:require [io.pedestal.interceptor :as interceptor]
-            #_[io.pedestal.http.impl.servlet-interceptor :as servlet-interceptor]
             [com.yetanalytics.lrs.util.log :as log]
-            [clojure.string :as str]
-            #_[ring.util.response :as ring-response]))
+            [clojure.string :as str]))
 
 (defn- convert-header-name
   [header-name]
@@ -42,7 +40,6 @@
                :requested-headers requested-headers
                :headers (:headers request)
                :cors-headers cors-headers)
-    #_(log/meter ::preflight)
     (assoc context :response {:status 200
                               :headers cors-headers})))
 
@@ -92,8 +89,7 @@
 
                    ;; origin is allowed and this is real
                    (and origin allowed (not preflight-request))
-                   (do #_(log/meter ::origin-real)
-                       (assoc context :cors-headers (merge {"Access-Control-Allow-Origin" origin}
+                   (do (assoc context :cors-headers (merge {"Access-Control-Allow-Origin" origin}
                                                            (when creds {"Access-Control-Allow-Credentials" (str creds)}))))
 
                    ;; origin is not allowed
@@ -113,15 +109,3 @@
                               :cors-headers cors-headers)
                    (update-in context [:response :headers] merge cors-headers))
                  context))})))
-
-#_(def dev-allow-origin
-  (interceptor/before
-    ::dev-allow-origin
-    (fn [context]
-      (let [origin (get-in context [:request :headers "origin"])]
-        (log/debug :msg "cors dev processing"
-                   :origin origin
-                   :context context)
-        (if-not origin
-          (assoc-in context [:request :headers "origin"] "")
-          context)))))

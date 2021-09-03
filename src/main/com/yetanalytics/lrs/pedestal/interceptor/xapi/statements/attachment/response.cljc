@@ -5,8 +5,6 @@
        :cljs [[goog.string :as gstring]
               [goog.string.format]])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 ;; TODO: Dynamic boundary?
 ;; TODO: make this async, work on a servlet output stream
 

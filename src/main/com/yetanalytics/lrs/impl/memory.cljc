@@ -19,8 +19,6 @@
                        [cljs.reader :refer [read-string]]]))
   #?(:clj (:import [java.io ByteArrayOutputStream])))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 ;; State
 (s/def :state/statements
   ::ss/statements-priority-map)

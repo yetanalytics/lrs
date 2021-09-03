@@ -3,8 +3,6 @@
                      [java.nio ByteBuffer])]
       :cljs [(:require [goog.crypt :as crypt])]))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 #?(:cljs (defn string->bytes [s]
            (crypt/stringToUtf8ByteArray s)))
 

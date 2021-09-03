@@ -10,8 +10,6 @@
             [com.yetanalytics.lrs.xapi.document :as doc]
             [com.yetanalytics.lrs.auth :as auth]))
 
-#?(:clj (set! *warn-on-reflection* true))
-
 ;; TODO: multiple error returns
 (s/def :ret/error
   (s/with-gen
@@ -323,7 +321,7 @@
 
 
 (s/def ::get-statements-ret
-  (s/or :not-found-single (s/keys :opt-un [::xapi/etag]) #_(s/map-of any? any? :count 0)
+  (s/or :not-found-single (s/keys :opt-un [::xapi/etag])
         :found-single (s/keys :opt-un [::xapi/etag
                                        ::ss/attachments]
                               :req-un [::xs/statement])
@@ -372,15 +370,6 @@
 (s/def ::store-statements-async-ret
   (sc/from-port
    (or-error (s/keys :req-un [:store-statements-ret/statement-ids]))))
-
-#_(s/def :get-statements-async-ret/statement-result-chan
-  (sc/from-port-coll
-   (s/cat :statements (s/* ::xs/statement)
-          :more-link (s/? :xapi.statements.GET.response.statement-result/more))))
-
-#_(s/def :get-statements-async-ret/attachments-chan
-  (sc/from-port-coll
-   (s/coll-of ::ss/attachment)))
 
 (s/def ::get-statements-async-ret
   (sc/from-port-coll

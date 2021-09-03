@@ -96,27 +96,6 @@
    ;; :Accept-Encoding
    ])
 
-#_(def xapi-alternate-request-interceptor
-  (i/interceptor
-   {:name ::xapi-alternate-request-headers
-    :enter (fn [{:keys [request] :as ctx}]
-             (if (some-> request :params :method)
-               (let [request (body-params/form-parser request)
-                     keyword-or-string-headers (into valid-alt-request-headers
-                                                     (map keyword
-                                                          valid-alt-request-headers))
-                     form-headers  (reduce conj {}
-                                           (map #(update % 0 (comp cstr/lower-case
-                                                                   name))
-                                                (select-keys (:form-params request)
-                                                             ;; for some reason, they are sometimes keywords
-                                                             keyword-or-string-headers)))]
-                 (assoc ctx :request (apply dissoc
-                                            (update request :headers merge form-headers)
-                                            :params
-                                            keyword-or-string-headers)))
-               ctx))}))
-
 (defn parse-accept-language
   "Parse an Accept-Language header and return a vector in order of quality"
   [^String header]
