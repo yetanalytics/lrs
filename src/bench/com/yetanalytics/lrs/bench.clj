@@ -19,6 +19,7 @@
    [java.time Duration Instant]
    [java.net.http HttpClient]))
 
+;; Keep this since this is on a dev branch
 (set! *warn-on-reflection* true)
 
 (def default-client-opts
@@ -63,13 +64,13 @@
   ::xs/statements)
 
 (s/def ::context
-  (s/keys ::req-un [::options
-                    ;; and after init
-                    ::payload ::registrations ::payload-count]
-          ::opt-un [::post ;; after post
-                    ::get ;; after retrieval
-                    ::report ;; complete
-                    ]))
+  (s/keys :req-un [::options
+                   ;; and after init
+                   ::payload ::registrations ::payload-count]
+          :opt-un [::post   ;; after post
+                   ::get    ;; after retrieval
+                   ::report ;; complete
+                   ]))
 
 (s/fdef context-init
   :args (s/cat :options ::options)
