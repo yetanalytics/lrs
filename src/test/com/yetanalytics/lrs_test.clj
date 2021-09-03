@@ -1,5 +1,5 @@
 (ns com.yetanalytics.lrs-test
-  (:require [clojure.test :refer [deftest testing is ns-test]]
+  (:require [clojure.test :refer [deftest testing is]]
             [com.yetanalytics.test-support :as support :refer [deftest-check-ns]]
             [com.yetanalytics.lrs.impl.memory :as mem]
             [com.yetanalytics.lrs :refer :all]
@@ -11,7 +11,7 @@
             [com.yetanalytics.lrs.xapi.statements.timestamp :as t]
             [clojure.spec.test.alpha :as stest]))
 
-(alias 'stc 'clojure.spec.test.check)
+(alias 'stc 'clojure.spec.test.check)`
 
 (deftest-check-ns ns-test com.yetanalytics.lrs
   {:default {::stc/opts {:num-tests 5 :max-size 3}}})
