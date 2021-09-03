@@ -1,16 +1,15 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi
   (:require [clojure.spec.alpha :as s :include-macros true]
+            ;; clj-kondo marks ns used by dynamic vars as unused
+            #_{:clj-kondo/ignore [:unused-namespace]}
             [xapi-schema.spec.resources :as xsr]
             [io.pedestal.interceptor.chain :as chain]
             [clojure.string :as cstr]
             [io.pedestal.http.body-params :as body-params]
-            #?@(:clj [[cheshire.core :as json]
-                      [clojure.java.io :as io]
-                      [io.pedestal.log :as log]]
+            #?@(:clj [[cheshire.core :as json]]
                 :cljs [[goog.string :refer [format]]
-                       [goog.string.format]
-                       [com.yetanalytics.lrs.util.log :as log]]))
-  #?(:clj (:import [java.io InputStream ByteArrayInputStream])))
+                       [goog.string.format]]))
+  #?(:clj (:import [java.io ByteArrayInputStream])))
 
 
 (def valid-alt-request-headers

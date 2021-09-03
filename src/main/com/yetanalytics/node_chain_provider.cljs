@@ -3,10 +3,8 @@
             [fs]
             [macchiato.server :as server]
             [macchiato.http :as mhttp]
-            [io.pedestal.http :as http]
             [io.pedestal.interceptor :as interceptor]
             [io.pedestal.interceptor.chain :as chain]
-            [http :as node-http]
             [clojure.core.async :as a :include-macros true]
             [concat-stream]))
 

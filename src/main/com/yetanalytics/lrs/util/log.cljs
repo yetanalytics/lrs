@@ -1,6 +1,5 @@
 (ns com.yetanalytics.lrs.util.log
   (:require [cljs.nodejs :as node]
-            [goog.string :refer [format]]
             [goog.string.format]
             [log4js :as log]))
 

@@ -1,17 +1,12 @@
 (ns com.yetanalytics.lrs.pedestal.routes.documents
   (:require [com.yetanalytics.lrs :as lrs]
             [com.yetanalytics.lrs.protocol :as p]
-            [clojure.string :as cstr]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xi]
-            [xapi-schema.spec.resources :as xsr]
-            [io.pedestal.interceptor.chain :as chain]
             [clojure.core.async :as a :include-macros true]
             [com.yetanalytics.lrs.auth :as auth]
             #?(:clj [cheshire.core :as json])
-            [clojure.spec.alpha :as s :include-macros true]
-            [#?(:clj io.pedestal.log
-                :cljs com.yetanalytics.lrs.util.log) :as log]))
+            [clojure.spec.alpha :as s :include-macros true]))
 
 (defn find-some [m & kws]
   (some (partial find m)

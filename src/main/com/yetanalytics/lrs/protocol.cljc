@@ -3,7 +3,6 @@
                                                                    or-error]]))
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
-            [xapi-schema.spec.resources :as xsr]
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi :as xapi]
             [com.yetanalytics.lrs.spec.common :as sc]

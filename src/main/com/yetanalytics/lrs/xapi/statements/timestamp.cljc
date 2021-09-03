@@ -6,9 +6,8 @@
                        [goog.string.format]]))
   #?(:clj (:import [java.time ZoneId Instant]
                    [java.time.format DateTimeFormatter])
-     :cljs (:import [goog.date DateTime]
-                    ;; for cljs repro
-                    [goog.i18n DateTimeFormat TimeZone])))
+     ;; for cljs repro
+     :cljs (:import [goog.i18n DateTimeFormat TimeZone])))
 
 #?(:clj (set! *warn-on-reflection* true))
 

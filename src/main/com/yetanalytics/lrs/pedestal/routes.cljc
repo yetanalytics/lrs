@@ -1,6 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.routes
   (:require
-   [com.yetanalytics.lrs.protocol :as p]
    [com.yetanalytics.lrs.pedestal.interceptor :as i]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi-i]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as statements-i]

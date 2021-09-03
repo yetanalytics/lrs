@@ -2,9 +2,7 @@
   (:require [com.yetanalytics.lrs.protocol :as p]
             [clojure.spec.alpha :as s :include-macros true]
             [xapi-schema.spec :as xs]
-            [xapi-schema.spec.resources :as xsr]
             [com.yetanalytics.lrs.xapi.statements :as ss]
-            [com.yetanalytics.lrs.xapi.document :as doc]
             [com.yetanalytics.lrs.auth :as auth]))
 
 (defn lrs-gen-fn

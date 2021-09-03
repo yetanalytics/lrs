@@ -1,6 +1,6 @@
 (ns com.yetanalytics.conformance-test
   (:require
-   [clojure.test :refer :all]
+   [clojure.test :refer [deftest testing is use-fixtures run-tests]]
    [com.yetanalytics.lrs.test-runner :as runner]
    [mem-lrs.server :as server]
    [io.pedestal.http :as http]

@@ -1,18 +1,7 @@
 (ns com.yetanalytics.lrs.util.hash
-  #?@(:clj [(:require [clojure.java.io :as io])
-            (:import [java.security MessageDigest]
-                     [java.io File]
-                     [java.nio ByteBuffer]
-                     [java.nio.file Files]
-                     )]
-      :cljs [(:require
-              [goog.crypt :as crypt]
-              [goog.crypt.Md5 :as Md5]
-              [goog.crypt.Sha1 :as Sha1]
-              [goog.crypt.Sha2 :as Sha2]
-              [goog.crypt.Sha256 :as Sha256]
-              [goog.crypt.Sha384 :as Sha384]
-              [goog.crypt.Sha512 :as Sha512])]))
+  #?@(:clj [(:import [java.security MessageDigest]
+                     [java.nio ByteBuffer])]
+      :cljs [(:require [goog.crypt :as crypt])]))
 
 #?(:clj (set! *warn-on-reflection* true))
 

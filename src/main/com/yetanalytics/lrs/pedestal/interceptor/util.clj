@@ -1,7 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.util
-  (:require [clojure.java.io :as io]
-            [io.pedestal.interceptor.chain :as chain]
-            [io.pedestal.log :as log])
+  (:require [io.pedestal.log :as log])
   (:import [java.io InputStream]))
 
 

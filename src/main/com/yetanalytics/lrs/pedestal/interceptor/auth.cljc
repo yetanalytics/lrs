@@ -6,7 +6,6 @@
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [io.pedestal.interceptor.chain :as chain]
             [clojure.core.async :as a :include-macros true]
-            [com.yetanalytics.lrs.spec.common :as cs]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))

@@ -1,12 +1,11 @@
 (ns com.yetanalytics.lrs-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.test :refer [deftest testing is ns-test]]
             [com.yetanalytics.test-support :as support :refer [deftest-check-ns]]
             [com.yetanalytics.lrs.impl.memory :as mem]
             [com.yetanalytics.lrs :refer :all]
             [clojure.string :as cs]
             [com.yetanalytics.datasim.input :as sim-input]
             [com.yetanalytics.datasim.sim :as sim]
-            [clojure.core.async :as a]
             [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi.statements.timestamp :as t]

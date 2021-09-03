@@ -1,16 +1,11 @@
 (ns com.yetanalytics.test-support
+  ;; clj-kondo incorrectly marks ns used in macros
+  #_{:clj-kondo/ignore [:unused-namespace :unused-referred-var]}
   (:require
    [clojure.test :refer [deftest testing is] :include-macros true]
-   [clojure.spec.alpha :as s :include-macros true]
    [clojure.spec.test.alpha :as stest :include-macros true]
-   [clojure.pprint :refer [pprint]]
-   [clojure.walk :as w]
-   [clojure.string :as cs]
-   clojure.test.check
-   #?@(:clj [[clojure.java.shell :as shell :refer [sh]]
-             [clojure.java.io :as io]
-             [io.pedestal.log :as log]
-             [cheshire.core :as json]])))
+   [clojure.spec.alpha :as s :include-macros true]
+   [clojure.test.check]))
 
 #?(:clj (alias 'stc 'clojure.spec.test.check))
 

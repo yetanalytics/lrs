@@ -1,6 +1,5 @@
 (ns mem-lrs.service
   (:require [io.pedestal.http :as http]
-            [io.pedestal.http.route :as route]
             [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
             [com.yetanalytics.lrs.pedestal.routes :refer [build]]
             #?(:cljs [com.yetanalytics.node-chain-provider :as provider])))

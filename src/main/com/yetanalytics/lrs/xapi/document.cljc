@@ -10,8 +10,7 @@
                 :cljs tailrecursion.priority-map) :as pm]
             #?@(:clj [[cheshire.core :as json]
                       [clojure.java.io :as io]]))
-  #?(:clj (:import [java.time Instant]
-                   [java.io ByteArrayOutputStream]
+  #?(:clj (:import [java.io ByteArrayOutputStream]
                    [clojure.data.priority_map PersistentPriorityMap])))
 
 #?(:clj (set! *warn-on-reflection* true))

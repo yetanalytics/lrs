@@ -1,7 +1,6 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html.json
   "Simple json structural elements for statement data"
-  (:require [clojure.walk :as w]
-            [com.yetanalytics.lrs.util :as u]
+  (:require [com.yetanalytics.lrs.util :as u]
             [clojure.string :as cs]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))

@@ -2,7 +2,6 @@
   #?(:clj (:gen-class)) ; for -main method in uberjar
   (:require
    [com.yetanalytics.lrs :as lrs]
-   #?(:cljs [cljs.nodejs :as node])
    [io.pedestal.http :as server]
    [io.pedestal.http.route :as route]
    [mem-lrs.service :as service]

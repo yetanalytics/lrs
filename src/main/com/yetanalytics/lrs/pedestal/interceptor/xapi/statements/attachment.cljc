@@ -1,21 +1,17 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment
   "Provide validation and temp storage for statement attachments."
   (:require [clojure.spec.alpha :as s :include-macros true]
-            [clojure.spec.gen.alpha :as sgen :include-macros true]
-            [xapi-schema.spec :as xs]
             [clojure.string :as cs]
-            [com.yetanalytics.lrs.xapi.statements :as ss]
             #?@(:clj [[clojure.java.io :as io]
                       [cheshire.core :as json]]
-                :cljs [cljs.nodejs
-                       fs tmp
-                       [goog.crypt :as crypt]
+                :cljs [[cljs.nodejs]
+                       [fs]
+                       [tmp]
                        [goog.crypt.base64 :as base64]]))
   #?(:clj (:import [java.io
                     File
                     InputStream
                     ByteArrayInputStream
-                    ByteArrayOutputStream
                     IOException]
                    [java.util Base64])))
 

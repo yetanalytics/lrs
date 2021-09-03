@@ -1,8 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.http.multipart-mixed
-  (:require
-   [clojure.spec.alpha :as s :include-macros true]
-   [clojure.string :as cs]
-   #?(:clj [clojure.java.io :as io]))
+  (:require [clojure.string :as cs])
   #?(:clj (:import
            [java.util Scanner]
            [java.io ByteArrayInputStream InputStream])))

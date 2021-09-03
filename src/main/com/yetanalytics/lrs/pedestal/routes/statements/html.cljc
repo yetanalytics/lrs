@@ -1,7 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html
   (:require #?@(:clj [[hiccup.core :as html]
-                      [hiccup.page :as page]
-                      [cheshire.core :as json]
                       [clojure.java.io :as io]]
                 :cljs [[hiccups.runtime :as hic]
                        [goog.string :refer [format]]
@@ -9,12 +7,12 @@
             [clojure.string :as cs]
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
              :as jr
-             :refer [json->hiccup json-map-entry]]
+             :refer [json->hiccup]]
             [com.yetanalytics.lrs.util :as u]
             [com.yetanalytics.lrs.xapi.statements.timestamp :as stamp])
-  #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
-                             :refer [load-css!]]))
-  #?(:clj (:import [java.net URLEncoder])))
+  #?(:cljs (:require-macros
+            [com.yetanalytics.lrs.pedestal.routes.statements.html
+             :refer [load-css!]])))
 
 (defn- single?
   [{:keys [statementId

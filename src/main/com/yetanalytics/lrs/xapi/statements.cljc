@@ -14,9 +14,7 @@
    #?@(:clj [[clojure.java.io :as io]]
        :cljs [cljs.nodejs
               [fs]]))
-  #?(:clj (:import [java.time Instant]
-                   [clojure.data.priority_map PersistentPriorityMap]
-                   [java.io File])))
+  #?(:clj (:import [clojure.data.priority_map PersistentPriorityMap])))
 
 #?(:clj (set! *warn-on-reflection* true))
 

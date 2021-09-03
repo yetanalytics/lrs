@@ -20,9 +20,7 @@
    [clojure.core.async :as a :include-macros true]
    [clojure.string :as cs]
    [com.yetanalytics.lrs.auth :as auth])
-  #?(:clj (:import [java.time Instant]
-                   [java.io InputStream OutputStream ByteArrayOutputStream]
-                   [javax.servlet ServletOutputStream])))
+  #?(:clj (:import [java.io InputStream OutputStream])))
 
 (def fmt #?(:clj format :cljs gstring/format))
 

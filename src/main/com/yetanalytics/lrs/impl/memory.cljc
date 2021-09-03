@@ -12,23 +12,12 @@
             [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec :as xs]
-            [xapi-schema.spec.resources :as xsr]
-            [#?(:clj clojure.data.priority-map
-                :cljs tailrecursion.priority-map) :as pm]
-            [clojure.walk :as w]
-            [clojure.string :as cstr]
             [clojure.core.async :as a :include-macros true]
-            #?@(:clj [[clojure.data.json :as json]
-                      [clojure.java.io :as io]
-                      [ring.util.codec :as codec]]
-                :cljs [[cljs.nodejs :as node]
-                       [fs]
+            #?@(:clj [[clojure.java.io :as io]]
+                :cljs [[fs]
                        [tmp]
-                       [cljs.reader :refer [read-string]]])
-
-            )
-  #?(:clj (:import [java.io InputStream ByteArrayOutputStream]
-                   )))
+                       [cljs.reader :refer [read-string]]]))
+  #?(:clj (:import [java.io ByteArrayOutputStream])))
 
 #?(:clj (set! *warn-on-reflection* true))
 

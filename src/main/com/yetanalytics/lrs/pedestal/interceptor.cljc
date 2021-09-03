@@ -5,20 +5,17 @@
             [io.pedestal.interceptor.chain :as chain]
             [io.pedestal.http :as http]
             [io.pedestal.http.cors :as cors]
-            #?@(:clj [[io.pedestal.http.csrf :as csrf]
-                      [io.pedestal.http.secure-headers :as sec-headers]
-                      [io.pedestal.log :as log]])
+            #?(:clj [io.pedestal.log :as log])
             [io.pedestal.http.route :as route]
             [io.pedestal.http.body-params :as body-params]
             [io.pedestal.http.ring-middlewares :as middlewares]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
-            [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart-mixed]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
-            [com.yetanalytics.lrs.spec.common :as cs]
+            ;; clj-kondo marks ns used for macros as unused
+            #_{:clj-kondo/ignore [:unused-namespace]}
             [clojure.core.async :as a :include-macros true]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
-            #?@(:cljs [[cljs.nodejs :as node]
-                       [cljs.pprint :refer [pprint]]
+            #?@(:cljs [[cljs.pprint :refer [pprint]]
                        [concat-stream]
                        [com.yetanalytics.lrs.util.log :as log]])))
 
