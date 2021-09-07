@@ -15,8 +15,13 @@
             #?@(:clj [[clojure.java.io :as io]]
                 :cljs [[fs]
                        [tmp]
-                       [cljs.reader :refer [read-string]]]))
-  #?(:clj (:import [java.io ByteArrayOutputStream])))
+                       [cljs.reader :refer [read-string]]
+                       ]))
+  #?(:clj (:import [java.io ByteArrayOutputStream]))
+  #?(:cljs (:require-macros [com.yetanalytics.lrs.impl.memory
+                             :refer [reify-sync-lrs
+                                     reify-async-lrs
+                                     reify-both-lrs]])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; State
@@ -142,6 +147,10 @@
 
 ;; Operations on in-mem state
 
+;; clj-kondo incorrectly flags this as unused since it is only called in
+;; clj macro code
+
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- get-activity
   [state params]
   {:activity
@@ -178,6 +187,7 @@
 
 ;; Operations on in-mem state
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- get-person
   [state params]
   {:person
@@ -268,7 +278,7 @@
 
       (ss/voiding-statement? statement)
       (insert-voiding-statement state statement stmt-id ?ref-target-id)
-      
+
       :else
       (insert-non-voiding-statement state statement stmt-id))))
 
@@ -430,6 +440,7 @@
 
 ;; internal impls used in sync/async specifically where indicated
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- store-statements-sync
   [state statements attachments]
   (try (let [prepared-statements
@@ -466,6 +477,7 @@
           ;; Re-encode the agent if present
           agent (assoc :agent (json-string agent))))))
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- get-statements-sync
   [state
    xapi-path-prefix
@@ -523,6 +535,7 @@
         {:statement-result statement-result
          :attachments      attachments}))))
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- get-statements-async
   [state
    xapi-path-prefix
@@ -711,11 +724,11 @@
             #(conj (doc/documents-priority-map) %))))
 
 (s/fdef transact-document
-        :args (s/cat :documents :state/documents
-                     :params ::p/set-document-params
-                     :document :com.yetanalytics.lrs.xapi/document
-                     :merge (s/nilable boolean?))
-        :ret :state/documents)
+  :args (s/cat :documents :state/documents
+               :params ::p/set-document-params
+               :document :com.yetanalytics.lrs.xapi/document
+               :merge (s/nilable boolean?))
+  :ret :state/documents)
 
 (defn get-document
   [state params]
@@ -726,9 +739,9 @@
                    document-key])))
 
 (s/fdef get-document
-        :args (s/cat :state ::state
-                     :params ::p/get-document-params)
-        :ret (s/nilable :com.yetanalytics.lrs.xapi/document))
+  :args (s/cat :state ::state
+               :params ::p/get-document-params)
+  :ret (s/nilable :com.yetanalytics.lrs.xapi/document))
 
 (defn get-document-ids
   [state params]
@@ -744,9 +757,9 @@
       true   (mapv :id))))
 
 (s/fdef get-document-ids
-        :args (s/cat :state ::state
-                     :params ::p/get-document-ids-params)
-        :ret (s/coll-of ::doc/id))
+  :args (s/cat :state ::state
+               :params ::p/get-document-ids-params)
+  :ret (s/coll-of ::doc/id))
 
 (defn delete-document
   [documents params]
@@ -759,9 +772,9 @@
             document-key)))
 
 (s/fdef delete-document
-        :args (s/cat :documents :state/documents
-                     :params ::p/delete-document-params)
-        :ret :state/documents)
+  :args (s/cat :documents :state/documents
+               :params ::p/delete-document-params)
+  :ret :state/documents)
 
 (defn delete-documents
   [documents params]
@@ -771,13 +784,14 @@
     (dissoc documents context-key)))
 
 (s/fdef delete-documents
-        :args (s/cat :documents :state/documents
-                     :params :xapi.document.state/context-params)
-        :ret :state/documents)
+  :args (s/cat :documents :state/documents
+               :params :xapi.document.state/context-params)
+  :ret :state/documents)
 
 ;; Operations on in-mem state.
 ;; Shorten document to doc here to avoid conflicts with existing
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- set-doc
   [state params document merge?]
   (try (swap! state
@@ -792,19 +806,23 @@
                  :cljs ExceptionInfo) exi
          {:error exi})))
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- get-doc
   [state params]
   {:document (get-document @state params)})
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- get-doc-ids
   [state params]
   {:document-ids (get-document-ids @state params)})
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- delete-doc
   [state params]
   (swap! state update :state/documents delete-document params)
   {})
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- delete-docs
   [state params]
   (swap! state update :state/documents delete-documents params)
@@ -814,6 +832,7 @@
 ;; Authenticate + Authorize
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- authenticate
   [_state _lrs _ctx]
   ;; Authenticate is a no-op right now, just returns a dummy
@@ -822,6 +841,7 @@
     :prefix ""
     :auth   {:no-op {}}}})
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- authorize
   [_state _lrs _ctx _auth-identity]
   ;; Auth, also a no-op right now
@@ -831,6 +851,7 @@
 ;; Misc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- get-about
   [state]
   {:etag (sha-1 @state)
@@ -843,6 +864,101 @@
 ;; Putting It All Together
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+#?(:clj
+   (def common-lrs-input
+     `(DumpableMemoryLRS
+       (~'dump [~'_]
+               (deref ~'state)))))
+
+#?(:clj
+   (def sync-lrs-input
+     `(p/AboutResource
+       (~'-get-about [~'_ ~'_]
+         (get-about ~'state))
+       p/StatementsResource
+       (~'-store-statements [~'_ ~'_ ~'statements ~'attachments]
+         (store-statements-sync ~'state ~'statements ~'attachments))
+       (~'-get-statements [~'_ ~'_ ~'params ~'ltags]
+         (get-statements-sync ~'state ~'xapi-path-prefix ~'params ~'ltags))
+       (~'-consistent-through [~'_ ~'_ ~'_]
+         (ss/now-stamp))
+       p/DocumentResource
+       (~'-set-document [~'lrs ~'_ ~'params ~'document ~'merge?]
+         (set-doc ~'state ~'params ~'document ~'merge?))
+       (~'-get-document [~'_ ~'_ ~'params]
+         (get-doc ~'state ~'params))
+       (~'-get-document-ids [~'_ ~'_ ~'params]
+         (get-doc-ids ~'state ~'params))
+       (~'-delete-document [~'lrs ~'_ ~'params]
+         (delete-doc ~'state ~'params))
+       (~'-delete-documents [~'lrs ~'_ ~'params]
+         (delete-docs ~'state ~'params))
+       p/AgentInfoResource
+       (~'-get-person [~'_ ~'_ ~'params]
+         (get-person ~'state ~'params))
+       p/ActivityInfoResource
+       (~'-get-activity [~'_ ~'_ ~'params]
+         (get-activity ~'state ~'params))
+       p/LRSAuth
+       (~'-authenticate [~'lrs ~'ctx]
+         (authenticate ~'state ~'lrs ~'ctx))
+       (~'-authorize [~'lrs ~'ctx ~'auth-identity]
+         (authorize ~'state ~'lrs ~'ctx ~'auth-identity)))))
+
+#?(:clj
+   (def async-lrs-input
+     `(p/AboutResourceAsync
+       (~'-get-about-async [~'lrs ~'auth-identity]
+         (a/go (get-about ~'state)))
+       p/StatementsResourceAsync
+       (~'-store-statements-async [~'lrs ~'auth-identity ~'stmts ~'attachments]
+         (a/go (store-statements-sync ~'state ~'stmts ~'attachments)))
+       (~'-get-statements-async [~'_ ~'_ ~'params ~'ltags]
+         (get-statements-async ~'state ~'xapi-path-prefix ~'params ~'ltags))
+       (~'-consistent-through-async [~'_ ~'_ ~'_]
+         (a/go (ss/now-stamp)))
+       p/DocumentResourceAsync
+       (~'-set-document-async [~'lrs ~'auth-identity ~'params ~'doc ~'merge?]
+         (a/go (set-doc ~'state ~'params ~'doc ~'merge?)))
+       (~'-get-document-async [~'lrs ~'auth-identity ~'params]
+         (a/go (get-doc ~'state ~'params)))
+       (~'-get-document-ids-async [~'lrs ~'auth-identity ~'params]
+         (a/go (get-doc-ids ~'state ~'params)))
+       (~'-delete-document-async [~'lrs ~'auth-identity ~'params]
+         (a/go (delete-doc ~'state ~'params)))
+       (~'-delete-documents-async [~'lrs ~'auth-identity ~'params]
+         (a/go (delete-docs ~'state ~'params)))
+       p/AgentInfoResourceAsync
+       (~'-get-person-async [~'lrs ~'auth-identity ~'params]
+         (a/go (get-person ~'state ~'params)))
+       p/ActivityInfoResourceAsync
+       (~'-get-activity-async [~'lrs ~'auth-identity ~'params]
+         (a/go (get-activity ~'state ~'params)))
+       p/LRSAuthAsync
+       (~'-authenticate-async [~'lrs ~'ctx]
+         (a/go (authenticate ~'state ~'lrs ~'ctx)))
+       (~'-authorize-async [~'lrs ~'ctx ~'auth-identity]
+         (a/go (authorize ~'state ~'lrs ~'ctx ~'auth-identity))))))
+
+#?(:clj
+   (defmacro reify-sync-lrs
+     []
+     `(reify ~@(concat sync-lrs-input common-lrs-input))))
+
+#?(:clj
+   (defmacro reify-async-lrs
+     []
+     `(reify ~@(concat async-lrs-input common-lrs-input))))
+
+#?(:clj
+   (defmacro reify-both-lrs
+     []
+     `(reify ~@(concat sync-lrs-input async-lrs-input common-lrs-input))))
+
+;; clj-kondo incorrectly flags `xapi-path-prefix` and `state` as unused
+;; since they are called from within macros.
+
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn new-lrs [{:keys [xapi-path-prefix
                        _statements-result-max
                        init-state
@@ -850,171 +966,20 @@
                 :or {xapi-path-prefix       "/xapi"
                      init-state             (empty-state)
                      mode                   :both}}]
-  (let [state (atom init-state
-                    :validator
-                    (fn [s]
-                      (if (s/valid? ::state s)
-                        true
-                        (do
-                          (println "\n Invalid Memory LRS State\n\n")
-                          (s/explain ::state s)
-                          false))))]
+  (let [valid-state? (fn [s]
+                       (if (s/valid? ::state s)
+                         true
+                         (do
+                           (println "\n Invalid Memory LRS State\n\n")
+                           (s/explain ::state s)
+                           false)))
+        state        (atom init-state
+                           :validator
+                           valid-state?)]
     (case mode
-      :sync
-      (reify
-        p/AboutResource
-        (-get-about [_ _]
-          (get-about state))
-        p/StatementsResource
-        (-store-statements [_ _ statements attachments]
-          (store-statements-sync state statements attachments))
-        (-get-statements [_ _
-                          params ltags]
-          (get-statements-sync state xapi-path-prefix params ltags))
-        (-consistent-through [_ _ _]
-          (ss/now-stamp))
-        p/DocumentResource
-        (-set-document [lrs _ params document merge?]
-          (set-doc state params document merge?))
-        (-get-document [_ _ params]
-          (get-doc state params))
-        (-get-document-ids [_ _ params]
-          (get-doc-ids state params))
-        (-delete-document [lrs _ params]
-          (delete-doc state params))
-        (-delete-documents [lrs _ params]
-          (delete-docs state params))
-        p/AgentInfoResource
-        (-get-person [_ _ params]
-          (get-person state params))
-        p/ActivityInfoResource
-        (-get-activity [_ _ params]
-          (get-activity state params))
-        p/LRSAuth
-        (-authenticate [lrs ctx]
-          (authenticate state lrs ctx))
-        (-authorize [lrs ctx auth-identity]
-          (authorize state lrs ctx auth-identity))
-        DumpableMemoryLRS
-        (dump [_]
-          @state))
-      :async
-      (reify
-        p/AboutResourceAsync
-        (-get-about-async [lrs auth-identity]
-          (a/go (get-about state)))
-        p/StatementsResourceAsync
-        (-store-statements-async [lrs auth-identity statements attachments]
-          (a/go (store-statements-sync state statements attachments)))
-        (-get-statements-async [_ _
-                                params ltags]
-          (get-statements-async state xapi-path-prefix params ltags))
-        (-consistent-through-async [_ _ _]
-          (a/go (ss/now-stamp)))
-        p/DocumentResourceAsync
-        (-set-document-async [lrs auth-identity params document merge?]
-          (a/go (set-doc state params document merge?)))
-        (-get-document-async [lrs auth-identity params]
-          (a/go (get-doc state params)))
-        (-get-document-ids-async [lrs auth-identity params]
-          (a/go (get-doc-ids state params)))
-        (-delete-document-async [lrs auth-identity params]
-          (a/go (delete-doc state params)))
-        (-delete-documents-async [lrs auth-identity params]
-          (a/go (delete-docs state params)))
-        p/AgentInfoResourceAsync
-        (-get-person-async [lrs auth-identity params]
-          (a/go (get-person state params)))
-        p/ActivityInfoResourceAsync
-        (-get-activity-async [lrs auth-identity params]
-          (a/go (get-activity state params)))
-        p/LRSAuthAsync
-        (-authenticate-async [lrs ctx]
-          (a/go (authenticate state lrs ctx)))
-        (-authorize-async [lrs ctx auth-identity]
-          (a/go (authorize state lrs ctx auth-identity)))
-        DumpableMemoryLRS
-        (dump [_]
-          @state))
-      ;; original behavior of both impls, useful for tests, etc.
-      :both
-      (reify
-        ;; TODO: it would be great if we could more efficiently re-use
-        ;; both individual impls above, but it would likely require some
-        ;; macro fiddling
-
-        ;; Sync
-        p/AboutResource
-        (-get-about [_ _]
-          (get-about state))
-        p/StatementsResource
-        (-store-statements [_ _ statements attachments]
-          (store-statements-sync state statements attachments))
-        (-get-statements [_ _
-                          params ltags]
-          (get-statements-sync state xapi-path-prefix params ltags))
-        (-consistent-through [_ _ _]
-          (ss/now-stamp))
-        p/DocumentResource
-        (-set-document [lrs _ params document merge?]
-          (set-doc state params document merge?))
-        (-get-document [_ _ params]
-          (get-doc state params))
-        (-get-document-ids [_ _ params]
-          (get-doc-ids state params))
-        (-delete-document [lrs _ params]
-          (delete-doc state params))
-        (-delete-documents [lrs _ params]
-          (delete-docs state params))
-        p/AgentInfoResource
-        (-get-person [_ _ params]
-          (get-person state params))
-        p/ActivityInfoResource
-        (-get-activity [_ _ params]
-          (get-activity state params))
-        p/LRSAuth
-        (-authenticate [lrs ctx]
-          (authenticate state lrs ctx))
-        (-authorize [lrs ctx auth-identity]
-          (authorize state lrs ctx auth-identity))
-
-        ;; Async
-        p/AboutResourceAsync
-        (-get-about-async [lrs auth-identity]
-          (a/go (get-about state)))
-        p/StatementsResourceAsync
-        (-store-statements-async [lrs auth-identity statements attachments]
-          (a/go (store-statements-sync state statements attachments)))
-        (-get-statements-async [_ _
-                                params ltags]
-          (get-statements-async state xapi-path-prefix params ltags))
-        (-consistent-through-async [_ _ _]
-          (a/go (ss/now-stamp)))
-        p/DocumentResourceAsync
-        (-set-document-async [lrs auth-identity params document merge?]
-          (a/go (set-doc state params document merge?)))
-        (-get-document-async [lrs auth-identity params]
-          (a/go (get-doc state params)))
-        (-get-document-ids-async [lrs auth-identity params]
-          (a/go (get-doc-ids state params)))
-        (-delete-document-async [lrs auth-identity params]
-          (a/go (delete-doc state params)))
-        (-delete-documents-async [lrs auth-identity params]
-          (a/go (delete-docs state params)))
-        p/AgentInfoResourceAsync
-        (-get-person-async [lrs auth-identity params]
-          (a/go (get-person state params)))
-        p/ActivityInfoResourceAsync
-        (-get-activity-async [lrs auth-identity params]
-          (a/go (get-activity state params)))
-        p/LRSAuthAsync
-        (-authenticate-async [lrs ctx]
-          (a/go (authenticate state lrs ctx)))
-        (-authorize-async [lrs ctx auth-identity]
-          (a/go (authorize state lrs ctx auth-identity)))
-        DumpableMemoryLRS
-        (dump [_]
-          @state)))))
+      :sync  (reify-sync-lrs)
+      :async (reify-async-lrs)
+      :both  (reify-both-lrs))))
 
 ;; Helper specs
 
@@ -1056,9 +1021,9 @@
         :both ::lrs-both))
 
 (s/fdef new-lrs
-        :args (s/cat :options
-                     (s/keys :opt-un [::xapi-path-prefix
-                                      ::statements-result-max
-                                      ::init-state
-                                      ::mode]))
-        :ret ::lrs)
+  :args (s/cat :options
+               (s/keys :opt-un [::xapi-path-prefix
+                                ::statements-result-max
+                                ::init-state
+                                ::mode]))
+  :ret ::lrs)
