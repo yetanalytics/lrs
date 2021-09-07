@@ -1,31 +1,27 @@
 (ns com.yetanalytics.lrs.impl.memory
   "A naive LRS implementation in memory"
   (:require [com.yetanalytics.lrs.protocol :as p]
-            [com.yetanalytics.lrs.xapi.statements :as ss]
+            [com.yetanalytics.lrs.xapi.statements           :as ss]
             [com.yetanalytics.lrs.xapi.statements.timestamp :as timestamp]
-            [com.yetanalytics.lrs.xapi.agents :as ag]
+            [com.yetanalytics.lrs.xapi.agents     :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
-            [com.yetanalytics.lrs.xapi.document :as doc]
-            [com.yetanalytics.lrs.util :refer [form-encode
-                                               json-string]]
+            [com.yetanalytics.lrs.xapi.document   :as doc]
+            [com.yetanalytics.lrs.util      :refer [form-encode json-string]]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
-            [clojure.spec.alpha :as s :include-macros true]
+            [clojure.spec.alpha     :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
-            [xapi-schema.spec :as xs]
-            [xapi-schema.spec.resources :as xsr]
-            [#?(:clj clojure.data.priority-map
-                :cljs tailrecursion.priority-map) :as pm]
-            [clojure.walk :as w]
-            [clojure.string :as cstr]
+            [xapi-schema.spec       :as xs]
             [clojure.core.async :as a :include-macros true]
-            #?@(:clj [[clojure.data.json :as json]
-                      [clojure.java.io :as io]
-                      [ring.util.codec :as codec]]
-                :cljs [[cljs.nodejs :as node]
-                       [fs]
+            #?@(:clj [[clojure.java.io :as io]]
+                :cljs [[fs]
                        [tmp]
                        [cljs.reader :refer [read-string]]]))
-  #?(:clj (:import [java.io InputStream ByteArrayOutputStream])))
+  #?(:clj (:import [java.io ByteArrayOutputStream])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; State
+;; Implemented as an atom; it is located in the `new-lrs` fn at the very bottom
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; State
 (s/def :state/statements
@@ -35,10 +31,168 @@
   (s/map-of :statement/id
             ::xs/lrs-statement))
 
-(s/def :state/attachments
-  ;; track attachments
-  (s/map-of :attachment/sha2
-            ::ss/attachment))
+(s/def ::state
+  (s/keys :req [:state/statements
+                :state/voided-statements
+                :state/refs
+                :state/activities
+                :state/agents
+                :state/attachments
+                :state/documents]))
+
+(defn empty-state
+  []
+  {:state/statements        (ss/statements-priority-map)
+   :state/voided-statements {}
+   :state/refs              {}
+   :state/activities        {}
+   :state/agents            {}
+   :state/attachments       {}
+   :state/documents         {}})
+
+(s/fdef empty-state
+  :args (s/cat)
+  :ret ::state)
+
+(defprotocol DumpableMemoryLRS
+  (dump [_] "Return the LRS's state in EDN"))
+
+;; Fixture state (for dev)
+
+(defn load-fixture [resource-path]
+  #?(:clj (read-string (slurp (io/resource resource-path)))
+     :cljs (read-string (.readFileSync fs
+                                       (str "dev-resources/" resource-path)
+                                       #js {:encoding "UTF-8"}))))
+
+(defn- attachment->byte-arr
+  [att]
+  #?(:clj (update att :content byte-array)
+     :cljs (assoc att :content (let [f (.fileSync tmp)
+                                     c (:content att)]
+                                 (.writeFileSync
+                                  fs
+                                  (.-name f)
+                                  (-> js/String
+                                      .-fromCharCode
+                                      (.apply nil (clj->js c))))
+                                 f))))
+
+(defn- document->byte-arr
+  [doc]
+  #?(:clj (update doc :contents byte-array)
+     :cljs (assoc doc :contents (let [c (:content doc)]
+                                  (-> js/String
+                                      .-fromCharCode
+                                      (.apply nil (clj->js c)))))))
+
+(defn fixture-state*
+  "Get the state of a post-conformance test lrs from file."
+  []
+  (-> (load-fixture "lrs/state.edn")
+      (update :state/statements
+              (partial conj (ss/statements-priority-map)))
+      (update :state/attachments
+              #(reduce-kv
+                (fn [m sha2 att]
+                  (assoc m sha2 (attachment->byte-arr att)))
+                {}
+                %))
+      (update :state/documents
+              (fn [docs]
+                (into {}
+                      (for [[ctx-key docs-map] docs]
+                        [ctx-key
+                         (into
+                          (doc/documents-priority-map)
+                          (for [[doc-id doc] docs-map]
+                            [doc-id (document->byte-arr doc)]))]))))))
+
+(def fixture-state (memoize fixture-state*))
+
+(s/fdef fixture-state
+  :args (s/cat)
+  :ret ::state)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Activities
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(s/def :state/activities
+  (s/map-of ::xs/iri
+            ::xs/activity))
+
+(defn store-activity [activities-map activity]
+  (update activities-map (get activity "id") ac/merge-activity activity))
+
+(s/fdef store-activity
+  :args (s/cat :activities :state/activities
+               :activity ::xs/activity)
+  :ret :state/activities)
+
+(defn store-activities [activities-map activities]
+  (reduce store-activity
+          activities-map
+          activities))
+
+(s/fdef store-activities
+  :args (s/cat :activities-map :state/activities
+               :activities (s/coll-of ::xs/activity))
+  :ret :state/activities)
+
+;; Operations on in-mem state
+
+(defn- get-activity
+  [state params]
+  {:activity
+   (get-in @state
+           [:state/activities
+            (:activityId params)])})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Agents
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(s/def :state/agents
+  (s/map-of ::ag/ifi-lookup
+            :xapi.agents.GET.response/person))
+
+(defn store-agent [agents-map agent]
+  (let [ifi-lookup (ag/find-ifi agent)]
+    (update agents-map ifi-lookup ag/person-conj agent)))
+
+(s/fdef store-agent
+  :args (s/cat :agents-map :state/agents
+               :agent ::xs/agent)
+  :ret :state/agents)
+
+(defn store-agents [agents-map agents]
+  (reduce store-agent
+          agents-map
+          agents))
+
+(s/fdef store-agents
+  :args (s/cat :agents-map :state/agents
+               :agent (s/coll-of ::xs/agent))
+  :ret :state/agents)
+
+;; Operations on in-mem state
+
+(defn- get-person
+  [state params]
+  {:person
+   (let [ifi-lookup (ag/find-ifi (:agent params))]
+     ;; TODO: extract this fn
+     (get-in @state
+             [:state/agents
+              ifi-lookup]
+             (ag/person (:agent params))))})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Statements
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; StatementRefs
 
 (s/def :state/refs
   ;; Map of referring statement ids to target ids
@@ -51,10 +205,17 @@
   (assoc refs-map ref-id target-id))
 
 (s/fdef store-ref
-        :args (s/cat
-               :refs-map :state/refs
-               :ref-id :statement/id
-               :target-id :statement/id))
+  :args (s/cat
+         :refs-map :state/refs
+         :ref-id :statement/id
+         :target-id :statement/id))
+
+;; Attachments
+
+(s/def :state/attachments
+  ;; track attachments
+  (s/map-of :attachment/sha2
+            ::ss/attachment))
 
 (defn store-attachments
   [atts-map attachments]
@@ -65,71 +226,385 @@
    attachments))
 
 (s/fdef store-attachments
-        :args (s/cat :atts-map :state/attachments
-                     :attachments ::ss/attachments)
-        :ret :state/attachments)
+  :args (s/cat :atts-map :state/attachments
+               :attachments ::ss/attachments)
+  :ret :state/attachments)
 
-(s/def :state/activities
-  (s/map-of ::xs/iri
-            ::xs/activity))
+;; Insertion
 
-(defn store-activity [activities-map activity]
-  (update activities-map (get activity "id") ac/merge-activity activity))
+(defn- on-statement-conflict
+  [state extant statement]
+  (if (ss/statements-equal? extant statement)
+    state ;; No change to LRS
+    (p/throw-statement-conflict statement extant)))
 
-(s/fdef store-activity
-        :args (s/cat :activities :state/activities
-                     :activity ::xs/activity)
-        :ret :state/activities)
+(defn- insert-voiding-statement
+  [state statement stmt-id ?ref-target-id]
+  (if-let [void-target-id ?ref-target-id]
+    (if-let [extant-target
+             (get-in state [:state/statements void-target-id])]
+      (if (ss/voiding-statement? extant-target)
+        ;; Can't void a voiding statement
+        (p/throw-invalid-voiding-statement statement)
+        ;; Void statement
+        (-> state
+            (assoc-in [:state/statements stmt-id] statement)
+            (update :state/statements dissoc void-target-id)
+            (assoc-in [:state/voided-statements void-target-id]
+                      extant-target)))
+      (assoc-in state [:state/statements stmt-id] statement))
+    (p/throw-invalid-voiding-statement statement)))
 
-(defn store-activities [activities-map activities]
-  (reduce store-activity
-          activities-map
-          activities))
+(defn- insert-non-voiding-statement
+  [state statement stmt-id]
+  (assoc-in state [:state/statements stmt-id] statement))
 
-(s/fdef store-activities
-        :args (s/cat :activities-map :state/activities
-                     :activities (s/coll-of ::xs/activity))
-        :ret :state/activities)
+(defn- insert-statement
+  [state statement stmt-id ?ref-target-id]
+  (let [extant (get-in state [:state/statements stmt-id])]
+    (cond
+      extant
+      (on-statement-conflict state extant statement)
 
+      (ss/voiding-statement? statement)
+      (insert-voiding-statement state statement stmt-id ?ref-target-id)
+      
+      :else
+      (insert-non-voiding-statement state statement stmt-id))))
 
-(s/def :state/agents
-  (s/map-of ::ag/ifi-lookup
-            :xapi.agents.GET.response/person))
+(defn transact-statements [lrs-state
+                           new-statements
+                           attachments]
+  (letfn [(transact-stmt-fn
+            [state statement]
+            (let [stmt-id     (ss/normalize-id (get statement "id"))
+                  ?ref-tgt-id (ss/statement-ref-id statement)]
+              (cond-> (insert-statement state statement stmt-id ?ref-tgt-id)
+                true        (update :state/activities
+                                    store-activities
+                                    (ss/statement-related-activities statement))
+                true        (update :state/agents
+                                    store-agents
+                                    (ss/statement-agents statement true true))
+                true        (update :state/attachments
+                                    store-attachments
+                                    attachments)
+                ?ref-tgt-id (update :state/refs
+                                    store-ref
+                                    stmt-id
+                                    ?ref-tgt-id))))]
+    (reduce transact-stmt-fn
+            lrs-state
+            new-statements)))
 
+(s/fdef transact-statements
+  :args (s/cat :lrs-state ::state
+               :statements ::xs/lrs-statements
+               :attachments ::ss/attachments)
+  :ret ::state)
 
-(defn store-agent [agents-map agent]
-  (let [ifi-lookup (ag/find-ifi agent)]
-    (update agents-map ifi-lookup ag/person-conj agent)))
+(defn statements-seq
+  "Returns a lazy seq of statements for the given params possibly from id from,
+  w/o limit."
+  [state
+   {:keys [statementId
+           voidedStatementId
+           verb
+           activity
+           registration
+           related_activities
+           related_agents
+           since
+           until
+           ascending
+           agent
+           from ; Like "Exclusive Start Key"
+           ;; Unused
+           _limit
+           _attachments]
+    format-type :format
+    :or {related_activities false
+         related_agents     false
+         ascending          false
+         format-type        "exact"}}
+   ltags]
+  (if (or statementId voidedStatementId)
+    ;; Single statement query
+    (if-let [result
+             (cond
+               statementId
+               (let [stmt-id (ss/normalize-id statementId)]
+                 (get-in state [:state/statements stmt-id]))
+               voidedStatementId
+               (let [voided-stmt-id (ss/normalize-id voidedStatementId)]
+                 (get-in state [:state/voided-statements voided-stmt-id])))]
+      ;; Results! Return the list of stmts
+      (list (cond-> result
+              (= "canonical" format-type)
+              (ss/format-canonical ltags)
+              (= "ids" format-type)
+              ss/format-statement-ids))
+      ;; No results! Return an empty list
+      (list))
+    ;; Multi-statement query
+    (let [?since-stamp (some-> since timestamp/normalize)
+          ?until-stamp (some-> until timestamp/normalize)]
+      (cond->> (or #?(:cljs (map second (:state/statements state))
+                      :clj (vals (:state/statements state)))
+                   (list))
+        ascending reverse
 
-(s/fdef store-agent
-        :args (s/cat :agents-map :state/agents
-                     :agent ::xs/agent)
-        :ret :state/agents)
+        ;; paging from
+        from (drop-while #(not= from (get % "id")))
+        from rest
 
-(defn store-agents [agents-map agents]
-  (reduce store-agent
-          agents-map
-          agents))
+        ;; since + until
+        (and (not ascending) since)
+        (take-while #(neg? (compare ?since-stamp (ss/stored-stamp %))))
 
-(s/fdef store-agents
-        :args (s/cat :agents-map :state/agents
-                     :agent (s/coll-of ::xs/agent))
-        :ret :state/agents)
+        (and (not ascending) until)
+        (drop-while #(neg? (compare ?until-stamp (ss/stored-stamp %))))
+
+        (and ascending since)
+        (drop-while #(not (neg? (compare ?since-stamp (ss/stored-stamp %)))))
+
+        (and ascending until)
+        (take-while #(not (pos? (compare (ss/stored-stamp %) ?until-stamp))))
+
+        ;; simple filters
+        verb
+        (filter (fn filter-stmt-verb [s]
+                  (or
+                   ;; direct
+                   (= verb (get-in s ["verb" "id"]))
+                   ;; via reference
+                   (and (ss/statement-ref? s)
+                        (let [target-id (ss/statement-ref-id s)]
+                          ;; non-void statement
+                          (= verb (get-in state [:state/statements
+                                                 target-id
+                                                 "verb"
+                                                 "id"]))
+                          ;; voided statement
+                          (= verb (get-in state [:state/voided-statements
+                                                 target-id
+                                                 "verb"
+                                                 "id"])))))))
+        registration
+        (filter (fn filter-stmt-reg [s]
+                  (let [normalized-reg (ss/normalize-id registration)]
+                    (= normalized-reg
+                       (some-> (get-in s ["context" "registration"])
+                               ss/normalize-id)))))
+
+        ;; complex filters
+        activity
+        (filter (if related_activities
+                  ;; complex activity-filter
+                  (fn [s]
+                    (some (partial = activity)
+                          (ss/statement-related-activity-ids s)))
+                  ;; simple activity filter
+                  #(= activity (get-in % ["object" "id"]))))
+
+        agent
+        (filter (let [agents-fn (if related_agents
+                                  #(ss/statement-agents % true)
+                                  #(ss/statement-agents % false))]
+                  (fn [s]
+                    (some (partial ag/ifi-match? agent)
+                          (agents-fn s)))))
+
+        ;; formatting
+        (= format-type "canonical")
+        (map #(ss/format-canonical % ltags))
+
+        (= format-type "ids")
+        (map ss/format-statement-ids)))))
+
+(s/fdef statements-seq
+  :args (s/cat :state ::state
+               :params :xapi.statements.GET.request/params
+               :ltags (s/coll-of ::xs/language-tag))
+  :ret (s/coll-of ::xs/lrs-statement))
+
+;; internal impls used in sync/async specifically where indicated
+
+(defn- store-statements-sync
+  [state statements attachments]
+  (try (let [prepared-statements
+             (map
+              (fn [s stamp]
+                (ss/prepare-statement
+                 (assoc s "stored" stamp)))
+              statements
+              (timestamp/stamp-seq))]
+         (swap! state
+                transact-statements
+                prepared-statements
+                attachments)
+         {:statement-ids
+          (into []
+                (map #(ss/normalize-id (get % "id"))
+                     prepared-statements))})
+       (catch #?(:clj clojure.lang.ExceptionInfo
+                 :cljs ExceptionInfo) exi
+         {:error exi})))
+
+(defn- get-attachments
+  [state statements]
+  (keep (:state/attachments @state)
+        (ss/all-attachment-hashes statements)))
+
+(defn- make-more-url
+  [xapi-path-prefix params last-id agent]
+  (str xapi-path-prefix
+       "/statements?"
+       (form-encode
+        (cond-> params
+          true (assoc :from last-id)
+          ;; Re-encode the agent if present
+          agent (assoc :agent (json-string agent))))))
+
+(defn- get-statements-sync
+  [state
+   xapi-path-prefix
+   {:keys [statementId
+           voidedStatementId
+           limit
+           attachments
+           agent
+           ;; Unused - handled in `statements-seq`
+           _verb
+           _activity
+           _registration
+           _related_activities
+           _related_agents
+           _since
+           _until
+           _ascending
+           _page
+           _from ; Like "Exclusive Start Key"
+           ]
+    :as params
+    :or {limit       50
+         attachments false}}
+   ltags]
+  (let [results (statements-seq @state params ltags)]
+    (if (or statementId voidedStatementId)
+      ;; Single statement
+      (let [statement (first results)]
+        (cond-> {}
+          statement
+          (assoc :statement statement)
+
+          (and statement attachments)
+          (assoc :attachments
+                 (into [] (get-attachments state [statement])))))
+      ;; Multiple statements, via a paged sequential query
+      (let [[statements rest-results]
+            (cond->> results
+              (< 0 limit) (split-at limit) ; paging to
+              (= 0 limit) vector)          ; mock the split
+            more?
+            (some? (first rest-results))
+            statement-result
+            (cond-> {:statements statements}
+              more?
+              (assoc :more
+                     (make-more-url
+                      xapi-path-prefix
+                      params
+                      (-> statements last (get "id") ss/normalize-id)
+                      agent)))
+            attachments
+            (into [] (when attachments
+                       (get-attachments state statements)))]
+        {:statement-result statement-result
+         :attachments      attachments}))))
+
+(defn- get-statements-async
+  [state
+   xapi-path-prefix
+   {:keys [statementId
+           voidedStatementId
+           limit
+           attachments
+           agent
+           ;; Unused - handled in `statements-seq`
+           _verb
+           _activity
+           _registration
+           _related_activities
+           _related_agents
+           _since
+           _until
+           _ascending
+           _page
+           _from ; Like "Exclusive Start Key"
+           ]
+    :as params
+    :or {limit       50
+         attachments false}}
+   ltags]
+  (let [single?     (or statementId voidedStatementId)
+        result-chan (a/chan)]
+    (a/go
+      ;; write the first header
+      (a/>! result-chan (if single?
+                          :statement
+                          :statements))
+      (loop [results           (statements-seq @state params ltags)
+             last-id            nil
+             result-count       0
+             result-attachments (list)]
+        (if (and (< 0 limit)
+                 (= result-count limit)
+                 (first results))
+          ;; all results returned, maybe process more
+          (do
+            (a/>! result-chan :more)
+            (a/>! result-chan (make-more-url
+                               xapi-path-prefix
+                               params
+                               last-id
+                               agent))
+            (recur (list)
+                   nil
+                   0
+                   result-attachments))
+          (if-let [statement (first results)]
+            (do
+              (a/>! result-chan statement)
+              (recur (rest results)
+                     (ss/normalize-id (get statement "id"))
+                     (inc result-count)
+                     (into result-attachments
+                           (when attachments
+                             (keep
+                              (:state/attachments @state)
+                              (ss/all-attachment-hashes [statement]))))))
+            (when attachments
+              (a/>! result-chan :attachments)
+              (doseq [att result-attachments]
+                (a/>! result-chan att))))))
+      (a/close! result-chan))
+    result-chan))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Documents
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def state-tuple-re-spec
-  (s/cat :activity-id
-         :activity/id
-         :agent
-         ::xs/agent
-         :registration
-         (s/? :context/registration)))
+  (s/cat :activity-id :activity/id
+         :agent ::xs/agent
+         :registration (s/? :context/registration)))
 
 (s/def ::state-tuple
   (s/with-gen state-tuple-re-spec
     #(sgen/fmap
       (partial into [])
       (s/gen state-tuple-re-spec))))
-
 
 (s/def :state/documents
   (s/map-of (s/or :state-tuple
@@ -188,10 +663,10 @@
 
 (defn- param-keys-query [{:keys [activityId
                                  agent
-                                 stateId
-                                 profileId
+                                 _stateId
+                                 _profileId
                                  registration
-                                 since] :as params}]
+                                 _since] :as params}]
   (cond
     (and activityId agent)
     {:context-key (cond-> [activityId agent]
@@ -218,15 +693,20 @@
   [documents params document merge?]
   (let [{:keys [context-key
                 document-key
-                document]} (document-keys
-                            params
-                            (update document :contents contents->byte-array))]
-    (update (if merge?
-              (update-in documents [context-key document-key] doc/merge-or-replace document)
-              (assoc-in documents [context-key document-key] (assoc
-                                                              document
-                                                              :updated
-                                                              (doc/updated-stamp-now))))
+                document]}
+        (document-keys
+         params
+         (update document :contents contents->byte-array))
+        update-doc-fn
+        (if merge?
+          (update-in documents
+                     [context-key document-key]
+                     doc/merge-or-replace
+                     document)
+          (assoc-in documents
+                    [context-key document-key]
+                    (assoc document :updated (doc/updated-stamp-now))))]
+    (update update-doc-fn
             context-key
             #(conj (doc/documents-priority-map) %))))
 
@@ -253,14 +733,15 @@
 (defn get-document-ids
   [state params]
   (let [{context-key :context-key
-         {?since :since} :query} (param-keys-query params)]
-    (let [?since-inst (some-> ?since timestamp/normalize)]
-      (mapv :id
-            (cond->> (some-> (get-in state [:state/documents context-key])
-                             #?(:clj vals
-                                :cljs (->> (map second))))
-              ?since (drop-while (fn [{:keys [updated] :as doc}]
-                                   (< -1 (compare ?since-inst (doc/updated-stamp doc))))))))))
+         {?since :since} :query} (param-keys-query params)
+        ?since-inst (some-> ?since timestamp/normalize)]
+    (cond->> (some-> (get-in state [:state/documents context-key])
+                     #?(:clj vals
+                        :cljs (->> (map second))))
+      ?since (drop-while
+              (fn [doc]
+                (< -1 (compare ?since-inst (doc/updated-stamp doc)))))
+      true   (mapv :id))))
 
 (s/fdef get-document-ids
         :args (s/cat :state ::state
@@ -271,9 +752,11 @@
   [documents params]
   (let [{:keys [context-key
                 document-key]}
-        (param-keys
-         params)]
-    (update documents context-key (fnil dissoc (doc/documents-priority-map)) document-key)))
+        (param-keys params)]
+    (update documents
+            context-key
+            (fnil dissoc (doc/documents-priority-map))
+            document-key)))
 
 (s/fdef delete-document
         :args (s/cat :documents :state/documents
@@ -292,350 +775,18 @@
                      :params :xapi.document.state/context-params)
         :ret :state/documents)
 
-(s/def ::state
-  (s/keys :req [:state/statements
-                :state/voided-statements
-                :state/refs
-                :state/activities
-                :state/agents
-                :state/attachments
-                :state/documents
-                ]))
+;; Operations on in-mem state.
+;; Shorten document to doc here to avoid conflicts with existing
 
-(defn empty-state
-  []
-  {:state/statements
-   (ss/statements-priority-map)
-   :state/voided-statements {}
-   :state/refs {}
-   :state/activities {}
-   :state/agents {}
-   :state/attachments {}
-   :state/documents {}})
-
-(s/fdef empty-state
-        :args (s/cat)
-        :ret ::state)
-
-
-(defn transact-statements [lrs-state
-                           new-statements
-                           attachments]
-  (reduce
-   (fn [state statement]
-     (-> (let [s-id (ss/normalize-id (get statement "id"))
-               ?ref-target-id (ss/statement-ref-id statement)]
-           (cond-> (if-let [extant (get-in state [:state/statements s-id])]
-                     (if (ss/statements-equal? extant statement)
-                       state ;; No change to LRS
-                       (p/throw-statement-conflict statement extant))
-                     (if (ss/voiding-statement? statement)
-                       (if-let [void-target-id ?ref-target-id]
-                         (if-let [extant-target (get-in state [:state/statements void-target-id])]
-                           (if (ss/voiding-statement? extant-target)
-                             ;; can't void a voiding statement
-                             (p/throw-invalid-voiding-statement statement)
-                             (-> state
-                                 (assoc-in [:state/statements s-id] statement)
-                                 (update :state/statements dissoc void-target-id)
-                                 (assoc-in [:state/voided-statements void-target-id] extant-target)))
-                           (assoc-in state [:state/statements s-id] statement))
-                         (p/throw-invalid-voiding-statement statement))
-                       (assoc-in state [:state/statements s-id] statement)))
-             ?ref-target-id (update :state/refs store-ref s-id ?ref-target-id)))
-         (update :state/activities
-                 store-activities
-                 (ss/statement-related-activities statement))
-         (update :state/agents
-                 store-agents
-                 (ss/statement-agents statement true true))
-         (update :state/attachments
-                 store-attachments
-                 attachments)
-         ))
-   lrs-state
-   new-statements))
-
-(s/fdef transact-statements
-        :args (s/cat :lrs-state ::state
-                     :statements ::xs/lrs-statements
-                     :attachments ::ss/attachments)
-        :ret ::state)
-
-(defn statements-seq
-  "Returns a lazy seq of statements for the given params possibly from id from,
-  w/o limit."
-  [state {:keys [statementId
-                 voidedStatementId
-                 verb
-                 activity
-                 registration
-                 related_activities
-                 related_agents
-                 since
-                 until
-                 limit
-                 attachments
-                 ascending
-                 agent
-                 from ;; Like "Exclusive Start Key"
-                 ]
-          format-type :format
-          :as params
-          :or {related_activities false
-               related_agents false
-               limit 50
-               attachments false
-               ascending false
-               format-type "exact"}} ltags]
-  (if (or statementId voidedStatementId)
-    (if-let [result (cond
-                      statementId
-                      (get-in state [:state/statements (ss/normalize-id statementId)])
-                      voidedStatementId
-                      (get-in state [:state/voided-statements (ss/normalize-id voidedStatementId)]))]
-      (list (cond-> result
-              (= "canonical" format-type)
-              (ss/format-canonical ltags)
-              (= "ids" format-type)
-              ss/format-statement-ids))
-      (list))
-    (let [?since-stamp (some-> since timestamp/normalize)
-          ?until-stamp (some-> until timestamp/normalize)]
-      (cond->> (or #?(:cljs (map second (:state/statements state))
-                      :clj (vals (:state/statements state)))
-                   (list))
-        ascending reverse
-        ;; paging from
-        from (drop-while #(not= from
-                                (get % "id")))
-        from rest
-        ;; since + until
-        (and
-         (not ascending)
-         since)
-        (take-while #(neg? (compare ?since-stamp (ss/stored-stamp %))))
-        (and
-         (not ascending)
-         until)
-        (drop-while #(neg? (compare ?until-stamp (ss/stored-stamp %))))
-
-        (and
-         ascending
-         since)
-        (drop-while #(not (neg? (compare ?since-stamp (ss/stored-stamp %)))))
-        (and
-         ascending
-         until)
-        (take-while #(not (pos? (compare (ss/stored-stamp %) ?until-stamp))))
-
-
-        ;; simple filters
-        verb (filter #(or
-                       ;; direct
-                       (= verb (get-in % ["verb" "id"]))
-                       ;; via reference
-                       (and (ss/statement-ref? %)
-                            (let [ref-id (ss/normalize-id (get % "id"))
-                                  target-id (ss/statement-ref-id %)]
-                              ;; non-void statement
-                              (= verb (get-in state [:state/statements
-                                                     target-id
-                                                     "verb"
-                                                     "id"]))
-                              (= verb (get-in state [:state/voided-statements
-                                                     target-id
-                                                     "verb"
-                                                     "id"]))))))
-        registration (filter (let [reg-norm (ss/normalize-id registration)]
-                               #(= reg-norm
-                                   (some-> (get-in % ["context" "registration"])
-                                           ss/normalize-id))))
-        ;; complex filters
-        activity (filter
-                  (if related_activities
-                    ;; complex activity-filter
-                    (fn [s]
-                      (some (partial = activity)
-                            (ss/statement-related-activity-ids s)))
-                    ;; simple activity filter
-                    #(= activity (get-in % ["object" "id"]))))
-        agent (filter
-               (let [agents-fn (if related_agents
-                                 #(ss/statement-agents % true)
-                                 #(ss/statement-agents % false))]
-                 (fn [s]
-                   (some (partial ag/ifi-match? agent)
-                         (agents-fn s)))))
-        ;; Formatting
-        (= format-type
-           "canonical") (map #(ss/format-canonical % ltags))
-        (= format-type
-           "ids")       (map ss/format-statement-ids)
-        ))))
-
-(s/fdef statements-seq
-        :args (s/cat :state ::state
-                     :params :xapi.statements.GET.request/params
-                     :ltags (s/coll-of ::xs/language-tag))
-        :ret (s/coll-of ::xs/lrs-statement))
-
-(defn load-fixture [resource-path]
-  #?(:clj (read-string (slurp (io/resource resource-path)))
-     :cljs (read-string (.readFileSync fs (str "dev-resources/" resource-path) #js {:encoding "UTF-8"}))))
-
-
-(defn fixture-state*
-  "Get the state of a post-conformance test lrs from file."
-  []
-  (-> (load-fixture "lrs/state.edn")
-      (update :state/statements (partial conj (ss/statements-priority-map)))
-      (update :state/attachments
-              #(reduce-kv (fn [m sha2 a]
-                            (assoc m sha2
-                                   #?(:cljs (assoc a :content
-                                                   (let [f (.fileSync tmp)]
-                                                     (.writeFileSync fs (.-name f)
-                                                                     (-> js/String
-                                                                         .-fromCharCode
-                                                                         (.apply nil (clj->js (:content a)))))
-                                                     f))
-                                      :clj (update a :content byte-array))))
-                          {}
-                          %))
-      (update
-       :state/documents
-       (fn [docs]
-         (into {}
-               (for [[ctx-key docs-map] docs]
-                 [ctx-key (into (doc/documents-priority-map)
-                                (for [[doc-id doc] docs-map]
-                                  [doc-id #?(:clj (update doc :contents byte-array)
-                                             :cljs (assoc doc :contents
-                                                          (-> js/String
-                                                              .-fromCharCode
-                                                              (.apply nil (clj->js (:contents doc))))))]))]))))))
-
-(def fixture-state (memoize fixture-state*))
-
-(s/fdef fixture-state
-  :args (s/cat)
-  :ret ::state)
-
-(defprotocol DumpableMemoryLRS
-  (dump [_] "Return the LRS's state in EDN"))
-
-;; internal impls used in sync/async specifically where indicated
-
-(defn- get-about
-  [state]
-  {:etag (sha-1 @state)
-   :body {:version ["1.0.0",
-                    "1.0.1",
-                    "1.0.2",
-                    "1.0.3"]}})
-
-(defn- store-statements-sync
-  [state statements attachments]
-  (try (let [prepared-statements
-             (map
-              (fn [s stamp]
-                (ss/prepare-statement
-                 (assoc s "stored" stamp)))
-              statements
-              (timestamp/stamp-seq))]
-         (swap! state
-                transact-statements
-                prepared-statements
-                attachments)
-         {:statement-ids
-          (into []
-                (map #(ss/normalize-id (get % "id"))
-                     prepared-statements))})
-       (catch #?(:clj clojure.lang.ExceptionInfo
-                 :cljs ExceptionInfo) exi
-         {:error exi})))
-
-(defn- get-statements-sync
-  [state
-   xapi-path-prefix
-   {:keys [statementId
-           voidedStatementId
-           verb
-           activity
-           registration
-           related_activities
-           related_agents
-           since
-           until
-           limit
-           attachments
-           ascending
-           page
-           agent
-           from ;; Like "Exclusive Start Key"
-           ]
-    format-type :format
-    :as params
-    :or {related_activities false
-         related_agents false
-         limit 50
-         attachments false
-         ascending false
-         page 0
-         format-type "exact"}}
-   ltags]
-  (let [results (statements-seq @state params ltags)]
-    (if (or statementId voidedStatementId) ;; single statement
-      (let [statement (first results)]
-        (cond-> {}
-          statement (assoc :statement
-                           statement)
-          (and statement
-               attachments) (assoc
-                             :attachments
-                             (into []
-                                   (keep
-                                    (:state/attachments
-                                     @state)
-                                    (ss/all-attachment-hashes
-                                     [statement]))))))
-      ;; otherwise, this is a paged sequential query
-      (let [[statements rest-results]
-            (cond->> results
-              ;; paging to
-              (< 0 limit) (split-at limit)
-              ;; mock the split
-              (= 0 limit) vector)
-            more? (some? (first rest-results))
-
-            statement-result
-            (cond-> {:statements
-                     statements}
-              more?
-              (assoc
-               :more
-               (str xapi-path-prefix
-                    "/statements?"
-                    (form-encode
-                     (cond-> (assoc params :from
-                                    (-> statements
-                                        last
-                                        (get "id")
-                                        ss/normalize-id))
-                       ;; Re-encode the agent if present
-                       agent (assoc :agent (json-string agent)))))))]
-        {:statement-result statement-result
-         :attachments (into []
-                            (when attachments
-                              (keep
-                               (:state/attachments @state)
-                               (ss/all-attachment-hashes statements))))}))))
-
-;; shorten document to doc here to avoid conflicts with existing
 (defn- set-doc
   [state params document merge?]
-  (try (swap! state update :state/documents transact-document params document merge?)
+  (try (swap! state
+              update
+              :state/documents
+              transact-document
+              params
+              document
+              merge?)
        {}
        (catch #?(:clj clojure.lang.ExceptionInfo
                  :cljs ExceptionInfo) exi
@@ -659,122 +810,46 @@
   (swap! state update :state/documents delete-documents params)
   {})
 
-(defn- get-person
-  [state params]
-  {:person
-   (let [ifi-lookup (ag/find-ifi (:agent params))]
-     ;; TODO: extract this fn
-     (get-in @state
-             [:state/agents
-              ifi-lookup]
-             (ag/person (:agent params))))})
-
-(defn- get-activity
-  [state params]
-  {:activity
-   (get-in @state
-           [:state/activities
-            (:activityId params)])})
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Authenticate + Authorize
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- authenticate
-  [state lrs ctx]
+  [_state _lrs _ctx]
   ;; Authenticate is a no-op right now, just returns a dummy
   {:result
    {:scopes #{:scope/all}
     :prefix ""
-    :auth {:no-op {}}}})
+    :auth   {:no-op {}}}})
 
 (defn- authorize
-  [state lrs ctx auth-identity]
-  ;; Auth
+  [_state _lrs _ctx _auth-identity]
+  ;; Auth, also a no-op right now
   {:result true})
 
-(defn- get-statements-async
-  [state
-   xapi-path-prefix
-   {:keys [statementId
-           voidedStatementId
-           verb
-           activity
-           registration
-           related_activities
-           related_agents
-           since
-           until
-           limit
-           attachments
-           ascending
-           page
-           agent
-           from ;; Like "Exclusive Start Key"
-           ]
-    format-type :format
-    :as params
-    :or {related_activities false
-         related_agents false
-         limit 50
-         attachments false
-         ascending false
-         page 0
-         format-type "exact"}}
-   ltags]
-  (let [single? (or statementId voidedStatementId)
-        result-chan (a/chan)]
-    (a/go
-      ;; write the first header
-      (a/>! result-chan (if single?
-                          :statement
-                          :statements))
-      (loop [results (statements-seq @state params ltags)
-             last-id nil
-             result-count 0
-             result-attachments (list)]
-        (if ;; all results returned, maybe process more
-            (and (< 0 limit)
-                 (= result-count
-                    limit)
-                 (first results))
-          (do
-            (a/>! result-chan
-                  :more)
-            (a/>! result-chan
-                  (str xapi-path-prefix
-                       "/statements?"
-                       (form-encode
-                        (cond-> (assoc params :from
-                                       last-id)
-                          ;; Re-encode the agent if present
-                          agent (assoc :agent (json-string agent))))))
-            (recur (list)
-                   nil
-                   0
-                   result-attachments))
-          (if-let [statement (first results)]
-            (do
-              (a/>! result-chan statement)
-              (recur (rest results)
-                     (ss/normalize-id (get statement "id"))
-                     (inc result-count)
-                     (into result-attachments
-                           (when attachments
-                             (keep
-                              (:state/attachments @state)
-                              (ss/all-attachment-hashes [statement]))))))
-            (when attachments
-              (a/>! result-chan :attachments)
-              (doseq [att result-attachments]
-                (a/>! result-chan att))))))
-      (a/close! result-chan))
-    result-chan))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Misc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- get-about
+  [state]
+  {:etag (sha-1 @state)
+   :body {:version ["1.0.0"
+                    "1.0.1"
+                    "1.0.2"
+                    "1.0.3"]}})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Putting It All Together
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn new-lrs [{:keys [xapi-path-prefix
-                       statements-result-max
+                       _statements-result-max
                        init-state
                        mode] ;; mode can be :sync or :async
-                :or {xapi-path-prefix "/xapi"
-                     statements-result-max 50
-                     init-state (empty-state)
-                     mode :both}}]
+                :or {xapi-path-prefix       "/xapi"
+                     init-state             (empty-state)
+                     mode                   :both}}]
   (let [state (atom init-state
                     :validator
                     (fn [s]
@@ -941,6 +1016,8 @@
         (dump [_]
           @state)))))
 
+;; Helper specs
+
 (s/def ::xapi-path-prefix
   string?)
 
@@ -951,6 +1028,8 @@
   #{:sync :async :both})
 
 (s/def ::init-state ::state)
+
+;; LRS specs
 
 (s/def ::lrs-sync
   (s/with-gen ::p/lrs
