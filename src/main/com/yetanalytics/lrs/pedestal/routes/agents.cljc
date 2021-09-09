@@ -9,26 +9,25 @@
   :args (s/cat :ctx map?
                :get-about-ret ::p/get-person-ret))
 
-(defn get-response [{:keys [com.yetanalytics/lrs] :as ctx}
-                    {error :error person :person ?etag :etag :as lrs-response}]
+(defn get-response
+  [ctx {:keys [error person] ?etag :etag :as _lrs-response}]
   (if error
     (assoc ctx :io.pedestal.interceptor.chain/error error)
     (cond-> (assoc ctx :response
-                   {:status 200
-                    :body person})
+                   {:status 200 :body person})
       ?etag (assoc
              :com.yetanalytics.lrs.pedestal.interceptor/etag
              ?etag))))
 
 (def handle-get
   {:name ::handle-get
-   :enter (fn [{auth-identity ::auth/identity
-                :keys [com.yetanalytics/lrs
-                       xapi] :as ctx}]
-            (let [{params :xapi.agents.GET.request/params} xapi]
-              (if (p/agent-info-resource-async? lrs)
-                (a/go
-                  (get-response ctx
-                                (a/<!
-                                 (lrs/get-person-async lrs auth-identity params))))
-                (get-response ctx (lrs/get-person lrs auth-identity params)))))})
+   :enter
+   (fn handle-get-fn
+     [{auth-identity ::auth/identity
+       :keys [com.yetanalytics/lrs xapi] :as ctx}]
+     (let [{params :xapi.agents.GET.request/params} xapi]
+       (if (p/agent-info-resource-async? lrs)
+         (a/go
+           (get-response ctx (a/<!
+                              (lrs/get-person-async lrs auth-identity params))))
+         (get-response ctx (lrs/get-person lrs auth-identity params)))))})
