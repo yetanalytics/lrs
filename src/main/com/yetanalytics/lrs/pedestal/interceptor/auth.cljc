@@ -33,7 +33,7 @@
   (interceptor
    {:name ::lrs-authenticate
     :enter
-    (fn [{:keys [com.yetanalytics/lrs] :as ctx}]
+    (fn authenticate [{:keys [com.yetanalytics/lrs] :as ctx}]
       (if (::auth/identity ctx)
         ctx
         (if (p/lrs-auth-async-instance? lrs)
@@ -47,7 +47,7 @@
   (interceptor
    {:name ::www-authenticate
     :leave
-    (fn [ctx]
+    (fn www-authenticate [ctx]
       (if (and (si/accept-html? ctx)
                (some-> ctx
                        :response
@@ -81,8 +81,9 @@
   (interceptor
    {:name ::lrs-authorize
     :enter
-    (fn [{auth-identity ::auth/identity
-          :keys [com.yetanalytics/lrs] :as ctx}]
+    (fn authorize
+      [{auth-identity ::auth/identity
+        :keys [com.yetanalytics/lrs] :as ctx}]
       (if (p/lrs-auth-async-instance? lrs)
         (a/go
           (handle-authorize ctx (a/<! (lrs/authorize-async lrs
