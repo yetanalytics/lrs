@@ -10,8 +10,12 @@
   #?(:clj (:import [java.io ByteArrayInputStream])))
 
 (def valid-alt-request-headers
-  [:Authorization :X-Experience-API-Version :Content-Type
-   :Content-Length :If-Match :If-None-Match
+  [:Authorization
+   :X-Experience-API-Version
+   :Content-Type
+   :Content-Length
+   :If-Match
+   :If-None-Match
    ;; :Accept-Language
    ;; :Accept
    ;; :Accept-Encoding
