@@ -1,6 +1,8 @@
 (ns com.yetanalytics.lrs.xapi.agents
   (:require [clojure.spec.alpha :as s :include-macros true]
-            [xapi-schema.spec :as xs]))
+            [xapi-schema.spec :as xs]
+            ;; For :xapi.agents.GET.response/person
+            [xapi-schema.spec.resources]))
 
 (def ifi-keys #{"mbox" "mbox_sha1sum" "openid" "account"})
 
