@@ -6,17 +6,17 @@
             [com.yetanalytics.lrs.xapi.agents     :as ag]
             [com.yetanalytics.lrs.xapi.activities :as ac]
             [com.yetanalytics.lrs.xapi.document   :as doc]
-            [com.yetanalytics.lrs.util      :refer [form-encode json-string]]
-            [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [clojure.spec.alpha     :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
             [xapi-schema.spec       :as xs]
-            [clojure.core.async :as a :include-macros true]
-            #?@(:clj [[clojure.java.io :as io]]
+            #?@(:clj [[clojure.java.io :as io]
+                      [com.yetanalytics.lrs.util :refer [form-encode
+                                                         json-string]]
+                      [com.yetanalytics.lrs.util.hash :refer [sha-1]]
+                      [clojure.core.async :as a :include-macros true]]
                 :cljs [[fs]
                        [tmp]
-                       [cljs.reader :refer [read-string]]
-                       ]))
+                       [cljs.reader :refer [read-string]]]))
   #?(:clj (:import [java.io ByteArrayOutputStream]))
   #?(:cljs (:require-macros [com.yetanalytics.lrs.impl.memory
                              :refer [reify-sync-lrs
@@ -146,17 +146,16 @@
   :ret :state/activities)
 
 ;; Operations on in-mem state
+;; We wrap these functions in the reader macro since they are only called
+;; from within macros, which are defined in clj and not cljs
 
-;; clj-kondo incorrectly flags this as unused since it is only called in
-;; clj macro code
-
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- get-activity
-  [state params]
-  {:activity
-   (get-in @state
-           [:state/activities
-            (:activityId params)])})
+#?(:clj
+   (defn- get-activity
+     [state params]
+     {:activity
+      (get-in @state
+              [:state/activities
+               (:activityId params)])}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Agents
@@ -187,16 +186,16 @@
 
 ;; Operations on in-mem state
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- get-person
-  [state params]
-  {:person
-   (let [ifi-lookup (ag/find-ifi (:agent params))]
+#?(:clj
+   (defn- get-person
+     [state params]
+     {:person
+      (let [ifi-lookup (ag/find-ifi (:agent params))]
      ;; TODO: extract this fn
-     (get-in @state
-             [:state/agents
-              ifi-lookup]
-             (ag/person (:agent params))))})
+        (get-in @state
+                [:state/agents
+                 ifi-lookup]
+                (ag/person (:agent params))))}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Statements
@@ -440,169 +439,171 @@
 
 ;; internal impls used in sync/async specifically where indicated
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- store-statements-sync
-  [state statements attachments]
-  (try (let [prepared-statements
-             (map
-              (fn [s stamp]
-                (ss/prepare-statement
-                 (assoc s "stored" stamp)))
-              statements
-              (timestamp/stamp-seq))]
-         (swap! state
-                transact-statements
-                prepared-statements
-                attachments)
-         {:statement-ids
-          (into []
-                (map #(ss/normalize-id (get % "id"))
-                     prepared-statements))})
-       (catch #?(:clj clojure.lang.ExceptionInfo
-                 :cljs ExceptionInfo) exi
-         {:error exi})))
+#?(:clj
+   (defn- store-statements-sync
+     [state statements attachments]
+     (try (let [prepared-statements
+                (map
+                 (fn [s stamp]
+                   (ss/prepare-statement
+                    (assoc s "stored" stamp)))
+                 statements
+                 (timestamp/stamp-seq))]
+            (swap! state
+                   transact-statements
+                   prepared-statements
+                   attachments)
+            {:statement-ids
+             (into []
+                   (map #(ss/normalize-id (get % "id"))
+                        prepared-statements))})
+          (catch #?(:clj clojure.lang.ExceptionInfo
+                    :cljs ExceptionInfo) exi
+            {:error exi}))))
 
-(defn- get-attachments
-  [state statements]
-  (keep (:state/attachments @state)
-        (ss/all-attachment-hashes statements)))
+#?(:clj
+   (defn- get-attachments
+     [state statements]
+     (keep (:state/attachments @state)
+           (ss/all-attachment-hashes statements))))
 
-(defn- make-more-url
-  [xapi-path-prefix params last-id agent]
-  (str xapi-path-prefix
-       "/statements?"
-       (form-encode
-        (cond-> params
-          true (assoc :from last-id)
+#?(:clj
+   (defn- make-more-url
+     [xapi-path-prefix params last-id agent]
+     (str xapi-path-prefix
+          "/statements?"
+          (form-encode
+           (cond-> params
+             true (assoc :from last-id)
           ;; Re-encode the agent if present
-          agent (assoc :agent (json-string agent))))))
+             agent (assoc :agent (json-string agent)))))))
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- get-statements-sync
-  [state
-   xapi-path-prefix
-   {:keys [statementId
-           voidedStatementId
-           limit
-           attachments
-           agent
-           ;; Unused - handled in `statements-seq`
-           _verb
-           _activity
-           _registration
-           _related_activities
-           _related_agents
-           _since
-           _until
-           _ascending
-           _page
-           _from ; Like "Exclusive Start Key"
-           ]
-    :as params
-    :or {limit       50
-         attachments false}}
-   ltags]
-  (let [results (statements-seq @state params ltags)]
-    (if (or statementId voidedStatementId)
+#?(:clj
+   (defn- get-statements-sync
+     [state
+      xapi-path-prefix
+      {:keys [statementId
+              voidedStatementId
+              limit
+              attachments
+              agent
+              ;; Unused - handled in `statements-seq`
+              _verb
+              _activity
+              _registration
+              _related_activities
+              _related_agents
+              _since
+              _until
+              _ascending
+              _page
+              _from ; Like "Exclusive Start Key"
+              ]
+       :as params
+       :or {limit       50
+            attachments false}}
+      ltags]
+     (let [results (statements-seq @state params ltags)]
+       (if (or statementId voidedStatementId)
       ;; Single statement
-      (let [statement (first results)]
-        (cond-> {}
-          statement
-          (assoc :statement statement)
+         (let [statement (first results)]
+           (cond-> {}
+             statement
+             (assoc :statement statement)
 
-          (and statement attachments)
-          (assoc :attachments
-                 (into [] (get-attachments state [statement])))))
+             (and statement attachments)
+             (assoc :attachments
+                    (into [] (get-attachments state [statement])))))
       ;; Multiple statements, via a paged sequential query
-      (let [[statements rest-results]
-            (cond->> results
-              (< 0 limit) (split-at limit) ; paging to
-              (= 0 limit) vector)          ; mock the split
-            more?
-            (some? (first rest-results))
-            statement-result
-            (cond-> {:statements statements}
-              more?
-              (assoc :more
-                     (make-more-url
-                      xapi-path-prefix
-                      params
-                      (-> statements last (get "id") ss/normalize-id)
-                      agent)))
-            attachments
-            (into [] (when attachments
-                       (get-attachments state statements)))]
-        {:statement-result statement-result
-         :attachments      attachments}))))
+         (let [[statements rest-results]
+               (cond->> results
+                 (< 0 limit) (split-at limit) ; paging to
+                 (= 0 limit) vector)          ; mock the split
+               more?
+               (some? (first rest-results))
+               statement-result
+               (cond-> {:statements statements}
+                 more?
+                 (assoc :more
+                        (make-more-url
+                         xapi-path-prefix
+                         params
+                         (-> statements last (get "id") ss/normalize-id)
+                         agent)))
+               attachments
+               (into [] (when attachments
+                          (get-attachments state statements)))]
+           {:statement-result statement-result
+            :attachments      attachments})))))
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- get-statements-async
-  [state
-   xapi-path-prefix
-   {:keys [statementId
-           voidedStatementId
-           limit
-           attachments
-           agent
-           ;; Unused - handled in `statements-seq`
-           _verb
-           _activity
-           _registration
-           _related_activities
-           _related_agents
-           _since
-           _until
-           _ascending
-           _page
-           _from ; Like "Exclusive Start Key"
-           ]
-    :as params
-    :or {limit       50
-         attachments false}}
-   ltags]
-  (let [single?     (or statementId voidedStatementId)
-        result-chan (a/chan)]
-    (a/go
-      ;; write the first header
-      (a/>! result-chan (if single?
-                          :statement
-                          :statements))
-      (loop [results           (statements-seq @state params ltags)
-             last-id            nil
-             result-count       0
-             result-attachments (list)]
-        (if (and (< 0 limit)
-                 (= result-count limit)
-                 (first results))
-          ;; all results returned, maybe process more
-          (do
-            (a/>! result-chan :more)
-            (a/>! result-chan (make-more-url
-                               xapi-path-prefix
-                               params
-                               last-id
-                               agent))
-            (recur (list)
-                   nil
-                   0
-                   result-attachments))
-          (if-let [statement (first results)]
-            (do
-              (a/>! result-chan statement)
-              (recur (rest results)
-                     (ss/normalize-id (get statement "id"))
-                     (inc result-count)
-                     (into result-attachments
-                           (when attachments
-                             (keep
-                              (:state/attachments @state)
-                              (ss/all-attachment-hashes [statement]))))))
-            (when attachments
-              (a/>! result-chan :attachments)
-              (doseq [att result-attachments]
-                (a/>! result-chan att))))))
-      (a/close! result-chan))
-    result-chan))
+#?(:clj
+   (defn- get-statements-async
+     [state
+      xapi-path-prefix
+      {:keys [statementId
+              voidedStatementId
+              limit
+              attachments
+              agent
+              ;; Unused - handled in `statements-seq`
+              _verb
+              _activity
+              _registration
+              _related_activities
+              _related_agents
+              _since
+              _until
+              _ascending
+              _page
+              _from ; Like "Exclusive Start Key"
+              ]
+       :as params
+       :or {limit       50
+            attachments false}}
+      ltags]
+     (let [single?     (or statementId voidedStatementId)
+           result-chan (a/chan)]
+       (a/go
+          ;; write the first header
+         (a/>! result-chan (if single?
+                             :statement
+                             :statements))
+         (loop [results           (statements-seq @state params ltags)
+                last-id            nil
+                result-count       0
+                result-attachments (list)]
+           (if (and (< 0 limit)
+                    (= result-count limit)
+                    (first results))
+             ;; all results returned, maybe process more
+             (do
+               (a/>! result-chan :more)
+               (a/>! result-chan (make-more-url
+                                  xapi-path-prefix
+                                  params
+                                  last-id
+                                  agent))
+               (recur (list)
+                      nil
+                      0
+                      result-attachments))
+             (if-let [statement (first results)]
+               (do
+                 (a/>! result-chan statement)
+                 (recur (rest results)
+                        (ss/normalize-id (get statement "id"))
+                        (inc result-count)
+                        (into result-attachments
+                              (when attachments
+                                (keep
+                                 (:state/attachments @state)
+                                 (ss/all-attachment-hashes [statement]))))))
+               (when attachments
+                 (a/>! result-chan :attachments)
+                 (doseq [att result-attachments]
+                   (a/>! result-chan att))))))
+         (a/close! result-chan))
+       result-chan)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Documents
@@ -791,74 +792,74 @@
 ;; Operations on in-mem state.
 ;; Shorten document to doc here to avoid conflicts with existing
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- set-doc
-  [state params document merge?]
-  (try (swap! state
-              update
-              :state/documents
-              transact-document
-              params
-              document
-              merge?)
-       {}
-       (catch #?(:clj clojure.lang.ExceptionInfo
-                 :cljs ExceptionInfo) exi
-         {:error exi})))
+#?(:clj
+   (defn- set-doc
+     [state params document merge?]
+     (try (swap! state
+                 update
+                 :state/documents
+                 transact-document
+                 params
+                 document
+                 merge?)
+          {}
+          (catch #?(:clj clojure.lang.ExceptionInfo
+                    :cljs ExceptionInfo) exi
+            {:error exi}))))
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- get-doc
-  [state params]
-  {:document (get-document @state params)})
+#?(:clj
+   (defn- get-doc
+     [state params]
+     {:document (get-document @state params)}))
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- get-doc-ids
-  [state params]
-  {:document-ids (get-document-ids @state params)})
+#?(:clj
+   (defn- get-doc-ids
+     [state params]
+     {:document-ids (get-document-ids @state params)}))
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- delete-doc
-  [state params]
-  (swap! state update :state/documents delete-document params)
-  {})
+#?(:clj
+   (defn- delete-doc
+     [state params]
+     (swap! state update :state/documents delete-document params)
+     {}))
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- delete-docs
-  [state params]
-  (swap! state update :state/documents delete-documents params)
-  {})
+#?(:clj
+   (defn- delete-docs
+     [state params]
+     (swap! state update :state/documents delete-documents params)
+     {}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Authenticate + Authorize
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- authenticate
-  [_state _lrs _ctx]
-  ;; Authenticate is a no-op right now, just returns a dummy
-  {:result
-   {:scopes #{:scope/all}
-    :prefix ""
-    :auth   {:no-op {}}}})
+#?(:clj
+   (defn- authenticate
+     [_state _lrs _ctx]
+     ;; Authenticate is a no-op right now, just returns a dummy
+     {:result
+      {:scopes #{:scope/all}
+       :prefix ""
+       :auth   {:no-op {}}}}))
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- authorize
-  [_state _lrs _ctx _auth-identity]
-  ;; Auth, also a no-op right now
-  {:result true})
+#?(:clj
+   (defn- authorize
+     [_state _lrs _ctx _auth-identity]
+     ;; Auth, also a no-op right now
+     {:result true}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Misc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- get-about
-  [state]
-  {:etag (sha-1 @state)
-   :body {:version ["1.0.0"
-                    "1.0.1"
-                    "1.0.2"
-                    "1.0.3"]}})
+#?(:clj
+   (defn- get-about
+     [state]
+     {:etag (sha-1 @state)
+      :body {:version ["1.0.0"
+                       "1.0.1"
+                       "1.0.2"
+                       "1.0.3"]}}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Putting It All Together

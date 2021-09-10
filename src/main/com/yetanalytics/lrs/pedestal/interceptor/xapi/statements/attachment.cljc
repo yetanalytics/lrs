@@ -18,13 +18,18 @@
 (s/def :xapi.statements/attachments
   (s/coll-of ::attachment :gen-max 10))
 
-#_{:clj-kondo/ignore [:unused-binding]} ; binding only used in clj
-(defn close-multiparts!
-  "Close all input streams in a sequence of multiparts"
-  [multiparts]
-  #?(:clj (doseq [{:keys [^InputStream input-stream]} multiparts]
-            (.close input-stream))
-     :cljs nil))
+#?(:clj
+   (defn close-multiparts!
+     "Close all input streams in a sequence of multiparts"
+     [multiparts]
+     (doseq [{:keys [^InputStream input-stream]} multiparts]
+       (.close input-stream))))
+
+#?(:cljs
+   (defn close-multiparts!
+     "In cljs, this is a no-op"
+     [_]
+     nil))
 
 #?(:clj
    (defn save-attachment
@@ -151,9 +156,9 @@
       (not= (dissoc statement "attachments")
             payload)
       (throw (ex-info "Statement signature does not match statement"
-              {:type      ::invalid-signature-mismatch
-               :jws       jws
-               :statement statement}))
+                      {:type      ::invalid-signature-mismatch
+                       :jws       jws
+                       :statement statement}))
       :else ; If everything's good, return the multipart w/ a new input stream
       (assoc multipart
              :input-stream
