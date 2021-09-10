@@ -1,11 +1,11 @@
 (ns mem-lrs.service
   (:require [io.pedestal.http :as http]
             [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
-            [com.yetanalytics.lrs.pedestal.routes :refer [build]]
+            [com.yetanalytics.lrs.pedestal.routes :refer [build-routes]]
             #?(:cljs [com.yetanalytics.node-chain-provider :as provider])))
 
 (defn new-routes [lrs]
-  (build {:lrs lrs}))
+  (build-routes {:lrs lrs}))
 
 ;; Tabular routes + default LRS
 (def default-lrs
