@@ -85,7 +85,7 @@
     :enter (fn health-fn [ctx]
              (assoc ctx :response {:status 200 :body ""}))}))
 
-(defn build-routes [{:keys [lrs path-prefix]
+(defn build [{:keys [lrs path-prefix]
                      :or {path-prefix "/xapi"}}]
   (let [lrs-i                       (i/lrs-interceptor lrs)
         global-interceptors-no-auth (conj i/common-interceptors
