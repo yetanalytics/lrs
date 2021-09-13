@@ -12,7 +12,8 @@
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
-            #?@(:cljs [[clojure.core.async :as a :include-macros true]
+            #?@(:cljs [[cljs.nodejs] ; special require for cljs compliation
+                       [clojure.core.async :as a :include-macros true]
                        [cljs.pprint :refer [pprint]]
                        [concat-stream]
                        [com.yetanalytics.lrs.util.log :as log]])))
