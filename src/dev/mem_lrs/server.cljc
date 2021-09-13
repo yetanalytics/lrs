@@ -9,7 +9,8 @@
    [com.yetanalytics.lrs.pedestal.interceptor :as i]
    [#?(:clj io.pedestal.log
        :cljs com.yetanalytics.lrs.util.log) :as log]
-   [clojure.spec.test.alpha :as stest :include-macros true]))
+   [clojure.spec.test.alpha :as stest :include-macros true]
+   #?(:cljs [cljs.nodejs])))
 
 ;; We keep this because this is in a dev dir
 #?(:clj (set! *warn-on-reflection* true))
