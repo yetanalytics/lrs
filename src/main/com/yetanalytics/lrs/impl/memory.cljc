@@ -15,8 +15,7 @@
             #?@(:clj [[clojure.java.io :as io]]
                 :cljs [[fs]
                        [tmp]
-                       [cljs.reader :refer [read-string]]
-                       ]))
+                       [cljs.reader :refer [read-string]]]))
   #?(:clj (:import [java.io ByteArrayOutputStream]))
   #?(:cljs (:require-macros [com.yetanalytics.lrs.impl.memory
                              :refer [reify-sync-lrs
@@ -866,79 +865,79 @@
 
 #?(:clj
    (def common-lrs-input
-     `(DumpableMemoryLRS
-       (~'dump [~'_]
-               (deref ~'state)))))
+     '(`~DumpableMemoryLRS
+       (dump [_]
+         (deref state)))))
 
 #?(:clj
    (def sync-lrs-input
-     `(p/AboutResource
-       (~'-get-about [~'_ ~'_]
-         (get-about ~'state))
-       p/StatementsResource
-       (~'-store-statements [~'_ ~'_ ~'statements ~'attachments]
-         (store-statements-sync ~'state ~'statements ~'attachments))
-       (~'-get-statements [~'_ ~'_ ~'params ~'ltags]
-         (get-statements-sync ~'state ~'xapi-path-prefix ~'params ~'ltags))
-       (~'-consistent-through [~'_ ~'_ ~'_]
+     '(`~p/AboutResource
+       (-get-about [_ _]
+         (get-about state))
+       `~p/StatementsResource
+       (-store-statements [_ _ statements attachments]
+         (store-statements-sync state statements attachments))
+       (-get-statements [_ _ params ltags]
+         (get-statements-sync state xapi-path-prefix params ltags))
+       (-consistent-through [_ _ _]
          (ss/now-stamp))
-       p/DocumentResource
-       (~'-set-document [~'lrs ~'_ ~'params ~'document ~'merge?]
-         (set-doc ~'state ~'params ~'document ~'merge?))
-       (~'-get-document [~'_ ~'_ ~'params]
-         (get-doc ~'state ~'params))
-       (~'-get-document-ids [~'_ ~'_ ~'params]
-         (get-doc-ids ~'state ~'params))
-       (~'-delete-document [~'lrs ~'_ ~'params]
-         (delete-doc ~'state ~'params))
-       (~'-delete-documents [~'lrs ~'_ ~'params]
-         (delete-docs ~'state ~'params))
-       p/AgentInfoResource
-       (~'-get-person [~'_ ~'_ ~'params]
-         (get-person ~'state ~'params))
-       p/ActivityInfoResource
-       (~'-get-activity [~'_ ~'_ ~'params]
-         (get-activity ~'state ~'params))
-       p/LRSAuth
-       (~'-authenticate [~'lrs ~'ctx]
-         (authenticate ~'state ~'lrs ~'ctx))
-       (~'-authorize [~'lrs ~'ctx ~'auth-identity]
-         (authorize ~'state ~'lrs ~'ctx ~'auth-identity)))))
+       `~p/DocumentResource
+       (-set-document [lrs _ params document merge?]
+         (set-doc state params document merge?))
+       (-get-document [_ _ params]
+         (get-doc state params))
+       (-get-document-ids [_ _ params]
+         (get-doc-ids state params))
+       (-delete-document [lrs _ params]
+         (delete-doc state params))
+       (-delete-documents [lrs _ params]
+         (delete-docs state params))
+       `~p/AgentInfoResource
+       (-get-person [_ _ params]
+         (get-person state params))
+       `~p/ActivityInfoResource
+       (-get-activity [_ _ params]
+         (get-activity state params))
+       `~p/LRSAuth
+       (-authenticate [lrs ctx]
+         (authenticate state lrs ctx))
+       (-authorize [lrs ctx auth-identity]
+         (authorize state lrs ctx auth-identity)))))
 
 #?(:clj
    (def async-lrs-input
-     `(p/AboutResourceAsync
-       (~'-get-about-async [~'lrs ~'auth-identity]
-         (a/go (get-about ~'state)))
-       p/StatementsResourceAsync
-       (~'-store-statements-async [~'lrs ~'auth-identity ~'stmts ~'attachments]
-         (a/go (store-statements-sync ~'state ~'stmts ~'attachments)))
-       (~'-get-statements-async [~'_ ~'_ ~'params ~'ltags]
-         (get-statements-async ~'state ~'xapi-path-prefix ~'params ~'ltags))
-       (~'-consistent-through-async [~'_ ~'_ ~'_]
+     '(`~p/AboutResourceAsync
+       (-get-about-async [lrs auth-identity]
+         (a/go (get-about state)))
+       `~p/StatementsResourceAsync
+       (-store-statements-async [lrs auth-identity stmts attachments]
+         (a/go (store-statements-sync state stmts attachments)))
+       (-get-statements-async [_ _ params ltags]
+         (get-statements-async state xapi-path-prefix params ltags))
+       (-consistent-through-async [_ _ _]
          (a/go (ss/now-stamp)))
-       p/DocumentResourceAsync
-       (~'-set-document-async [~'lrs ~'auth-identity ~'params ~'doc ~'merge?]
-         (a/go (set-doc ~'state ~'params ~'doc ~'merge?)))
-       (~'-get-document-async [~'lrs ~'auth-identity ~'params]
-         (a/go (get-doc ~'state ~'params)))
-       (~'-get-document-ids-async [~'lrs ~'auth-identity ~'params]
-         (a/go (get-doc-ids ~'state ~'params)))
-       (~'-delete-document-async [~'lrs ~'auth-identity ~'params]
-         (a/go (delete-doc ~'state ~'params)))
-       (~'-delete-documents-async [~'lrs ~'auth-identity ~'params]
-         (a/go (delete-docs ~'state ~'params)))
-       p/AgentInfoResourceAsync
-       (~'-get-person-async [~'lrs ~'auth-identity ~'params]
-         (a/go (get-person ~'state ~'params)))
-       p/ActivityInfoResourceAsync
-       (~'-get-activity-async [~'lrs ~'auth-identity ~'params]
-         (a/go (get-activity ~'state ~'params)))
-       p/LRSAuthAsync
-       (~'-authenticate-async [~'lrs ~'ctx]
-         (a/go (authenticate ~'state ~'lrs ~'ctx)))
-       (~'-authorize-async [~'lrs ~'ctx ~'auth-identity]
-         (a/go (authorize ~'state ~'lrs ~'ctx ~'auth-identity))))))
+       `~p/DocumentResourceAsync
+       (-set-document-async [lrs auth-identity params doc merge?]
+         (a/go (set-doc state params doc merge?)))
+       (-get-document-async [lrs auth-identity params]
+         (a/go (get-doc state params)))
+       (-get-document-ids-async [lrs auth-identity params]
+         (a/go (get-doc-ids state params)))
+       (-delete-document-async [lrs auth-identity params]
+         (a/go (delete-doc state params)))
+       (-delete-documents-async [lrs auth-identity params]
+         (a/go (delete-docs state params)))
+       `~p/AgentInfoResourceAsync
+       (-get-person-async [lrs auth-identity params]
+         (a/go (get-person state params)))
+       `~p/ActivityInfoResourceAsync
+       (-get-activity-async [lrs auth-identity params]
+         (a/go (get-activity state params)))
+       `~p/LRSAuthAsync
+       (-authenticate-async [lrs ctx]
+         (a/go (authenticate state lrs ctx)))
+       (-authorize-async [lrs ctx auth-identity]
+         (a/go (authorize state lrs ctx auth-identity))))))
 
 #?(:clj
    (defmacro reify-sync-lrs
