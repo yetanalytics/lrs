@@ -7,24 +7,29 @@
 (deftest find-ifi-test
   (is (empty?
        (failures
-        (stest/check `ag/find-ifi {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `ag/find-ifi
+                     {stc-opts {:num-tests 100 :max-size 3}})))))
 
 (deftest ifi-match?-test
   (is (empty?
        (failures
-        (stest/check `ag/ifi-match? {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `ag/ifi-match?
+                     {stc-opts {:num-tests 100 :max-size 3}})))))
 
 (deftest person-conj-test
   (is (empty?
        (failures
-        (stest/check `ag/person-conj {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `ag/person-conj
+                     {stc-opts {:num-tests 100 :max-size 3}})))))
 
 (deftest person-test
   (is (empty?
        (failures
-        (stest/check `ag/person {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `ag/person
+                     {stc-opts {:num-tests 100 :max-size 3}})))))
 
 (deftest actor-seq-test
   (is (empty?
        (failures
-        (stest/check `ag/actor-seq {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `ag/actor-seq
+                     {stc-opts {:num-tests 100 :max-size 3}})))))

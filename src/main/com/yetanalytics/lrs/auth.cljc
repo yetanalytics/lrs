@@ -15,14 +15,14 @@
     :scope.statements/write})
 
 (def scope-parents
-  {:scope/all :scope/all
-   :scope.all/read :scope/all
-   :scope/profile :scope/all
-   :scope/define :scope/all
-   :scope/state :scope/all
-   :scope.statements/read :scope/all
+  {:scope/all                  :scope/all
+   :scope.all/read             :scope/all
+   :scope/profile              :scope/all
+   :scope/define               :scope/all
+   :scope/state                :scope/all
+   :scope.statements/read      :scope/all
    :scope.statements.read/mine :scope.statements/read
-   :scope.statements/write :scope/all})
+   :scope.statements/write     :scope/all})
 
 (s/def ::scopes
   (s/coll-of ::scope :min-count 1 :kind set? :into #{}))
@@ -62,17 +62,15 @@
 
 (s/fdef resolve-scopes
   :args (s/cat :scopes ::scopes)
-  :ret ::scopes
-  :fn (fn [{:keys [args ret]}]
-        (every?
-         (fn [scope]
-           (let [parent (get scope-parents scope)]
-             (or (= scope parent)
-                 (not (contains? (:scopes ret) parent)))))
-         (:scopes ret))))
+  :ret (s/and ::scopes
+              (fn [ret]
+                (every? (fn [scope]
+                          (let [parent (get scope-parents scope)]
+                            (or (= scope parent)
+                                (not (contains? (:scopes ret) parent)))))
+                        (:scopes ret)))))
 
-(s/def ::prefix
-  string?)
+(s/def ::prefix string?)
 
 (s/def :basic-auth/username (s/and string? not-empty))
 (s/def :basic-auth/password (s/and string? not-empty))

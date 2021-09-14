@@ -9,23 +9,23 @@
   :args (s/cat :ctx map?
                :get-about-ret ::p/get-about-ret))
 
-(defn get-response [{:keys [com.yetanalytics/lrs] :as ctx}
-                    {error :error
-                     body :body
-                     ?etag :etag :as lrs-response}]
+(defn get-response
+  [ctx
+   {:keys [error body] ?etag :etag :as _lrs-response}]
   (if error
     (assoc ctx :io.pedestal.interceptor.chain/error error)
     (assoc ctx :response
-           (cond-> {:status 200
-                    :body body}
+           (cond-> {:status 200 :body body}
              ?etag (assoc :headers
                           {"etag" ?etag})))))
 
 (def handle-get
   {:name ::handle-get
-   :enter (fn [{auth-identity ::auth/identity
-                :keys [com.yetanalytics/lrs] :as ctx}]
-            (if (p/about-resource-async? lrs)
-              (a/go (get-response ctx
-                                  (a/<! (lrs/get-about-async lrs auth-identity))))
-              (get-response ctx (lrs/get-about lrs auth-identity))))})
+   :enter
+   (fn handle-get-fn
+     [{auth-identity ::auth/identity
+       :keys [com.yetanalytics/lrs] :as ctx}]
+     (if (p/about-resource-async? lrs)
+       (a/go (get-response ctx
+                           (a/<! (lrs/get-about-async lrs auth-identity))))
+       (get-response ctx (lrs/get-about lrs auth-identity))))})
