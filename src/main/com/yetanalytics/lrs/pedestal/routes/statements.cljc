@@ -33,7 +33,7 @@
               {:error
                (merge {:message (ex-message exi)}
                       (select-keys exd [:statement]))}})
-      ;; else - oh no
+      ;; else - unexpected error
       (assoc ctx
              :io.pedestal.interceptor.chain/error
              exi))))

@@ -13,10 +13,10 @@
             [xapi-schema.spec       :as xs]
             [clojure.core.async :as a :include-macros true]
             #?@(:clj [[clojure.java.io :as io]]
-                :cljs [[fs]
+                :cljs [[cljs.nodejs] ; special require for compilation
+                       [fs]
                        [tmp]
-                       [cljs.reader :refer [read-string]]
-                       ]))
+                       [cljs.reader :refer [read-string]]]))
   #?(:clj (:import [java.io ByteArrayOutputStream]))
   #?(:cljs (:require-macros [com.yetanalytics.lrs.impl.memory
                              :refer [reify-sync-lrs

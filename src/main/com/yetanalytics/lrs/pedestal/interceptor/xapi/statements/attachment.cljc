@@ -7,6 +7,7 @@
                 :cljs [[cljs.nodejs]
                        [fs]
                        [tmp]
+                       [goog.crypt]
                        [goog.crypt.base64 :as base64]]))
   #?(:clj (:import [java.io
                     File
