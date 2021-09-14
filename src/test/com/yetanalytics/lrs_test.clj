@@ -95,12 +95,12 @@
                      stored-insts)))))
 
     (testing "default limit"
-      (= 100 (count ret-statements)))
+      (is (= 100 (count ret-statements))))
 
     (testing "ascending"
-      (= ret-statements
-         (reverse (get-ss {:ascending true
-                           :limit     100}))))
+      (is (= ret-statements
+             (reverse (get-ss {:ascending true
+                               :limit     100})))))
 
     (testing "since + until"
       (let [fstored (-> ret-statements
