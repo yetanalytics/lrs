@@ -2,7 +2,7 @@
  :deps
  {org.clojure/clojure {:mvn/version "1.10.1"}
   org.clojure/clojurescript {:mvn/version "1.10.741"}
-  org.clojure/core.async {:mvn/version "1.1.587"}
+  org.clojure/core.async {:mvn/version "1.3.618"}
   com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
                                 :sha "4b97122d839e895b9111e6ed62ae68bc0fdee723"
                                 :exclusions [org.clojure/clojurescript]}
