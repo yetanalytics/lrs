@@ -7,7 +7,7 @@
                                 :sha "4b97122d839e895b9111e6ed62ae68bc0fdee723"
                                 :exclusions [org.clojure/clojurescript]}
   cheshire/cheshire {:mvn/version "5.10.0"}
-  io.pedestal/pedestal.service {:mvn/version "0.5.7"}
+  io.pedestal/pedestal.service {:mvn/version "0.5.9"}
   macchiato/core {:mvn/version "0.2.17"
                   :exclusions [funcool/cuerdas]
                   }
@@ -27,13 +27,13 @@
    :extra-deps
    {;; cider/piggieback {:mvn/version "0.3.8"}
     org.clojure/test.check {:mvn/version "1.0.0"}
-    io.pedestal/pedestal.jetty {:mvn/version "0.5.7"}
+    io.pedestal/pedestal.jetty {:mvn/version "0.5.9"}
     ch.qos.logback/logback-classic {:mvn/version "1.2.3"
                                     :exclusions [org.slf4j/slf4j-api]}
     org.slf4j/jul-to-slf4j {:mvn/version "1.7.25"}
     org.slf4j/jcl-over-slf4j {:mvn/version "1.7.25"}
     org.slf4j/log4j-over-slf4j {:mvn/version "1.7.25"}
-    io.pedestal/pedestal.service-tools {:mvn/version "0.5.7"}
+    io.pedestal/pedestal.service-tools {:mvn/version "0.5.9"}
     com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
                               :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
     com.yetanalytics/lrs-test-runner
