@@ -15,7 +15,7 @@
   []
   (try
     (= (slurp "http://localhost:8080/xapi/about")
-       "{\"version\":[\"1.0.0\",\"1.0.1\",\"1.0.2\",\"1.0.3\"]}")
+       "{\"version\":[\"1.0.0\",\"1.0.1\",\"1.0.2\",\"1.0.3\",\"2.0.0\"]}")
     (catch java.net.ConnectException _
       false)))
 
@@ -44,7 +44,7 @@
                       {:type ::cljs-lrs-start-error
                        :ret ret})))))
 
-(use-fixtures :once runner/test-suite-fixture)
+(use-fixtures :once #(runner/test-suite-fixture % :branch "LRS-2.0"))
 
 (deftest test-cljs-lrs
   (testing "cljs/javascript async"
