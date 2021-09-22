@@ -244,7 +244,7 @@
 
 (defn- on-statement-conflict
   [state extant statement]
-  (if (ss/statements-equal? extant statement)
+  (if (ss/statement-immut-equal? extant statement)
     state ;; No change to LRS
     (p/throw-statement-conflict statement extant)))
 

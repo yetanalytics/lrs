@@ -416,7 +416,7 @@
                :agents-only? (s/? boolean?))
   :ret (s/coll-of ::xs/actor))
 
-(defn ^{:deprecate "1.1.0"} statements-equal? [& ss]
+(defn ^{:deprecated "1.1.0"} statements-equal? [& ss]
   (apply = (map dissoc-lrs-attrs ss)))
 
 ;; NOTE: Case sensitivity is still applied to equality checks since the xAPI
