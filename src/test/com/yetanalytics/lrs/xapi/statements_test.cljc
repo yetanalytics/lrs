@@ -125,10 +125,10 @@
         (stest/check `ss/dissoc-statement-properties
                      {stc-opts {:num-tests 10 :max-size 3}})))))
 
-(deftest statement-immut-equal?-test
+(deftest statements-immut-equal?-test
   (is (empty?
        (failures
-        (stest/check `ss/statement-immut-equal?
+        (stest/check `ss/statements-immut-equal?
                      {stc-opts {:num-tests 10 :max-size 3}})))))
 
 (deftest statement-ref?-test

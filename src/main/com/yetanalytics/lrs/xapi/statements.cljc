@@ -501,7 +501,7 @@
 
 ;; TODO: A bunch of other functions have args in the style of `& ss`.
 ;; Check whether they work for zero args.
-(defn statement-immut-equal?
+(defn statements-immut-equal?
   "Return `true` if the Statements `ss` are equal after all Statement
    Immutability properties (except case insensitivity)."
   [& ss]
@@ -510,7 +510,7 @@
     ;; Vacuously true
     true))
 
-(s/fdef statement-immut-equal?
+(s/fdef statements-immut-equal?
   :args (s/cat :statements (s/* ::xs/statement))
   :ret boolean?)
 
