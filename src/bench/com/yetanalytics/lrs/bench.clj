@@ -16,9 +16,15 @@
    [clojure.tools.cli :as cli]
    [clojure.pprint :refer [pprint]])
   (:import
+   [java.util UUID]
    [java.time Duration Instant]
    [java.net.http HttpClient]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Defaults
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Keep it here because this is on a dev branch.
 (set! *warn-on-reflection* true)
 
 (def default-client-opts
@@ -31,12 +37,18 @@
   (http/build-http-client default-client-opts))
 
 (def default-request-options
-  {:version :http-1.1
+  {:version           :http-1.1
    :throw-exceptions? false
-   :headers {"x-experience-api-version" "1.0.3"}
-   :as :json-strict-string-keys
-   :content-type :json})
+   :headers           {"x-experience-api-version" "1.0.3"}
+   :as                :json-strict-string-keys
+   :content-type      :json})
 
+(def default-payload-input
+  "dev-resources/datasim/input/tc3.json")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Specs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; ::options => ::context
 (s/def ::options
@@ -63,91 +75,104 @@
   ::xs/statements)
 
 (s/def ::context
-  (s/keys ::req-un [::options
-                    ;; and after init
-                    ::payload ::registrations ::payload-count]
-          ::opt-un [::post ;; after post
-                    ::get ;; after retrieval
-                    ::report ;; complete
-                    ]))
+  (s/keys :req-un [::options
+                   ;; and after init
+                   ::payload ::registrations ::payload-count]
+          :opt-un [::post   ; after post
+                   ::get    ; after retrieval
+                   ::report ; complete
+                   ]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Context
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (s/fdef context-init
   :args (s/cat :options ::options)
   :ret ::context)
 
+(defn- coerce-payload
+  "Create the payload for benching; the payload is just statements."
+  [{:keys
+    [payload
+     payload-input-path
+     size
+     send-ids?]
+    :or
+    {payload-input-path default-payload-input}
+    :as options}]
+  (let [id-filter-fn (if send-ids?
+                       identity
+                       (fn [stmt] (dissoc stmt "id")))
+        raw-payload  (or
+                      ;; user provides statements
+                      payload
+                      ;; user provides a path to a datasim payload input
+                      (and payload-input-path
+                           (ds/sim-seq (di/from-location
+                                        :input :json payload-input-path)))
+                      ;; no payload provided
+                      (throw (ex-info "No payload!"
+                                      {:type    ::no-payload
+                                       :options options})))]
+    (try
+      ;; make sure all gen is complete, preflight
+      (doall (map id-filter-fn
+                  (take size raw-payload))) ; obey the size param
+      (catch Exception ex
+        (throw (ex-info "Payload error!"
+                        {:type    ::payload-error
+                         :options options}
+                        ex))))))
+
 (defn context-init
   "Initialize client and generate payload"
   [{:keys
-    [lrs-endpoint
-     run-id ;; unique string to identify this run of the sim
+    [run-id          ; unique string to identify this run of the sim
 
-     payload ;; seq of statements
-     payload-input-path ;; path to dsim input file
-
-     size ;; total size of sim
-     batch-size ;; POST batch size
+     size            ; total size of sim
+     batch-size      ; POST batch size
 
      send-ids?
-     dry-run? ;; don't try to communicate
+     dry-run?        ; if true, don't try to communicate
      request-options
      http-client
      parallelism]
     :or
-    {run-id (.toString ^java.util.UUID (java.util.UUID/randomUUID))
-     payload-input-path "dev-resources/datasim/input/tc3.json"
-     http-client default-client
-     size 1000
-     batch-size 10
-     send-ids? false
-     dry-run? false
-     parallelism 1
-     }
+    {run-id             (.toString ^UUID (UUID/randomUUID))
+     http-client        default-client
+     size               1000
+     batch-size         10
+     send-ids?          false
+     dry-run?           false
+     parallelism        1}
     :as options}]
-  (let [;; the payload is just statements
-        payload (try (doall ;; make sure all gen is complete, preflight
-                      (map
-                       (if send-ids?
-                         identity
-                         #(dissoc % "id"))
-                       ;; obey the size param
-                       (take size
-                             (or
-                              ;; user provides statements
-                              payload
-                              ;; user provides a path to a dsim payload input
-                              (and payload-input-path
-                                   (ds/sim-seq (di/from-location
-                                                :input :json payload-input-path)))
-                              ;; use the default
-                              (throw (ex-info "No payload!"
-                                              {:type ::no-payload
-                                               :options options}))))))
-                     (catch Exception ex
-                       (throw (ex-info "Payload error!"
-                                       {:type ::payload-error
-                                        :options options}
-                                       ex))))
-        registrations (into #{} (map #(get-in % ["context" "registration"]) payload))
+  (let [payload       (coerce-payload options)
+        registrations (->> payload
+                           (map #(get-in % ["context" "registration"]))
+                           (into #{}))
         payload-count (count payload)]
     (assert (< 0 payload-count)
             "Payload must have at least one statement")
     (assert (= size payload-count)
             "Payload is less than desired size! Check DATASIM options")
-    {:options (merge options
-                     ;; set by :or
-                     {:run-id run-id
-                      :http-client http-client
-                      :size size
-                      :batch-size batch-size
-                      :send-ids? send-ids?
-                      :dry-run? dry-run?
-                      :request-options (merge default-request-options
-                                              request-options
-                                              {:http-client http-client})
-                      :parallelism parallelism})
-     :payload payload
-     :registrations registrations
-     :payload-count payload-count}))
+    (let [request-opts (merge default-request-options
+                              request-options
+                              {:http-client http-client})
+          options      (merge options
+                              ;; set by :or
+                              {:run-id          run-id
+                               :http-client     http-client
+                               :size            size
+                               :batch-size      batch-size
+                               :send-ids?       send-ids?
+                               :dry-run?        dry-run?
+                               :request-options request-opts
+                               :parallelism     parallelism})]
+      {:options       options
+       :payload       payload
+       :registrations registrations
+       :payload-count payload-count})))
 
 (s/fdef store-payload-sync
   :args (s/cat :ctx ::context)
@@ -159,15 +184,10 @@
   local calculation, as we will get our perf results through stored time."
   [{{:keys
     [lrs-endpoint
-     run-id ;; unique string to identify this run of the sim
-
-     size ;; total size of sim
-     batch-size ;; POST batch size
-
-     dry-run? ;; don't try to communicate
-     request-options]
-     :as options} :options
-    :keys [payload registrations payload-count]
+     batch-size
+     dry-run?
+     request-options]} :options
+    :keys [payload]
     :as ctx}]
   ;; We just loop through the statements and POST them in batches.
   (let [^Instant t-zero (Instant/now)]
@@ -177,31 +197,27 @@
         (let [opts (merge
                     request-options
                     {:form-params batch})
-              {:keys [status
-                      body]
+              {:keys [status]
                :as response} (if dry-run?
-                               {:status 200
-                                :body []}
-                               (http/post
-                                (format "%s/statements"
-                                        lrs-endpoint)
-                                opts))]
+                               {:status 200 :body []}
+                               (http/post (format "%s/statements" lrs-endpoint)
+                                          opts))]
           (if (= 200 status)
             (recur (rest batches)
                    (conj responses
                          response))
             (throw (ex-info "LRS ERROR!"
-                            {:type ::lrs-post-error
+                            {:type            ::lrs-post-error
                              :request-options opts
-                             :response response}))))
+                             :response        response}))))
         (let [^Instant t-end (Instant/now)]
           (assoc ctx
                  :post
                  {:responses responses
-                  :ids (into []
-                             (mapcat :body responses))
-                  :t-zero t-zero
-                  :t-end t-end}))))))
+                  :ids       (into []
+                                   (mapcat :body responses))
+                  :t-zero    t-zero
+                  :t-end     t-end}))))))
 
 ;; Async benchmark ops are wrapped in blocking functions
 ;; so async on the inside only
@@ -215,8 +231,7 @@
   (http/request (merge req
                        {:method :post
                         :async? true})
-                (fn [{:keys [status]
-                      :as resp}]
+                (fn [resp]
                   (let [thread-name (.getName (Thread/currentThread))]
                     (a/go (a/>! chan (assoc resp
                                             :thread-name
@@ -231,49 +246,42 @@
   Concurrency subject to ::options/parallelsim"
   [{{:keys
     [lrs-endpoint
-     run-id ;; unique string to identify this run of the sim
-
-     size ;; total size of sim
-     batch-size ;; POST batch size
-
-     dry-run? ;; don't try to communicate
+     batch-size
      request-options
-     parallelism]
-     :as options} :options
-    :keys [payload registrations payload-count]
+     parallelism]} :options
+    :keys [payload]
     :as ctx}]
   ;; We just loop through the statements and POST them in batches.
-  (let [requests (mapv (fn [batch]
-                         (merge request-options
-                                {:url (format "%s/statements"
-                                              lrs-endpoint)
-                                 :form-params batch}))
-                       (partition-all batch-size payload))
+  (let [requests  (mapv (fn [batch]
+                          (merge request-options
+                                 {:url         (format "%s/statements"
+                                                       lrs-endpoint)
+                                  :form-params batch}))
+                        (partition-all batch-size payload))
         ;; enter the async zone
-        req-chan (a/to-chan requests)
-        resp-chan (a/chan
-                   ;; buffer enough for all results
-                   (count requests))
+        req-chan  (a/to-chan requests)
+        resp-chan (a/chan (count requests)) ; buffer enough for all results
         ;; init time
         ^Instant t-zero (Instant/now)
         ;; do the work and check after
-        ^Instant t-end (do
-                         (a/<!! (a/pipeline-async parallelism resp-chan post-af req-chan))
-                         (Instant/now))
+        ^Instant t-end  (do
+                          (a/<!! (a/pipeline-async parallelism
+                                                   resp-chan
+                                                   post-af
+                                                   req-chan))
+                          (Instant/now))
         responses (a/<!! (a/into [] resp-chan))
         ;; leave the async zone
-
         ?errors (not-empty (remove #(= (:status %) 200) responses))]
     (if-not ?errors
       (assoc ctx
              :post
              {:responses responses
-              :ids (into []
-                         (mapcat :body responses))
-              :t-zero t-zero
-              :t-end t-end})
+              :ids       (into [] (mapcat :body responses))
+              :t-zero    t-zero
+              :t-end     t-end})
       (throw (ex-info "LRS ERROR!"
-                      {:type ::lrs-post-error
+                      {:type     ::lrs-post-error
                        :response (first ?errors)})))))
 
 
@@ -282,48 +290,33 @@
   :ret ::context)
 
 (defn get-payload-sync
-  "take a payload post report and any additional options, get statement data for
-   analysis"
+  "Take a payload post report and any additional options, get statement data for
+   analysis."
   [{{:keys
      [lrs-endpoint
-      run-id
-
-      size
-      batch-size
-
-      dry-run?
-      request-options]
-     :as options} :options
-    {:keys [responses
-            ids
-            t-zero
-            t-end]} :post
-    :keys [payload registrations payload-count]
+      request-options]} :options
+    {:keys [ids]}       :post
     :as ctx}]
   (loop [ids-to-get ids
          statements []]
     (if-let [id (first ids-to-get)]
-      (let [opts (merge
-                  request-options
-                  {:query-params {:statementId id}})
+      (let [opts (merge request-options
+                        {:query-params {:statementId id}})
             {:keys [status
                     body]
-             :as response} (http/get
-                            (format "%s/statements"
-                                    lrs-endpoint)
-                            opts)]
+             :as response} (http/get (format "%s/statements" lrs-endpoint)
+                                     opts)]
         (if (= 200 status)
           (recur (rest ids-to-get)
                  (conj statements body))
           (throw (ex-info "LRS ERROR!"
-                          {:type ::lrs-get-error
+                          {:type            ::lrs-get-error
                            :request-options opts
-                           :response response}))))
+                           :response        response}))))
       (assoc-in ctx [:get :statements]
                 ;; sort the statements, ids may be out of order because async
                 (sort-by #(get % "stored")
                          statements)))))
-
 
 (s/fdef metric
   :args (s/cat :ctx ::context)
@@ -336,90 +329,91 @@
 
 ;; just a sanity check and some simple results
 (defmethod metric :misc
-  [_ {{:keys [size batch-size]} :options
+  [_ {{:keys [batch-size]}   :options
       {:keys [t-zero t-end]} :post
-      {:keys [statements]} :get
+      {:keys [statements]}   :get
       :as ctx}]
   (let [first-stored (t/instant (get (first statements) "stored"))
-        last-stored (t/instant (get (last statements) "stored"))]
+        last-stored  (t/instant (get (last statements) "stored"))]
     (assert (= statements (sort-by #(get % "stored") statements))
             "retrieved statements should be in order")
     (assert (= [t-zero first-stored last-stored t-end]
                (sort [t-zero first-stored last-stored t-end]))
-            "retrieved statements should be stored during post ops"
-            )
+            "retrieved statements should be stored during post ops")
     (assoc-in ctx
               [:report :misc]
-              {:count (count statements)
-               :batch-size batch-size
-               :ascending? (= statements
-                              (sort-by #(get % "stored") statements))
+              {:count        (count statements)
+               :batch-size   batch-size
+               :ascending?   (= statements
+                                (sort-by #(get % "stored") statements))
                :first-stored first-stored
-               :last-stored last-stored
+               :last-stored  last-stored
                ;; is t-zero before first stored before last-stored before t-end
-               :sane-stored?
-               (= [t-zero first-stored last-stored t-end]
-                  (sort [t-zero first-stored last-stored t-end]))})))
+               :sane-stored? (= [t-zero
+                                 first-stored
+                                 last-stored
+                                 t-end]
+                                (sort [t-zero
+                                       first-stored
+                                       last-stored
+                                       t-end]))})))
 
 (defmethod metric :post-perf
-  [_ {{:keys [size batch-size]} :options
-      {:keys [responses t-zero t-end]} :post
+  [_ {{:keys [batch-size]} :options
+      {:keys [responses
+              t-zero
+              t-end]}      :post
       :as ctx}]
   ;; average POST request throughput
-  (let [response-count (count responses)
-        request-times (map :request-time responses)
+  (let [response-count     (count responses)
+        request-times      (map :request-time responses)
+        ;; total time of all (possibly concurrent) reqs
         total-request-time (reduce + request-times)
-        ^Duration span (t/duration t-zero t-end)]
+        ;; from t-zero to t-end
+        ^Duration span     (t/duration t-zero t-end)
+        total-request-span (t/as span :millis)
+        ;; statistics
+        post-stats      {:mean           (double (stats/mean request-times))
+                         :stddev         (stats/sd request-times)
+                         :min            (apply min request-times)
+                         :max            (apply max request-times)
+                         :variance       (stats/variance request-times)
+                         :sum-of-squares (stats/sum-of-squares request-times)}
+        stmt-per-ms-avg (double (stats/mean (map
+                                             #(/ % batch-size)
+                                             request-times)))
+        ;; thread names, for debug
+        thread-names (mapv :thread-name responses)]
     (assoc-in ctx
               [:report :post-perf]
-              {:response-count response-count
-               :post-stats {:mean (double (stats/mean request-times))
-                            :stddev (stats/sd request-times)
-                            :min (apply min request-times)
-                            :max (apply max request-times)
-                            :variance (stats/variance request-times)
-                            :sum-of-squares (stats/sum-of-squares request-times)}
-               :statement-per-ms-avg (double (stats/mean (map
-                                                          #(/ %
-                                                              batch-size)
-                                                          request-times)))
-               ;; total time of all (possibly concurrent) reqs
-               :total-request-time total-request-time
-
-               ;; from t-zero to t-end
-               :total-request-span (t/as span
-                                         :millis)
-
-               ;; thread names, for debug
-               :thread-names (mapv :thread-name responses)
-               })))
+              {:response-count       response-count
+               :post-stats           post-stats
+               :statement-per-ms-avg stmt-per-ms-avg
+               :total-request-time   total-request-time
+               :total-request-span   total-request-span
+               :thread-names         thread-names})))
 
 (defmethod metric :frequency ;; metrics based on start, end, stored time
   [_ {{:keys [t-zero t-end]} :post
-      {:keys [statements]} :get
+      {:keys [statements]}   :get
       :as ctx}]
   (let [statement-count (count statements)
-        storeds (map (comp t/instant #(get % "stored"))
-                     statements)
         ;; not sure if span should be t-zero to last stored or t-end
         ^Duration span (t/duration t-zero
                                    t-end)
-        span-ms (t/as span
-                      :millis)
-        per-ms (/ statement-count
-                  span-ms
-                  )]
+        span-ms        (t/as span
+                             :millis)
+        per-ms         (/ statement-count
+                          span-ms)]
     (assoc-in ctx
               [:report :frequency]
               {:span-ms span-ms
-               :per {:second (double (* 1000 per-ms))
-                     :ms (double per-ms)}})))
+               :per     {:second (double (* 1000 per-ms))
+                         :ms     (double per-ms)}})))
 
 (defn report
   "Derive metrics from a seq of statements"
-  [{{:keys [size batch-size]} :options
-    {:keys [t-zero t-end]} :post
-    {:keys [statements]} :get
+  [{{:keys [statements]} :get
     :as ctx}]
   (assert (not-empty statements) "No statements returned. No report.")
   (->> ctx
@@ -478,57 +472,50 @@
     (System/exit status)))
 
 (defn -main [lrs-endpoint & args]
-  (let [{:keys [arguments
-                summary
-                errors]
-         :as parsed-opts
+  (let [{:keys [errors]
+         :as _parsed-opts
          {:keys [size batch-size
                  input-uri
                  send-ids?
                  user pass
                  parallelism
-                 force-sync?]} :options} (cli/parse-opts args cli-options)]
-    (let [store-fn (if force-sync?
-                     store-payload-sync
-                     store-payload-async)]
-      (if (not-empty errors)
-        (bail! errors)
-        (do
-          (-> (cond-> {:lrs-endpoint lrs-endpoint
-                       :size size
-                       :batch-size batch-size
-                       :send-ids? send-ids?
-                       :parallelism parallelism}
-                input-uri (assoc :payload-input-path input-uri)
-                (and user pass)
-                (assoc :request-options (merge default-request-options
-                                               {:basic-auth
-                                                {:user user
-                                                 :pass pass}})))
+                 force-sync?]} :options}
+        (cli/parse-opts args cli-options)
+        store-fn
+        (if force-sync? store-payload-sync store-payload-async)]
+    (if (not-empty errors)
+      (bail! errors)
+      (do
+        (-> (cond-> {:lrs-endpoint lrs-endpoint
+                     :size         size
+                     :batch-size   batch-size
+                     :send-ids?    send-ids?
+                     :parallelism  parallelism}
+              input-uri
+              (assoc :payload-input-path input-uri)
 
-              context-init ;; => context
-
-              store-fn
-
-              get-payload-sync
-
-              report
-
-              ;; output the report
-              (select-keys [:report :options])
-              pprint)
-          (flush)
-          (System/exit 0))))))
-
-
-
-
+              (and user pass)
+              (assoc :request-options (merge default-request-options
+                                             {:basic-auth {:user user
+                                                           :pass pass}})))
+            ;; Initialize the context
+            context-init ;; => context
+            ;; Store the functions
+            store-fn
+            ;; Always get the payload in sync mode
+            get-payload-sync
+            ;; Report the stats
+            report
+            ;; Output the report
+            (select-keys [:report :options])
+            pprint)
+        (flush)
+        (System/exit 0)))))
 
 (comment
   ;; you can bench the in-memory impl using code in this comment
   (require '[mem-lrs.server :as lrss]
            '[io.pedestal.http :as server])
-
 
   (defn- run-server!
     "Run and return a stop fn"
@@ -537,36 +524,19 @@
       #(server/stop svr)))
 
   (def ret-ctx
-    (let [stop-svr (run-server!)
-          send-stuff #(time (store-payload-async %))]
+    (let [stop-svr (run-server!)]
       (try
         (let [ctx (-> {:lrs-endpoint "http://localhost:8080/xapi"
-                       :size 1000
-                       :batch-size 100
-                       :parallelism 8
-                       }
-
+                       :size         1000
+                       :batch-size   100
+                       :parallelism  8}
                       context-init
-
-
                       store-payload-async
-
                       get-payload-sync
-
-                      report
-
-
-                      )]
+                      report)]
           (pprint (select-keys ctx [:options :report]))
-          ctx
-          )
-           (finally
-             (stop-svr)))))
+          ctx)
+        (finally (stop-svr)))))
 
   (get-in ret-ctx [:report :post-perf])
-
-  (get-in ret-ctx [:report :misc])
-
-
-
-  )
+  (get-in ret-ctx [:report :misc]))

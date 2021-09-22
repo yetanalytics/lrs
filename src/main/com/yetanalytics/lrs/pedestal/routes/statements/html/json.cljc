@@ -1,7 +1,6 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html.json
   "Simple json structural elements for statement data"
-  (:require [clojure.walk :as w]
-            [com.yetanalytics.lrs.util :as u]
+  (:require [com.yetanalytics.lrs.util :as u]
             [clojure.string :as cs]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))
@@ -65,14 +64,8 @@
   [data]
   (reduce-kv
    (fn [m k v]
-     (assoc
-      m
-      (keyword
-       nil
-       (format
-        "data-%s"
-        (name k)))
-      v))
+     (let [kw (keyword nil (format "data-%s" (name k)))]
+       (assoc m kw v)))
    (empty data)
    data))
 
@@ -88,43 +81,41 @@
     (meta hiccup)))
 
 (defn- node-data-attrs
-  "Commonly"
+  "Commonly" ; TODO: Complete docstring?
   [json path]
   (->data-attrs
    (cond-> {:path (cs/join
                    ","
-                   (map
-                    #(if (keyword? %)
-                       (name %)
-                       (str %))
-                    path))}
-     (coll? json) (assoc
-                   :count (str (count json)))
+                   (map #(if (keyword? %)
+                           (name %)
+                           (str %))
+                        path))}
+     (coll? json) (assoc :count (str (count json)))
      ;; include json for maps so we can generate a CSS <PRE> for instance
-     (map? json) (assoc
-                  :json (u/json-string json :pretty true)))))
+     (map? json) (assoc :json (u/json-string json
+                                             :pretty true)))))
 
 (defn json->hiccup
   [json
    & {:keys [path
              custom
-             key-weights ;; map of key to number, higher is higher
-             ignore-custom ;; ignore custom, one level deep
-             truncate-after ;; truncate after this many collection elements
+             key-weights        ; map of key to number, higher is higher
+             ignore-custom      ; ignore custom, one level deep
+             truncate-after     ; truncate after this many collection elements
              truncate-after-min
              truncate-after-max
-             truncate-after-mod ;; int
-             url-params ;; passthru for a map of params for linking
+             truncate-after-mod ; int
+             url-params         ; passthru for a map of params for linking
              ]
-      :or {path []
-           custom {}
-           key-weights {}
-           ignore-custom false
-           truncate-after 1
+      :or {path               []
+           custom             {}
+           key-weights        {}
+           ignore-custom      false
+           truncate-after     1
            truncate-after-min 0
            truncate-after-max 1000
            truncate-after-mod 0
-           url-params {}}}]
+           url-params         {}}}]
   (let [truncate-after
         (->> truncate-after
              (min truncate-after-max)
@@ -133,25 +124,23 @@
       ;; don't touch already rendered
       json
       (if-let [custom-fn (and (not ignore-custom)
-                              (some
-                               (fn [[pred cfn]]
-                                 (when (pred path
-                                             json)
-                                   cfn))
-                               custom))]
+                              (some (fn [[pred cfn]]
+                                      (when (pred path json)
+                                        cfn))
+                                    custom))]
         ;; if we have a custom path function, use that
         (-> (custom-fn
              json
              ;; throw the json->hiccup args on the end
              ;; possibly useful to resume
-             :custom custom
-             :path path
-             :key-weights key-weights
-             :truncate-after truncate-after
+             :custom             custom
+             :path               path
+             :key-weights        key-weights
+             :truncate-after     truncate-after
              :truncate-after-min truncate-after-min
              :truncate-after-max truncate-after-max
              :truncate-after-mod truncate-after-mod
-             :url-params url-params)
+             :url-params         url-params)
          (inject-attrs
           (node-data-attrs json path))
          (vary-meta
@@ -161,89 +150,86 @@
           (map? json)
           (let [[fent rent]
                 (->> json
-                     (sort-by
-                      #(get key-weights (first %) 0)
-                      >)
+                     (sort-by #(get key-weights (first %) 0) >)
                      (map-indexed
-                      (fn [idx [k v]]
-                        (let [kn (name k)
+                      (fn coerce-kv [idx [k v]]
+                        (let [kn      (name k)
                               scalar? (and (not (rendered? v))
                                            (or (link-tuple? v)
-                                               (not (coll? v))))]
+                                               (not (coll? v))))
+                              hic-val (json->hiccup
+                                       v
+                                       :custom            custom
+                                       :path              (conj path k)
+                                       :key-weights        key-weights
+                                       :truncate-after     (+ truncate-after
+                                                              truncate-after-mod)
+                                       :truncate-after-min truncate-after-min
+                                       :truncate-after-max truncate-after-max
+                                       :truncate-after-mod truncate-after-mod
+                                       :url-params         url-params)]
                           (-> (json-map-entry
-                               (if (linky? kn)
-                                 (a kn kn)
-                                 kn)
-                               (json->hiccup v
-                                             :custom custom
-                                             :path (conj path k)
-                                             :key-weights key-weights
-                                             :truncate-after (+ truncate-after
-                                                                truncate-after-mod)
-                                             :truncate-after-min truncate-after-min
-                                             :truncate-after-max truncate-after-max
-                                             :truncate-after-mod truncate-after-mod
-                                             :url-params url-params)
+                               (if (linky? kn) (a kn kn) kn)
+                               hic-val
                                :scalar scalar?)
                               ;; inject name of key
-                              (inject-attrs (->data-attrs {:entry-key-name kn
-                                                           :entry-idx (str idx)}))))))
+                              (inject-attrs
+                               (->data-attrs {:entry-key-name kn
+                                              :entry-idx      (str idx)}))))))
                      (split-at truncate-after))]
             (-> (if (empty? fent)
                   [:div.json.json-map.empty]
                   (if (not-empty rent)
-                    (let [truncator-id (str
-                                        #?(:clj (java.util.UUID/randomUUID)
-                                           :cljs (random-uuid)))
-                          rent-count (count rent)]
+                    (let [truncator-id (str #?(:clj (java.util.UUID/randomUUID)
+                                               :cljs (random-uuid)))
+                          rent-count   (count rent)]
                       (-> [:div.json.json-map]
                           (into fent)
-                          (into
-                           [[:input.truncator
-                             {:type "checkbox"
-                              :id truncator-id
-                              :style "display:none;"}]
-                            [(if (< 1 rent-count)
-                               :label.truncator-label.plural
-                               :label.truncator-label)
-                             {:for truncator-id}
-                             (format "%d" (count rent))]])))
+                          (into [[:input.truncator
+                                  {:type  "checkbox"
+                                   :id    truncator-id
+                                   :style "display:none;"}]
+                                 [(if (< 1 rent-count)
+                                    :label.truncator-label.plural
+                                    :label.truncator-label)
+                                  {:for truncator-id}
+                                  (format "%d" (count rent))]])))
                     (into [:div.json.json-map] fent)))
-                (into
-                 rent)
-                (inject-attrs
-                 (node-data-attrs json path))
+                (into rent)
+                (inject-attrs (node-data-attrs json path))
                 (vary-meta assoc ::rendered true)))
+          
           ;; leave map entries alone entirely
           (map-entry? json)
           json
+          
           ;; all other collections are arrays
           (coll? json)
-          (if (link-tuple? json) ;; check for link-tuple-ness and render if so
+          (if (link-tuple? json) ; check for link-tuple-ness and render if so
             (let [[link text] json]
               ^::rendered
               [:div.json.json-scalar
                (a link text)])
-            (let [columns? (columnar? json)
-                  arr-k (if (columnar? json)
+            (let [arr-k (if (columnar? json)
                           :div.json.json-array.columnar
                           :div.json.json-array)
                   [fel rel]
                   (->> json
                        (map-indexed
-                        (fn [idx e]
+                        (fn coerce-elem [idx e]
                           [:div.json.json-array-element
                            (->data-attrs {:element-idx (str idx)})
-                           (json->hiccup e
-                                         :custom custom
-                                         :path (conj path idx)
-                                         :key-weights key-weights
-                                         :truncate-after (+ truncate-after
-                                                            truncate-after-mod)
-                                         :truncate-after-min truncate-after-min
-                                         :truncate-after-max truncate-after-max
-                                         :truncate-after-mod truncate-after-mod
-                                         :url-params url-params)]))
+                           (json->hiccup
+                            e
+                            :custom             custom
+                            :path               (conj path idx)
+                            :key-weights        key-weights
+                            :truncate-after     (+ truncate-after
+                                                   truncate-after-mod)
+                            :truncate-after-min truncate-after-min
+                            :truncate-after-max truncate-after-max
+                            :truncate-after-mod truncate-after-mod
+                            :url-params         url-params)]))
                        (split-at truncate-after))]
               (-> (if (empty? fel)
                     [:div.json.json-array.empty]
@@ -251,12 +237,12 @@
                       (let [truncator-id (str
                                           #?(:clj (java.util.UUID/randomUUID)
                                              :cljs (random-uuid)))
-                            rel-count (count rel)]
+                            rel-count    (count rel)]
                         (-> [arr-k]
                             (into fel)
                             (into [[:input.truncator
-                                    {:type "checkbox"
-                                     :id truncator-id
+                                    {:type  "checkbox"
+                                     :id    truncator-id
                                      :style "display:none;"}]
                                    [(if (< 1 rel-count)
                                       :label.truncator-label.plural
@@ -269,6 +255,7 @@
                   (inject-attrs
                    (node-data-attrs json path))
                   (vary-meta assoc ::rendered true))))
+          
           ;; all other scalar for now
           :else
           ^::rendered

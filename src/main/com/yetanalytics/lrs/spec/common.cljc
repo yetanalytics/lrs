@@ -41,9 +41,7 @@
   "Makes a fake channel holding x, closes when x is exhausted.
    Only for blocking/sync channel calls."
   [x]
-  (let [xs (atom (if (sequential? x)
-                   x
-                   [x]))]
+  (let [xs (atom (if (sequential? x) x [x]))]
     (reify
       FakeChan
       (promise? [_] (not (sequential? x)))
@@ -57,15 +55,14 @@
       ap/ReadPort
       (take! [fchan fn1]
         (let [xs' @xs
-              x (first xs')]
+              x   (first xs')]
           (if x
             (do (swap! xs rest)
                 ((ap/commit fn1) x)
                 (when (seq @xs)
                   (delay x)))
-            (do (ap/take! (doto (a/chan)
-                            a/close!)
-                          fn1))))))))
+            (ap/take! (doto (a/chan) a/close!)
+                      fn1)))))))
 
 (defn conform-promise-port
   [x]

@@ -36,12 +36,13 @@
 
 (defn make-parse-context
   [opts row route]
-  (assert (vector? route) (syntax-error nil row "a vector" route))
-  (merge {:row       row
-          :original  route
-          :remaining route
-          :verbs     default-verbs}
-         (select-keys opts known-options)))
+  (let [ctx {:row       row
+             :original  route
+             :remaining route
+             :verbs     default-verbs}]
+    (assert (vector? route) (syntax-error ctx "the element" "a vector" route))
+    (merge ctx
+           (select-keys opts known-options))))
 
 (defn take-next-pair
   [argname expected-pred expected-str ctx]

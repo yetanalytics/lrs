@@ -2,7 +2,6 @@
   #?(:clj (:gen-class)) ; for -main method in uberjar
   (:require
    [com.yetanalytics.lrs :as lrs]
-   #?(:cljs [cljs.nodejs :as node])
    [io.pedestal.http :as server]
    [io.pedestal.http.route :as route]
    [mem-lrs.service :as service]
@@ -12,6 +11,7 @@
        :cljs com.yetanalytics.lrs.util.log) :as log]
    [clojure.spec.test.alpha :as stest :include-macros true]))
 
+;; We keep this because this is in a dev dir
 #?(:clj (set! *warn-on-reflection* true))
 
 ;; This is an adapted service map, that can be started and stopped
@@ -32,24 +32,26 @@
     (log/info :msg "Creating your [DEV] server..."
               :mode mode)
     (-> service/service ;; start with production configuration
-        (merge {:env :dev
+        (merge {:env  :dev
                 ::lrs lrs
                 ;; do not block thread that starts web server
                 ::server/join? false
                 ;; Routes can be a function that resolve routes,
-                ;;  we can use this to set the routes to be reloadable
+                ;; we can use this to set the routes to be reloadable
                 ::server/routes (if reload-routes?
                                   #(route/expand-routes (service/new-routes lrs))
                                   (service/new-routes lrs))
                 ;; all origins are allowed in dev mode
-                ::server/allowed-origins {:creds true :allowed-origins (constantly true)}
+                ::server/allowed-origins {:creds           true
+                                          :allowed-origins (constantly true)}
                 ;; Content Security Policy (CSP) is mostly turned off in dev mode
                 ;; ::server/secure-headers {:content-security-policy-settings {:object-src "none"}}
                 })
         ;; Wire up interceptor chains
-        ;; server/default-interceptors
+        ;; Note that certain interceptors are commented out
+        #_server/default-interceptors
         i/xapi-default-interceptors
-        ;; server/dev-interceptors
+        #_server/dev-interceptors
         server/create-server
         server/start)))
 
@@ -104,21 +106,22 @@
                   :both)))
 
 #?(:cljs (set! *main-cli-fn* -main))
-;; If you package the service up as a WAR,
-;; some form of the following function sections is required (for io.pedestal.servlet.ClojureVarServlet).
 
-;;(defonce servlet  (atom nil))
-;;
-;;(defn servlet-init
+;; If you package the service up as a WAR, some form of the following function
+;; sections is required (for io.pedestal.servlet.ClojureVarServlet).
+
+;; (defonce servlet  (atom nil))
+
+;; (defn servlet-init
 ;;  [_ config]
 ;;  ;; Initialize your app here.
 ;;  (reset! servlet  (server/servlet-init service/service nil)))
-;;
-;;(defn servlet-service
+
+;; (defn servlet-service
 ;;  [_ request response]
 ;;  (server/servlet-service @servlet request response))
-;;
-;;(defn servlet-destroy
+
+;; (defn servlet-destroy
 ;;  [_]
 ;;  (server/servlet-destroy @servlet)
 ;;  (reset! servlet nil))
@@ -126,11 +129,13 @@
 (comment
   (def lrs (new-lrs {}))
 
-  (clojure.pprint/pprint (lrs-impl/dump lrs))
+  (require '[clojure.pprint :as pprint])
+  (pprint/pprint (lrs-impl/dump lrs))
 
   (def s (run-dev :lrs lrs))
   (server/stop s)
+
   (def s nil)
   (-main)
-  (com.yetanalytics.lrs/get-statements lrs {:limit 1})
-  )
+
+  (com.yetanalytics.lrs/get-statements lrs {} {:limit 1} #{}))

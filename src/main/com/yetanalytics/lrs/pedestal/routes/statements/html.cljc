@@ -1,7 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html
   (:require #?@(:clj [[hiccup.core :as html]
-                      [hiccup.page :as page]
-                      [cheshire.core :as json]
                       [clojure.java.io :as io]]
                 :cljs [[hiccups.runtime :as hic]
                        [goog.string :refer [format]]
@@ -9,17 +7,17 @@
             [clojure.string :as cs]
             [com.yetanalytics.lrs.pedestal.routes.statements.html.json
              :as jr
-             :refer [json->hiccup json-map-entry]]
+             :refer [json->hiccup]]
             [com.yetanalytics.lrs.util :as u]
             [com.yetanalytics.lrs.xapi.statements.timestamp :as stamp])
-  #?(:cljs (:require-macros [com.yetanalytics.lrs.pedestal.routes.statements.html
-                             :refer [load-css!]]))
-  #?(:clj (:import [java.net URLEncoder])))
+  #?(:cljs (:require-macros
+            [com.yetanalytics.lrs.pedestal.routes.statements.html
+             :refer [load-css!]])))
 
 (defn- single?
   [{:keys [statementId
            voidedStatementId]
-    :as params}]
+    :as _params}]
   (some?
    (or statementId voidedStatementId)))
 
@@ -27,9 +25,8 @@
   "Only merge multiple statement params, otherwise overwrite"
   [p0 p1]
   (merge
-   (if (and
-        (not (single? p0))
-        (not (single? p1)))
+   (if (and (not (single? p0))
+            (not (single? p1)))
      (merge p0 p1)
      p1)
    ;; preserve unwrap_html for the ajax folks
@@ -50,25 +47,25 @@
    :ascending])
 
 (defn- statements-link
-  [path-prefix
-   params]
-  (str path-prefix "/statements"
-       (when (not-empty params)
-         (str
-          "?"
-          (u/form-encode
-           (-> params
-               (select-keys (conj xapi-params :unwrap_html))
-               (cond->
-                   (:agent params) (update :agent u/json-string))))))))
+  [path-prefix params]
+  (let [?params-str
+        (when (not-empty params)
+          (str "?"
+               (u/form-encode
+                (-> params
+                    (select-keys (conj xapi-params :unwrap_html))
+                    (cond->
+                     (:agent params) (update :agent u/json-string))))))]
+    (str path-prefix "/statements" ?params-str)))
 
 (defn- unwrap?
   "Given the pedestal context, is the user asking for unwrapped html?"
   [{{{:keys [unwrap_html]} :params} :request}]
   (some-> unwrap_html cs/lower-case (= "true")))
 
-#?(:clj (defmacro load-css! []
-          (slurp (io/resource "lrs/statements/style.css"))))
+#?(:clj
+   (defmacro load-css! []
+     (slurp (io/resource "lrs/statements/style.css"))))
 
 (defonce page-css
   (load-css!))
@@ -91,8 +88,8 @@
                               :cljs (random-uuid)))]
          [:nav.query
           [:input.truncator-toggle
-           {:id truncator-id
-            :type "checkbox"
+           {:id    truncator-id
+            :type  "checkbox"
             :style "display:none;"}]
           [:label.truncator-toggle-label.query-toggle
            {:for truncator-id}
@@ -132,10 +129,9 @@
    (map? json)
    (some #{"mbox" "mbox_sha1sum" "openid" "account"}
          (keys json))
-   (or
-    (contains? #{"Agent" "Group"}
-               (get json "objectType"))
-    (= (peek path) "actor"))))
+   (or (contains? #{"Agent" "Group"}
+                  (get json "objectType"))
+       (= (peek path) "actor"))))
 
 (defn actor-custom
   [path-prefix
@@ -183,7 +179,7 @@
              "Filter..."]]])))
 
 (defn activity-pred
-  [path json]
+  [_path json]
   (and (map? json)
        ;; Statements are similar so we exempt those
        (not (get json "actor"))
@@ -225,12 +221,13 @@
              {:registration json}))}
     json]])
 
-(defn ref-pred [path json]
+(defn ref-pred [_path json]
   (and (map? json)
        (= "StatementRef" (get json "objectType"))))
 
 (defn ref-custom [path-prefix
-                  json & json->hiccup-args]
+                  json
+                  & json->hiccup-args]
   (let [[& {:keys [url-params]}] json->hiccup-args]
     (conj (apply json->hiccup
                  json
@@ -250,7 +247,7 @@
 (defn sid-pred
   "Detect a statement id to link"
   [[root-k idx id-k :as path]
-   json]
+   _json]
   (or (= path ["id"])
       (and (= [:statements "id"]
               [root-k id-k])
@@ -258,7 +255,8 @@
 
 (defn sid-custom
   [path-prefix
-   json & {:keys [url-params]}]
+   json
+   & {:keys [url-params]}]
   [:div.json.json-scalar
    [:a
     {:href (statements-link
@@ -286,16 +284,12 @@
     ^::jr/link-tuple
     [(statements-link
       path-prefix
-      (merge-params
-       url-params
-       {:since json}))
+      (merge-params url-params {:since json}))
      "Since"]
     ^::jr/link-tuple
     [(statements-link
       path-prefix
-      (merge-params
-       url-params
-       {:until json}))
+      (merge-params url-params {:until json}))
      "Until"]]
    :truncate-after 3))
 
@@ -334,48 +328,46 @@
   (memoize statement-custom*))
 
 (def statement-key-weights
-  {"id" 2
-   "mbox" 1
+  {"id"           2
+   "mbox"         1
    "mbox_sha1sum" 1
-   "openid" 1
-   "account" 1})
+   "openid"       1
+   "account"      1})
 
 (defn statement-page
   [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
     {params :xapi.statements.GET.request/params} :xapi
     :or {path-prefix ""
-         params {}}
+         params      {}}
     :as ctx}
    statement]
   (let [statement-rendered
         (json->hiccup
          statement
-         :custom (statement-custom path-prefix)
-         :key-weights statement-key-weights
-         :truncate-after 10
+         :custom             (statement-custom path-prefix)
+         :key-weights        statement-key-weights
+         :truncate-after     10
          :truncate-after-min 1
          :truncate-after-mod -9
-         :url-params params)]
+         :url-params         params)]
     (if (unwrap? ctx)
       #?(:clj (html/html statement-rendered)
          :cljs (hic/render-html statement-rendered))
-      (page
-       head
-       [:body
-        (header path-prefix
-                params)
-        [:main
-         statement-rendered]]))))
+      (page head
+            [:body
+             (header path-prefix params)
+             [:main
+              statement-rendered]]))))
 
 (defn statement-response
   "Given the ctx and statement, respond with a page"
   [ctx
    statement]
-  {:status 200
+  {:status  200
    :headers {"Content-Type" "text/html"}
-   :body (statement-page
-          ctx
-          statement)})
+   :body    (statement-page
+             ctx
+             statement)})
 
 ;; inject some controls for the statements page
 (defn inject-ascending
@@ -410,7 +402,7 @@
   [{path-prefix :com.yetanalytics.lrs.pedestal.interceptor/path-prefix
     {params :xapi.statements.GET.request/params} :xapi
     :or {path-prefix ""
-         params {}}
+         params      {}}
     :as ctx}
    {:keys [statements]
     ?more :more}]
@@ -418,12 +410,12 @@
         (-> (json->hiccup
              (cond-> {:statements statements}
                ?more (assoc :more ?more))
-             :custom (statement-custom path-prefix)
-             :key-weights statement-key-weights
-             :truncate-after 2
+             :custom             (statement-custom path-prefix)
+             :key-weights        statement-key-weights
+             :truncate-after     2
              :truncate-after-min 1
              :truncate-after-mod -1
-             :url-params params)
+             :url-params         params)
             (inject-ascending
              path-prefix params))]
     (if (unwrap? ctx)
@@ -432,8 +424,7 @@
       (page
        head
        [:body
-        (header path-prefix
-                params)
+        (header path-prefix params)
         [:main
          statement-response-rendered]]))))
 
@@ -441,8 +432,8 @@
   "Given the ctx and a statement result obj, respond with a page"
   [ctx
    statement-result]
-  {:status 200
+  {:status  200
    :headers {"Content-Type" "text/html"}
-   :body (statements-page
-          ctx
-          statement-result)})
+   :body    (statements-page
+             ctx
+             statement-result)})

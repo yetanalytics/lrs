@@ -7,7 +7,7 @@
 
 (defn -main [& [mode]]
   (let [mode (or mode "clj-sync")
-        {:keys [test pass fail error] :as result}
+        {:keys [_test _pass fail error] :as _result}
         (run-tests
          (case mode
            "clj-sync"  'com.yetanalytics.conformance-test.clj.sync

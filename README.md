@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/yetanalytics/lrs/actions/workflows/main.yml/badge.svg)](https://github.com/yetanalytics/lrs/actions/workflows/main.yml)
 
-Yet's Core LRS Library. Includes a protocol `com.yetanalytics.lrs.protocol` and spec'd functions in `com.yetanalytics.lrs` to implement a learning record store.
+Yet Analytics Core LRS Library. Includes protocols and functions used to implement a conformant [xAPI Learning Record Store](https://github.com/adlnet/xAPI-Spec).
 
 ## Usage
 
@@ -27,13 +27,9 @@ To use the dev profile, which contains all dev/repl/test stuff, use the `:dev` a
 * `test-conformance` - Run all conformance tests.
 * `test-all` - Run all lib and conformance tests.
 
-## Deploying New Versions
-
-No need, just refer to it with git deps.
-
 ## Bench Testing
 
-Facilities to bench test any LRS (with `DATASIM`) are available. For instance, to bench the in-memory LRS:
+Facilities to bench test any LRS with [DATASIM](https://github.com/yetanalytics/datasim) are available. For instance, to bench the in-memory LRS:
 
     $ make run-dev
 
