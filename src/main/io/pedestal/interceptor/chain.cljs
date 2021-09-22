@@ -92,7 +92,7 @@
          :execution-id execution-id)
         (try (error-fn (dissoc context ::error) ex)
              (catch js/Error t
-               (if (identical? (type t) (type (:exception ex)))
+               (if (identical? (type t) (-> ex ex-data :exception type))
                  (do (js-debug :rethrow t :execution-id execution-id)
                      context)
                  (do (js-debug :throw t :suppressed (:exception-type ex) :execution-id execution-id)

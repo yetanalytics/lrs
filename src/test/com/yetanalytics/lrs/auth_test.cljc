@@ -1,7 +1,7 @@
 (ns com.yetanalytics.lrs.auth-test
   (:require [clojure.test :refer [deftest is] :include-macros true]
             [clojure.spec.test.alpha :as stest :include-macros true]
-            [com.yetanalytics.test-support :refer [failures stc-opts]]
+            [com.yetanalytics.test-support :refer [failures]]
             [com.yetanalytics.lrs.auth :as auth]))
 
 (deftest scope-ancestors-test

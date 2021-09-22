@@ -7,17 +7,17 @@
 (deftest updated-inst-test
   (is (empty?
        (failures
-        (stest/check
-         `doc/updated-inst {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `doc/updated-inst
+                     {stc-opts {:num-tests 100 :max-size 3}})))))
 
 (deftest documents-priority-map-test
   (is (empty?
        (failures
-        (stest/check
-         `doc/documents-priority-map {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `doc/documents-priority-map
+                     {stc-opts {:num-tests 100 :max-size 3}})))))
 
 (deftest merge-or-replace-test
   (is (empty?
        (failures
-        (stest/check
-         `doc/merge-or-replace {stc-opts {:num-tests 100 :max-size 3}})))))
+        (stest/check `doc/merge-or-replace
+                     {stc-opts {:num-tests 100 :max-size 3}})))))

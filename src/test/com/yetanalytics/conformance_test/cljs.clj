@@ -1,8 +1,7 @@
 (ns com.yetanalytics.conformance-test.cljs
   (:require
-   [clojure.test :refer :all]
+   [clojure.test :refer [deftest testing is use-fixtures]]
    [com.yetanalytics.lrs.test-runner :as runner]
-   [io.pedestal.http :as http]
    [clojure.java.shell :as shell :refer [sh]]))
 
 ;; Call cljs lrs via shell
@@ -22,7 +21,7 @@
 (defn- cljs-lrs
   "Starts a cljs LRS and returns a function to stop it."
   []
-  (let [{:keys [exit out err] :as ret} (sh "bin/run_cljs_bg.sh")]
+  (let [{:keys [exit out _err] :as ret} (sh "bin/run_cljs_bg.sh")]
     (if-let [pid (and (zero? exit)
                       (parse-pid out))]
       ;; poll until start
@@ -30,7 +29,7 @@
         (if (< 0 attempts)
           (if (lrs-up?)
             (fn stop []
-              (let [{:keys [exit out err]} (sh "kill" "-9" pid)]
+              (let [{:keys [exit _out _err]} (sh "kill" "-9" pid)]
                 (when-not (zero? exit)
                   (throw (ex-info "Couldn't stop cljs lrs"
                                   {:type ::cljs-lrs-stop-error})))))
@@ -39,7 +38,6 @@
               (recur (dec attempts))))
           (throw (ex-info "Couldn't reach LRS"
                           {:type ::cljs-lrs-about-error}))))
-
       (throw (ex-info "Couldn't start cljs lrs"
                       {:type ::cljs-lrs-start-error
                        :ret ret})))))
@@ -49,10 +47,10 @@
 (deftest test-cljs-lrs
   (testing "cljs/javascript async"
     (let [stop-fn (cljs-lrs)
-          ret (runner/conformant?
-               "-e"
-               "http://localhost:8080/xapi"
-               "-b"
-               "-z")]
+          ret     (runner/conformant?
+                   "-e"
+                   "http://localhost:8080/xapi"
+                   "-b"
+                   "-z")]
       (stop-fn)
       (is (true? ret)))))

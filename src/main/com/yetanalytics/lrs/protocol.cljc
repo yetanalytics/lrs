@@ -1,15 +1,30 @@
 (ns com.yetanalytics.lrs.protocol
-  #?(:cljs (:require-macros [com.yetanalytics.lrs.protocol :refer [make-proto-pred
-                                                                   or-error]]))
+  #?(:cljs (:require-macros [com.yetanalytics.lrs.protocol
+                             :refer [make-proto-pred
+                                     or-error]]))
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.spec.gen.alpha :as sgen :include-macros true]
-            [xapi-schema.spec.resources :as xsr]
+            [xapi-schema.spec.resources]
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi :as xapi]
             [com.yetanalytics.lrs.spec.common :as sc]
             [com.yetanalytics.lrs.xapi.statements :as ss]
             [com.yetanalytics.lrs.xapi.document :as doc]
             [com.yetanalytics.lrs.auth :as auth]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Helpers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmacro make-proto-pred
+  "Build a memoized predicate for determining protocol satisfaction"
+  [protocol]
+  `(memoize (fn [x#]
+              (satisfies? ~protocol x#))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Error
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: multiple error returns
 (s/def :ret/error
@@ -31,19 +46,15 @@
   `(s/or :response ~spec
          :error ::error-ret))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; About
 ;; /about
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol AboutResource
   "Protocol for retrieving LRS info"
   (-get-about [this auth-identity]
     "Return information about the LRS"))
-
-(defmacro make-proto-pred
-  "Build a memoized predicate for determining protocol satisfaction"
-  [protocol]
-  `(memoize (fn [x#]
-              (satisfies? ~protocol x#))))
 
 (def about-resource?
   (make-proto-pred AboutResource))
@@ -72,7 +83,9 @@
   (sc/from-port
    ::get-about-ret))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Document APIs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol DocumentResource
   "Protocol for storing/retrieving documents.
@@ -208,8 +221,11 @@
   (sc/from-port
    ::delete-documents-ret))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Activities
 ;; /activities
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defprotocol ActivityInfoResource
   "Protocol for retrieving activity info."
   (-get-activity [this auth-identity params]
@@ -247,8 +263,10 @@
   (sc/from-port
    ::get-activity-ret))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Agents
 ;; /agents
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol AgentInfoResource
   "Protocol for retrieving information on agents."
@@ -288,8 +306,10 @@
   (sc/from-port
    ::get-person-ret))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Statements
 ;; /statements
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol StatementsResource
   "Protocol for storing/retrieving statements, activities, agents."
@@ -320,16 +340,20 @@
   (or-error
    (s/keys :req-un [:store-statements-ret/statement-ids])))
 
-
 (s/def ::get-statements-ret
-  (s/or :not-found-single (s/keys :opt-un [::xapi/etag])
-        :found-single (s/keys :opt-un [::xapi/etag
-                                       ::ss/attachments]
-                              :req-un [::xs/statement])
-        :multiple (s/keys :opt-un [::xapi/etag]
-                          :req-un [::ss/attachments
-                                   :xapi.statements.GET.response/statement-result])
-        :error ::error-ret))
+  (s/or :not-found-single
+        (s/keys :opt-un [::xapi/etag])
+        :found-single
+        (s/keys :opt-un [::xapi/etag
+                         ::ss/attachments]
+                :req-un [::xs/statement])
+        :multiple
+        (s/keys :opt-un [::xapi/etag]
+                :req-un [::ss/attachments
+                         :xapi.statements.GET.response/statement-result])
+        :error
+        ::error-ret))
+
 ;; TODO: wrap in map
 (s/def ::consistent-through-ret
   ::xs/timestamp)
@@ -351,9 +375,11 @@
   (-store-statements-async [this auth-identity statements attachments]
     "Store and persist validated statements and possibly attachments in the LRS,
      throwing if there's a conflict, and returning a channel of ids.
-     It is expected that the ID param will be included in statements that are PUT.")
+     It is expected that the ID param will be included in statements that are
+     PUT.")
   (-get-statements-async [this auth-identity params ltags]
-    "Retrieve statement or statements from the LRS given params and optionally ltags.
+    "Retrieve statement or statements from the LRS given params and optionally
+     ltags.
      For singular params, returns a promise channel with a single statement.
      For multiple statements GET returns a channel that will get, in order:
      Statements (if present), a more link if one is appropriate, and possibly
@@ -381,12 +407,15 @@
            :error :ret/error)
     :result
     (s/cat :result
-           (s/alt :s (s/cat :header #{:statement}
-                            :statement (s/? ::xs/lrs-statement))
-                  :ss (s/cat :statements-header #{:statements}
-                             :statements (s/* ::xs/lrs-statement)
-                             :more (s/? (s/cat :more-header #{:more}
-                                               :more-link :xapi.statements.GET.response.statement-result/more))))
+           (s/alt
+            :s
+            (s/cat :header #{:statement}
+                   :statement (s/? ::xs/lrs-statement))
+            :ss
+            (s/cat :statements-header #{:statements}
+                   :statements (s/* ::xs/lrs-statement)
+                   :more (s/? (s/cat :more-header #{:more}
+                                     :more-link :xapi.statements.GET.response.statement-result/more))))
            :attachments
            (s/? (s/cat :header #{:attachments}
                        :attachments (s/* ::ss/attachment)))))))
@@ -395,14 +424,19 @@
   (sc/from-port
    ::consistent-through-ret))
 
-;; TODO: handle auth errors
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Auth
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO: handle auth errors
+
 (defprotocol LRSAuth
   "Protocol for an authenticatable LRS"
   (-authenticate [this ctx]
     "Given the context, return an identity or ::auth/unauthorized (401)")
   (-authorize [this ctx auth-identity]
-    "Given the context and auth identity, return truthy if the user is allowed to do a given thing."))
+    "Given the context and auth identity, return truthy if the user is allowed
+     to do a given thing."))
 
 (def lrs-auth-instance?
   (make-proto-pred LRSAuth))
@@ -425,9 +459,11 @@
 (defprotocol LRSAuthAsync
   "Protocol for an authenticatable LRS"
   (-authenticate-async [this ctx]
-    "Given the context, return an identity or ::auth/unauthorized (401) on a promise channel")
+    "Given the context, return an identity or ::auth/unauthorized (401) on a
+     promise channel")
   (-authorize-async [this ctx auth-identity]
-    "Given the context and auth-identity, return true if the user is allowed to do a given thing, on a promise-channel"))
+    "Given the context and auth-identity, return true if the user is allowed
+     to do a given thing, on a promise-channel"))
 
 (def lrs-auth-async-instance?
   (make-proto-pred LRSAuthAsync))
@@ -443,23 +479,23 @@
   (sc/from-port
    ::authorize-ret))
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Spec for the whole LRS
-(s/def ::lrs ;; A minimum viable LRS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(s/def ::lrs ; A minimum viable LRS
   (s/and ::about-resource-instance
          ::statements-resource-instance
          ::activity-info-resource-instance
          ::agent-info-resource-instance
          ::document-resource-instance
-         ::lrs-auth-instance
-         ))
+         ::lrs-auth-instance))
 
 ;; The same, all async
-(s/def ::lrs-async ;; A minimum viable LRS
+(s/def ::lrs-async ; A minimum viable LRS
   (s/and ::about-resource-async-instance
          ::statements-resource-async-instance
          ::activity-info-resource-async-instance
          ::agent-info-resource-async-instance
          ::document-resource-async-instance
-         ::lrs-auth-async-instance
-         ))
+         ::lrs-auth-async-instance))

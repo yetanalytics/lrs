@@ -1,8 +1,8 @@
 (ns com.yetanalytics.lrs.bench.post
   "Specs for payload post"
   (:require [clojure.spec.alpha :as s]
-            [xapi-schema.spec :as xs]
-            [java-time :as t]))
+            [java-time :as t]
+            [xapi-schema.spec]))
 
 (s/def ::responses
   (s/every map? :min-count 1))

@@ -3,15 +3,14 @@
             [xapi-schema.spec :as xs]))
 
 (defn merge-activity
-  [{?id-1 "id"
+  [{?id-1  "id"
     ?def-1 "definition"
-    :as ?a-1}
-   {id-2 "id"
-    ?def-2 "definition"
-    :as a-2}]
+    :as    ?a-1}
+   {?def-2 "definition"
+    :as    a-2}]
   (if ?a-1
-    (cond-> {"id" ?id-1
-             "objectType" "Activity"}
+    ;; merge!
+    (cond-> {"id" ?id-1 "objectType" "Activity"}
       (or ?def-1 ?def-2)
       (assoc "definition"
              (merge-with
@@ -20,6 +19,7 @@
               (select-keys ?def-2
                            ["name"
                             "description"]))))
+    ;; no merge
     a-2))
 
 (s/fdef merge-activity
