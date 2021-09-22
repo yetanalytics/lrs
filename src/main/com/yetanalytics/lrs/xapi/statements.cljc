@@ -448,6 +448,11 @@
       ;; Verb displays are technically not part of the stmt
       true
       (update "verb" dissoc "display")
+      ;; Add in the "Activity" value if `objectType` is not present;
+      ;; not explicitly mentioned with regards to Statement Immutability,
+      ;; but would be expected as convention.
+      (nil? (get-in stmt ["object" "objectType"]))
+      (assoc-in ["object" "objectType"] "Activity")
       ;; Activity definitions are technically not part of the stmt
       (= "Activity" stmt-obj-type)
       (update "object"

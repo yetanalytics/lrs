@@ -255,4 +255,15 @@
                                     "grouping" [sample-activity
                                                 sample-activity]
                                     "other"    [sample-activity
-                                                sample-activity]}}}})))))
+                                                sample-activity]}}}})))
+    (testing "(same Activity object but with/without objectType)"
+      (is (= (ss/dissoc-statement-properties
+              {"id"      sample-id
+               "actor"   sample-group
+               "verb"    sample-verb
+               "object"  sample-activity})
+             (ss/dissoc-statement-properties
+              {"id"      sample-id
+               "actor"   sample-group
+               "verb"    sample-verb
+               "object"  (dissoc sample-activity "objectType")}))))))
