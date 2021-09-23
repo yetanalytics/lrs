@@ -1,7 +1,7 @@
 .phony: clean repl repl-cljs run-dev run-dev-cljs test-lib test-lib-cljs test-lib-clj test-conformance test-conformance-clj-sync test-conformance-clj-async test-conformance-cljs test-all ci
 
 clean:
-	rm -rf target pom.xml.asc logs out node_modules .cljs_node_repl package.json package-lock.json out_test
+	rm -rf target pom.xml.asc logs out node_modules .cljs_node_repl package.json out_test
 
 node_modules:
 	clojure -Mdev -m cljs.main --install-deps
