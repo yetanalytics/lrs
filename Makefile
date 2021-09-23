@@ -1,4 +1,4 @@
-.phony: clean repl repl-cljs run-dev run-dev-cljs test-lib test-lib-cljs test-lib-clj test-conformance test-conformance-clj-sync test-conformance-clj-async test-conformance-cljs test-all ci
+.phony: clean repl repl-cljs run-dev run-dev-cljs test-lib test-lib-cljs test-lib-clj test-conformance test-conformance-clj-sync test-conformance-clj-async test-conformance-cljs test-all ci npm-audit
 
 clean:
 	rm -rf target pom.xml.asc logs out node_modules .cljs_node_repl package.json out_test
@@ -46,4 +46,7 @@ test-conformance: test-conformance-clj-sync test-conformance-clj-async test-conf
 
 test-all: test-lib test-conformance
 
-ci: test-all
+npm-audit: node_modules
+	npm audit
+
+ci: npm-audit test-all
