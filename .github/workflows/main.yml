@@ -6,7 +6,7 @@ jobs:
   test:
     strategy:
       matrix:
-        target: [test-lib-clj, test-lib-cljs, test-conformance-clj-sync, test-conformance-clj-async, test-conformance-cljs]
+        target: [test-lib-clj, test-lib-cljs, test-conformance-clj-sync, test-conformance-clj-async, test-conformance-cljs, npm-audit]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
