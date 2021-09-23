@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: yeti-ci
         uses: yetanalytics/yeti-ci-action@v0
-        with:
-          enable-node: true
 
       - name: Run make target ${{ matrix.target }}
         run: make ${{ matrix.target }}
