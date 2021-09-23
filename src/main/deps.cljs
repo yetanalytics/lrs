@@ -9,9 +9,10 @@
             "random-bytes"       "1.0.0"
             "simple-encryptor"   "3.0.0" ;; "1.2.0"
             "url"                "0.11.0"
-            "ws"                 "7.2.5" ;; "5.1.1"
+            "ws"                 "7.4.6" ;; "5.1.1"
             "source-map-support" "0.5.19"
             "log4js"             "6.2.1" ;; "5.1.0"
+            "ansi-regex"         "5.0.1"
             }
 
  ;; :externs ["resources/lrs/externs.js"]
