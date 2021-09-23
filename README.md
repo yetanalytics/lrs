@@ -12,7 +12,7 @@ To use the dev profile, which contains all dev/repl/test stuff, use the `:dev` a
 
 `Makefile` targets of note:
 
-* `clean` - Clean all build/ephemeral files. Note that this includes node_modules, package.json and package-lock.json.
+* `clean` - Clean all build/ephemeral files. Note that this includes node_modules and package.json but not package-lock.json.
 * `node_modules` - As a convenience, have `cljs.main` figure out the node deps in `src/main/deps.cljs` and upstream, and pull them. You'll want this before using something like CIDER.
 * `repl` - Run a Clojure repl with the `:dev` alias.
 * `repl-cljs` - Run a Clojurescript node repl.
