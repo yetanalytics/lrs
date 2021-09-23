@@ -1,5 +1,8 @@
 # Change Log
 
+## Unreleased
+- Updated `ws` and `ansi-regex` for minor security vulnerabilitites
+
 ## [1.1.0] - 2021-09-22
 - Added `dissoc-statement-properties` and `statements-immut-equal?` in the `com.yetanalytics.lrs.xapi.statements` namespace, for dissoc-ing immutable Statement properties and comprehensive Statement equality checking, respectively.
 - Deprecated `statements-equal?` in the aforementioned namespace.
