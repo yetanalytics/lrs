@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: yeti-ci
-        uses: yetanalytics/yeti-ci-action@v0
+        uses: yetanalytics/actions/setup-env@v0
 
       - name: Run make target ${{ matrix.target }}
         run: make ${{ matrix.target }}
