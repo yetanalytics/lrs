@@ -9,7 +9,7 @@ jobs:
         target: [test-lib-clj, test-lib-cljs, test-conformance-clj-sync, test-conformance-clj-async, test-conformance-cljs, npm-audit]
     runs-on: ubuntu-latest
     steps:
-      - name: yeti-ci
+      - name: Setup CI Environment
         uses: yetanalytics/actions/setup-env@v0
 
       - name: Run make target ${{ matrix.target }}
