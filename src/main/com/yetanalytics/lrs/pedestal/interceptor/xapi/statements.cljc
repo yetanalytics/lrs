@@ -124,7 +124,7 @@
                              (with-open [rdr (io/reader (-> parts-seq
                                                             first
                                                             :input-stream))]
-                               (json/parse-stream rdr))
+                               (doall (json/parse-stream rdr)))
                              :cljs
                              (-> (.parse js/JSON (-> parts-seq
                                                      first
