@@ -788,6 +788,7 @@
                :params :xapi.document.state/context-params)
   :ret :state/documents)
 
+
 ;; Operations on in-mem state.
 ;; Shorten document to doc here to avoid conflicts with existing
 
@@ -858,7 +859,8 @@
    :body {:version ["1.0.0"
                     "1.0.1"
                     "1.0.2"
-                    "1.0.3"]}})
+                    "1.0.3"
+                    "2.0.0"]}})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Putting It All Together

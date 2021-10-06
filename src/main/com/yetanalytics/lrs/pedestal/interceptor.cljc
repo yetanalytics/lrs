@@ -27,55 +27,43 @@
     :enter (fn [ctx]
              (assoc ctx :com.yetanalytics/lrs lrs))}))
 
+(def xAPIVersionRegEx
+  (let [suf-part "[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*"
+        suffix   (str "(\\.[0-9]+(?:-" suf-part ")?(?:\\+" suf-part ")?)?")
+        ver-str  (str "^[1-2]\\.0" suffix "$")]
+    (re-pattern ver-str)))
+
 (def require-xapi-version-interceptor
   (i/interceptor
-   {:name ::require-xapi-version
-    :enter
-    (fn require-xapi-version [ctx]
-      ;; if this is an html request, don't require this
-      ;; browsers can't provide it
-      (if (si/accept-html? ctx)
-        (assoc-in ctx
-                  [:request :headers "x-experience-api-version"]
-                  "1.0.3")
-        (if-let [version-header
-                 (get-in ctx [:request :headers "x-experience-api-version"])]
-          ;; Per spec, if we accept 1.0.0,
-          ;; 1.0 must be accepted as if 1.0.0
-          (if (#{"1.0" 
-                 "1.0.0"
-                 "1.0.1"
-                 "1.0.2"
-                 "1.0.3"} version-header)
-            ;; Version ok
-            ctx
-            ;; Version not ok
-            (assoc
-             (chain/terminate ctx)
-             :response
-             #?(:cljs
-                {:status  400
-                 :headers {"Content-Type" "application/json"}
-                 :body
-                 {:error {:message "X-Experience-API-Version header invalid!"}}}
-                ;; TODO: Figure this out and dix
-                ;; this is odd. For some reason, the conformance
-                ;; tests intermittently fail when this error response
-                ;; comes in w/o content-length. So we string it out
-                ;; and set it. Who knows.
-                :clj
-                {:status  400
-                 :headers {"Content-Type" "application/json"
-                           "Content-Length" "66"}
-                 :body    "{\"error\": {\"message\": \"X-Experience-API-Version header invalid!\"}}"})))
-          (assoc
-           (chain/terminate ctx)
-           :response
-           {:status  400
-            :headers {"Content-Type" "application/json"}
-            :body
-            {:error
-             {:message "X-Experience-API-Version header required!"}}}))))}))
+   {:name  ::require-xapi-version
+    :enter (fn [ctx]
+             ;; if this is an html request, don't require this
+             ;; browsers can't provide it
+             (if (si/accept-html? ctx)
+               (assoc-in ctx
+                         [:request :headers "x-experience-api-version"]
+                         "2.0.0")
+               (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
+                 (if (re-matches xAPIVersionRegEx
+                                 version-header)
+                   (assoc ctx :com.yetanalytics.lrs/version version-header)
+                   (assoc (chain/terminate ctx)
+                          :response
+                          {:status  400
+                           :headers {#?(:cljs "Content-Type"
+                                        :clj "content-type")
+                                     "application/json"
+                                     "x-experience-api-version" "2.0.0"}
+                           :body
+                           {:error {:message "X-Experience-API-Version header invalid!"}}}))
+                 (assoc (chain/terminate ctx)
+                        :response
+                        {:status  400
+                         :headers {#?(:cljs "Content-Type"
+                                      :clj "content-type")    "application/json"
+                                   "x-experience-api-version" "2.0.0"}
+                         :body
+                         {:error {:message "X-Experience-API-Version header required!"}}}))))}))
 
 (def x-forwarded-for-interceptor
   (i/interceptor
@@ -162,11 +150,12 @@
 ;; Leave
 (def set-xapi-version-interceptor
   (i/interceptor
-   {:name  ::set-xapi-version
-    :leave (fn set-xapi-version [ctx]
+   {:name ::set-xapi-version
+    :leave (fn [ctx]
              (assoc-in ctx
-                       [:response :headers "X-Experience-API-Version"]
-                       "1.0.3"))}))
+                       [:response :headers "x-experience-api-version"]
+                       ;; Should be latest patch version
+                       "2.0.0"))}))
 
 (defn calculate-etag [x]
   (sha-1 x))
@@ -196,7 +185,7 @@
         (update-in [:response :headers] merge {"ETag" (quote-etag etag)}))))
 
 ;; Combo
-(def require-and-set-xapi-version-interceptor
+#_(def require-and-set-xapi-version-interceptor
   (i/interceptor
    (merge
     require-xapi-version-interceptor
@@ -402,9 +391,9 @@
          ;; The etag interceptor may mess with routes, so it's important not to have any
          ;; important leave stuff after it in the defaults
          ;; TODO: If all platforms support async/NIO responses, we can bring this back
-         
+
          ;; (not (nil? resource-path)) (conj (middlewares/fast-resource resource-path))
-         
+
          #?@(:clj
              [(some? resource-path) (conj (middlewares/resource resource-path))
               (some? file-path) (conj (middlewares/file file-path))])
@@ -422,12 +411,13 @@
      http/json-body
      error-interceptor
      body-params
-     xapi/alternate-request-syntax-interceptor
+     ;; xapi/alternate-request-syntax-interceptor
      set-xapi-version-interceptor
      xapi-ltags-interceptor]))
 
 (def doc-interceptors-base
   [x-forwarded-for-interceptor
+   require-xapi-version-interceptor
    xapi/alternate-request-syntax-interceptor
    set-xapi-version-interceptor
    xapi-ltags-interceptor])

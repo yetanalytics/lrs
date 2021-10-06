@@ -4,7 +4,7 @@
   org.clojure/clojurescript {:mvn/version "1.10.741"}
   org.clojure/core.async {:mvn/version "1.1.587"}
   com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
-                                :sha "4b97122d839e895b9111e6ed62ae68bc0fdee723"
+                                :sha "92876f9e7c9d0df69db27c7e268d9517a880591b"
                                 :exclusions [org.clojure/clojurescript]}
   cheshire/cheshire {:mvn/version "5.10.0"}
   io.pedestal/pedestal.service {:mvn/version "0.5.9"}
@@ -38,7 +38,7 @@
                               :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
     com.yetanalytics/lrs-test-runner
     {:git/url "https://github.com/yetanalytics/lrs-test-runner.git"
-     :sha "0fcd42854f9c79a043c13d436d629826bfc5133d"}}}
+     :sha "9caedae0fe5d619651f8b54fa669cec363475fef"}}}
   ;; bench utils for LRS implementations
   :bench
   {:extra-paths ["src/bench"]

@@ -151,7 +151,7 @@
 
 (defn prepare-statement
   "Assign an ID, stored, timestamp, etc prior to storage"
-  [{:strs [id stored timestamp _version] :as statement}]
+  [{:strs [id stored timestamp version] :as statement}]
   (let [id        (or id (str #?(:clj (java.util.UUID/randomUUID)
                                  :cljs (random-uuid))))
         stored    (or stored (now-stamp))
@@ -166,7 +166,7 @@
                "stored"    stored
                "timestamp" timestamp
                "authority" authority
-               "version"   "1.0.3"))))
+               "version" (or version "2.0.0")))))
 
 (s/fdef prepare-statement
         :args (s/cat :statement ::xs/statement)

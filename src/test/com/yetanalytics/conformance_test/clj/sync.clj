@@ -5,7 +5,7 @@
    [mem-lrs.server :as server]
    [io.pedestal.http :as http]))
 
-(use-fixtures :once runner/test-suite-fixture)
+(use-fixtures :once #(runner/test-suite-fixture % :branch "LRS-2.0"))
 
 (deftest test-lrs-sync
   (testing "clj/java sync"
