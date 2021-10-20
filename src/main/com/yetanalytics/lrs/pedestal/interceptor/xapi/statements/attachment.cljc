@@ -151,7 +151,7 @@
                        :jws       jws
                        :statement statement}))
       (not (ss/statements-immut-equal?
-            (dissoc statement "attachments")
+            statement #_(dissoc statement "attachments")
             payload))
       (throw (ex-info "Statement signature does not match statement"
               {:type      ::invalid-signature-mismatch
