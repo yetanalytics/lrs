@@ -2,6 +2,7 @@
   "Provide validation and temp storage for statement attachments."
   (:require [clojure.spec.alpha :as s :include-macros true]
             [clojure.string :as cs]
+            [com.yetanalytics.lrs.xapi.statements :as ss]
             #?@(:clj [[clojure.java.io :as io]
                       [cheshire.core :as json]]
                 :cljs [[cljs.nodejs]
@@ -149,8 +150,9 @@
                       {:type      ::invalid-signature-alg
                        :jws       jws
                        :statement statement}))
-      (not= (dissoc statement "attachments")
-            payload)
+      (not (ss/statements-immut-equal?
+            (dissoc statement "attachments")
+            payload))
       (throw (ex-info "Statement signature does not match statement"
               {:type      ::invalid-signature-mismatch
                :jws       jws
