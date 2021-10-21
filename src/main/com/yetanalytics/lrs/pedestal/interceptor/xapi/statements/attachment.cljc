@@ -164,12 +164,13 @@
                 :cljs jws)))))
 
 (defn multipart-map
-  "Given a list of multiparts, make a map of them by xapi hash"
+  "Given a list of multiparts, make a map of vectors of them by xapi hash"
   [multiparts]
   (reduce (fn [m {:keys [headers] :as multipart}]
-            (assoc m
-                   (get headers "X-Experience-API-Hash")
-                   multipart))
+            (update m
+                    (get headers "X-Experience-API-Hash")
+                    (fnil conj [])
+                    multipart))
           {}
           multiparts))
 
@@ -184,23 +185,24 @@
    multipart, or `nil` if `att-obj` is a fileURL."
   [sig multi-parts att-obj]
   ;; If we match...
-  (if-let [[sha mp] (find multi-parts (get att-obj "sha2"))]
-    ;; If it's a signature...
-    (if (sig? att-obj)
-      (if (= (:content-type mp)
-             (get att-obj "contentType")
-             "application/octet-stream")
-        ;; If the ctype is valid, validate the sig
-        [sha (validate-sig sig mp)]
-        ;; If that ctype was wrong, throw
-        (throw
-         (ex-info
-          "Statement signature attachment contentType must be application/octet-stream"
-          {:type                 ::invalid-signature-attachment-content-type
-           :attachment-object    att-obj
-           :attachment-multipart mp})))
-      ;; If not, return the sha and multipart
-      [sha mp])
+  (if-let [[sha mps] (find multi-parts (get att-obj "sha2"))]
+    (let [mp (first mps)]
+      ;; If it's a signature...
+      (if (sig? att-obj)
+        (if (= (:content-type mp)
+               (get att-obj "contentType")
+               "application/octet-stream")
+          ;; If the ctype is valid, validate the sig
+          [sha (validate-sig sig mp)]
+          ;; If that ctype was wrong, throw
+          (throw
+           (ex-info
+            "Statement signature attachment contentType must be application/octet-stream"
+            {:type                 ::invalid-signature-attachment-content-type
+             :attachment-object    att-obj
+             :attachment-multipart mp})))
+        ;; If not, return the sha and multipart
+        [sha mp]))
     ;; If we don't, this better be a fileURL
     (when-not (get att-obj "fileUrl")
       (throw (ex-info "Invalid multipart format"
@@ -218,15 +220,28 @@
               [s & att-objs]]
            ;; match the attachment objects to a multipart
            ;; or assert that they are a fileURL
-           (let [valid-matched (keep
-                                (partial make-sha-multipart-pair s mps)
-                                att-objs)
+           (let [;; Reduce over multiparts and find relevant attachments
+                 [next-mps
+                  valid-matched]
+                 (reduce
+                  (fn [[mps' acc :as state] ao]
+                    (if-let [[sha mp :as match]
+                             (make-sha-multipart-pair
+                              s mps' ao)]
+                      [(if (< 1 (count (get mps' sha)))
+                         (update mps' sha #(into [] (rest %)))
+                         (dissoc mps' sha))
+                       (conj acc match)]
+                      state))
+                  [mps []]
+                  att-objs)
+
                  valid-shas    (map first valid-matched)]
              (-> m
                  (update :s-acc conj s)
                  (update :a-acc into (map second valid-matched))
                  (assoc :mps
-                        (reduce dissoc mps valid-shas)))))
+                        next-mps))))
          {;; accumulators for the statements + attachments
           :s-acc []
           :a-acc []
