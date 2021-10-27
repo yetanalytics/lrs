@@ -34,6 +34,11 @@
     (-> service/service ;; start with production configuration
         (merge {:env  :dev
                 ::lrs lrs
+                ::server/host (or (System/getenv "HTTP_HOST")
+                                  "0.0.0.0")
+                ::server/port (or (some-> (System/getenv "HTTP_PORT")
+                                          Long/parseLong)
+                                  8080)
                 ;; do not block thread that starts web server
                 ::server/join? false
                 ;; Routes can be a function that resolve routes,
