@@ -1,10 +1,14 @@
 # Change Log
 
 ## Unreleased
-- Updated `ws` and `ansi-regex` for minor security vulnerabilitites
-- Standardized signed statement comparison with extant statement comparison
+
+## [1.1.3] - 2021-11-10
 - Fixed bug preventing attachments with duplicate SHAs
+- Standardized signed statement comparison with extant statement comparison
 - Allow environment configuration of dev in-memory LRS bind host and port
+
+## [1.1.2] - 2021-10-06
+- Updated `ws` and `ansi-regex` for minor security vulnerabilitites
 
 ## [1.1.0] - 2021-09-22
 - Added `dissoc-statement-properties` and `statements-immut-equal?` in the `com.yetanalytics.lrs.xapi.statements` namespace, for dissoc-ing immutable Statement properties and comprehensive Statement equality checking, respectively.
