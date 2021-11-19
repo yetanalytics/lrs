@@ -20,8 +20,9 @@
   string-ascii-not-empty)
 
 (s/def ::content-length
-  (s/int-in 0 #?(:clj Long/MAX_VALUE
-                 :cljs 9007199254740992)))
+  (s/nilable
+   (s/int-in 0 #?(:clj Long/MAX_VALUE
+                  :cljs 9007199254740992))))
 
 (s/def ::contents
   #?(:clj (s/with-gen
