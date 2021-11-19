@@ -17,12 +17,11 @@
   (timestamp/stamp-now))
 
 (s/def ::content-type
-  (s/nilable string-ascii-not-empty))
+  string-ascii-not-empty)
 
 (s/def ::content-length
-  (s/nilable
-   (s/int-in 0 #?(:clj Long/MAX_VALUE
-                  :cljs 9007199254740992))))
+  (s/int-in 0 #?(:clj Long/MAX_VALUE
+                 :cljs 9007199254740992)))
 
 (s/def ::contents
   #?(:clj (s/with-gen
@@ -81,11 +80,11 @@
 
 (s/def :com.yetanalytics.lrs.xapi/document
   (s/with-gen
-    (s/keys :req-un [::content-length
-                     ::content-type
-                     ::contents]
+    (s/keys :req-un [::contents]
             :opt-un [::id
-                     ::updated])
+                     ::updated
+                     ::content-length
+                     ::content-type])
     (fn []
       (sgen/one-of [(document-gen-fn)
                     (json-document-gen-fn)]))))
