@@ -17,7 +17,7 @@
   (timestamp/stamp-now))
 
 (s/def ::content-type
-  (s/nilable string?))
+  (s/nilable string-ascii-not-empty))
 
 (s/def ::content-length
   (s/nilable
