@@ -123,10 +123,10 @@
       ;; State documents
       :xapi.activities.state.PUT.request/params
       :xapi.activities.state.GET.request/params
-      
+
       :xapi.activities.state.POST.request/params
       :xapi.activities.state.GET.request/params
-      
+
       :xapi.activities.state.DELETE.request/params
       :xapi.activities.state.GET.request/params
 
@@ -136,14 +136,14 @@
 
       :xapi.activities.profile.POST.request/params
       :xapi.activities.profile.GET.request/params
-      
+
       :xapi.activities.profile.DELETE.request/params
       :xapi.activities.profile.GET.request/params
 
       ;; Agent profile documents
       :xapi.agents.profile.PUT.request/params
       :xapi.agents.profile.GET.request/params
-      
+
       :xapi.agents.profile.POST.request/params
       :xapi.agents.profile.GET.request/params
 
@@ -257,6 +257,13 @@
            :response
            {:status 400})))
 
+(defn- ->doc
+  "Create a valid document from a request"
+  [{:keys [body content-type content-length]}]
+  (cond-> {:contents body}
+    content-type (assoc :content-type content-type)
+    content-length (assoc :content-length content-length)))
+
 (def handle-put
   {:name ::handle-put
    :enter
@@ -271,7 +278,8 @@
         ;; Async
         (a/go
           (try
-            (let [{:keys [body content-type content-length headers]} request]
+            (let [{:keys [headers]} request
+                  doc (->doc request)]
               (if-let [[_ params]
                        (find xapi :xapi.activities.state.PUT.request/params)]
                 ;; State document
@@ -280,9 +288,7 @@
                                      lrs
                                      auth-identity
                                      params
-                                     {:content-type   content-type
-                                      :content-length content-length
-                                      :contents       body}
+                                     doc
                                      false)))
                 ;; Activity/Agent profile document
                 (let [[_params-spec params]
@@ -297,9 +303,7 @@
                                              lrs
                                              auth-identity
                                              params
-                                             {:content-type   content-type
-                                              :content-length content-length
-                                              :contents       body}
+                                             doc
                                              false)))
                     ;; if neither header is present
                     (let [err-res (a/<! (lrs/get-document-async
@@ -309,7 +313,8 @@
             (catch #?(:clj Exception :cljs js/Error) ex
               (assoc ctx :io.pedestal.interceptor.chain/error ex))))
         ;; Sync
-        (try (let [{:keys [body content-type content-length headers]} request]
+        (try (let [{:keys [headers]} request
+                   doc (->doc request)]
                (if-let [[_ params]
                         (find xapi
                               :xapi.activities.state.PUT.request/params)]
@@ -319,9 +324,7 @@
                                 lrs
                                 auth-identity
                                 params
-                                {:content-type   content-type
-                                 :content-length content-length
-                                 :contents       body}
+                                doc
                                 false))
                  ;; Activity/Agent profile document
                  (let [[_params-spec params]
@@ -336,9 +339,7 @@
                                     lrs
                                     auth-identity
                                     params
-                                    {:content-type   content-type
-                                     :content-length content-length
-                                     :contents       body}
+                                    doc
                                     false))
                        ;; if neither header is present
                      (let [err-res (lrs/get-document lrs auth-identity params)]
@@ -376,7 +377,7 @@
                        :xapi.activities.state.POST.request/params
                        :xapi.activities.profile.POST.request/params
                        :xapi.agents.profile.POST.request/params)
-            {:keys [body content-type content-length]} request]
+            doc (->doc request)]
         (if (p/document-resource-async? lrs)
           ;; Async
           (a/go
@@ -384,18 +385,14 @@
                                       lrs
                                       auth-identity
                                       params
-                                      {:content-type   content-type
-                                       :content-length content-length
-                                       :contents       body}
+                                      doc
                                       true))))
           ;; Sync
           (post-response ctx (lrs/set-document
                               lrs
                               auth-identity
                               params
-                              {:content-type   content-type
-                               :content-length content-length
-                               :contents       body}
+                              doc
                               true))))))})
 
 

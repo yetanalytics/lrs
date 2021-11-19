@@ -80,11 +80,11 @@
 
 (s/def :com.yetanalytics.lrs.xapi/document
   (s/with-gen
-    (s/keys :req-un [::content-length
-                     ::content-type
-                     ::contents]
+    (s/keys :req-un [::contents]
             :opt-un [::id
-                     ::updated])
+                     ::updated
+                     ::content-length
+                     ::content-type])
     (fn []
       (sgen/one-of [(document-gen-fn)
                     (json-document-gen-fn)]))))

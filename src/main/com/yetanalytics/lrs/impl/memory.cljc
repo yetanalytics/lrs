@@ -702,6 +702,13 @@
      ;; Itsa no-op
      :cljs contents))
 
+(defn init-document
+  [{:keys [contents content-type content-length]}]
+  (let [contents-bytes (contents->byte-array contents)]
+    {:contents contents-bytes
+     :content-type (or content-type "application/octet-stream")
+     :content-length (or content-length (count contents-bytes))}))
+
 (defn transact-document
   [documents params document merge?]
   (let [{:keys [context-key
@@ -709,7 +716,7 @@
                 document]}
         (document-keys
          params
-         (update document :contents contents->byte-array))
+         (init-document document))
         update-doc-fn
         (if merge?
           (update-in documents
