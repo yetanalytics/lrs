@@ -2,10 +2,12 @@
   (:require [io.pedestal.http :as http]
             [com.yetanalytics.lrs.impl.memory :as lrs-impl :refer [new-lrs]]
             [com.yetanalytics.lrs.pedestal.routes :refer [build]]
+            [com.yetanalytics.lrs.pedestal.interceptor :as i]
             #?(:cljs [com.yetanalytics.node-chain-provider :as provider])))
 
 (defn new-routes [lrs]
-  (build {:lrs lrs}))
+  (build {:lrs lrs
+          :wrap-interceptors [i/error-interceptor]}))
 
 ;; Tabular routes + default LRS
 (def default-lrs
