@@ -217,6 +217,8 @@
                              (get-in ctx [:request :request-method])))
                ctx))}))
 
+;; TODO: Remove this, is a downstream responsibility
+
 ;; Gracefully handle uncaught errors, deferring to custom responses.
 
 (defn- exi?
@@ -420,7 +422,6 @@
            :cljs (body-params/body-params))]
     [x-forwarded-for-interceptor
      http/json-body
-     error-interceptor
      body-params
      xapi/alternate-request-syntax-interceptor
      set-xapi-version-interceptor
