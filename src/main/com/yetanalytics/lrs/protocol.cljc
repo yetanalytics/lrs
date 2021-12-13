@@ -22,6 +22,13 @@
   `(memoize (fn [x#]
               (satisfies? ~protocol x#))))
 
+(defmacro try-sync
+  "Try body and wrap anything thrown in a map with :error key"
+  [& body]
+  `(try ~@body
+        (catch #?(:clj Exception :cljs js/Error) ex#
+          {:error ex#})))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Error
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
