@@ -91,12 +91,14 @@
 
   Optional keys:
     :path-prefix - defines the prefix from root for xAPI routes, default /xapi
-    :wrap-interceptors - a vector of interceptors to apply to every route"
+    :wrap-interceptors - a vector of interceptors to apply to every route.
+      The default vector includes an error interceptor which should be replaced
+      if this setting is provided."
   [{:keys [lrs
            path-prefix
            wrap-interceptors]
     :or {path-prefix "/xapi"
-         wrap-interceptors []}}]
+         wrap-interceptors [i/error-interceptor]}}]
   (let [lrs-i                       (i/lrs-interceptor lrs)
         global-interceptors-no-auth (into wrap-interceptors
                                           (conj i/common-interceptors
