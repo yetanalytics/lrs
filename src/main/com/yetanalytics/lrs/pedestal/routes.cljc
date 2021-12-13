@@ -85,11 +85,18 @@
     :enter (fn health-fn [ctx]
              (assoc ctx :response {:status 200 :body ""}))}))
 
-(defn build [{:keys [lrs
-                     path-prefix
-                     wrap-interceptors]
-              :or {path-prefix "/xapi"
-                   wrap-interceptors []}}]
+(defn build
+  "Given a map with :lrs implementation, builds and returns xAPI routes
+  in pedestal table format.
+
+  Optional keys:
+    :path-prefix - defines the prefix from root for xAPI routes, default /xapi
+    :wrap-interceptors - a vector of interceptors to apply to every route"
+  [{:keys [lrs
+           path-prefix
+           wrap-interceptors]
+    :or {path-prefix "/xapi"
+         wrap-interceptors []}}]
   (let [lrs-i                       (i/lrs-interceptor lrs)
         global-interceptors-no-auth (into wrap-interceptors
                                           (conj i/common-interceptors
