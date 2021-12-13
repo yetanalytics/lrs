@@ -20,7 +20,9 @@
 (defn get-about
   "Get information about this LRS"
   [lrs auth-identity]
-  (p/-get-about lrs auth-identity))
+  (try (p/-get-about lrs auth-identity)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef get-about
   :args (s/cat :lrs           (with-lrs-gen ::p/about-resource-instance)
@@ -43,7 +45,9 @@
 
 (defn set-document
   [lrs auth-identity params document merge?]
-  (p/-set-document lrs auth-identity params document merge?))
+  (try (p/-set-document lrs auth-identity params document merge?)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef set-document
   :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
@@ -68,7 +72,9 @@
 
 (defn get-document
   [lrs auth-identity params]
-  (p/-get-document lrs auth-identity params))
+  (try (p/-get-document lrs auth-identity params)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef get-document
   :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
@@ -89,7 +95,9 @@
 
 (defn get-document-ids
   [lrs auth-identity params]
-  (p/-get-document-ids lrs auth-identity params))
+  (try (p/-get-document-ids lrs auth-identity params)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef get-document-ids
   :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
@@ -110,7 +118,9 @@
 
 (defn delete-document
   [lrs auth-identity params]
-  (p/-delete-document lrs auth-identity params))
+  (try (p/-delete-document lrs auth-identity params)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef delete-document
  :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
@@ -130,7 +140,9 @@
 
 (defn delete-documents
   [lrs auth-identity params]
-  (p/-delete-documents lrs auth-identity params))
+  (try (p/-delete-documents lrs auth-identity params)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef delete-documents
  :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
@@ -156,7 +168,9 @@
 (defn get-activity
   "Get the canonical representation of an activity"
   [lrs auth-identity params]
-  (p/-get-activity lrs auth-identity params))
+  (try (p/-get-activity lrs auth-identity params)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef get-activity
   :args (s/cat :lrs           (with-lrs-gen ::p/activity-info-resource-instance)
@@ -184,7 +198,9 @@
 (defn get-person
   "Get an object representing an actor"
   [lrs auth-identity params]
-  (p/-get-person lrs auth-identity params))
+  (try (p/-get-person lrs auth-identity params)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef get-person
   :args (s/cat :lrs           (with-lrs-gen ::p/agent-info-resource-instance)
@@ -214,7 +230,9 @@
 (defn store-statements
   "Store statements and attachments in the LRS"
   [lrs auth-identity statements attachments]
-  (p/-store-statements lrs auth-identity statements attachments))
+  (try (p/-store-statements lrs auth-identity statements attachments)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef store-statements
   :args (s/cat :lrs           (with-lrs-gen ::p/statements-resource-instance)
@@ -239,7 +257,9 @@
 (defn get-statements
   "Get statements from the LRS"
   [lrs auth-identity params ltags]
-  (p/-get-statements lrs auth-identity params ltags))
+  (try (p/-get-statements lrs auth-identity params ltags)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef get-statements
   :args (s/cat :lrs           (with-lrs-gen ::p/statements-resource-instance)
@@ -261,6 +281,7 @@
                :ltags         (s/coll-of ::xs/language-tag))
   :ret ::p/get-statements-async-ret)
 
+;; TODO: Figure out error strategy, maybe wrap return in map
 (defn consistent-through
   "Get a timestamp for use in the X-Experience-API-Consistent-Through header"
   [lrs ctx auth-identity]
@@ -291,7 +312,9 @@
 (defn authenticate
   "Given the LRS and context, return an identity or nil (401)"
   [lrs ctx]
-  (p/-authenticate lrs ctx))
+  (try (p/-authenticate lrs ctx)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef authenticate
   :args (s/cat :lrs (with-lrs-gen ::p/lrs-auth-instance)
@@ -302,7 +325,9 @@
   "Given the LRS and context, return true if the user is allowed to do a given
    thing."
   [lrs ctx auth-identity]
-  (p/-authorize lrs ctx auth-identity))
+  (try (p/-authorize lrs ctx auth-identity)
+       (catch Exception ex
+         {:error ex})))
 
 (s/fdef auth
   :args (s/cat :lrs           (with-lrs-gen ::p/lrs-auth-instance)
