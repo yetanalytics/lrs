@@ -21,7 +21,7 @@
   "Get information about this LRS"
   [lrs auth-identity]
   (try (p/-get-about lrs auth-identity)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef get-about
@@ -46,7 +46,7 @@
 (defn set-document
   [lrs auth-identity params document merge?]
   (try (p/-set-document lrs auth-identity params document merge?)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef set-document
@@ -73,7 +73,7 @@
 (defn get-document
   [lrs auth-identity params]
   (try (p/-get-document lrs auth-identity params)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef get-document
@@ -96,7 +96,7 @@
 (defn get-document-ids
   [lrs auth-identity params]
   (try (p/-get-document-ids lrs auth-identity params)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef get-document-ids
@@ -119,7 +119,7 @@
 (defn delete-document
   [lrs auth-identity params]
   (try (p/-delete-document lrs auth-identity params)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef delete-document
@@ -141,7 +141,7 @@
 (defn delete-documents
   [lrs auth-identity params]
   (try (p/-delete-documents lrs auth-identity params)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef delete-documents
@@ -169,7 +169,7 @@
   "Get the canonical representation of an activity"
   [lrs auth-identity params]
   (try (p/-get-activity lrs auth-identity params)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef get-activity
@@ -199,7 +199,7 @@
   "Get an object representing an actor"
   [lrs auth-identity params]
   (try (p/-get-person lrs auth-identity params)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef get-person
@@ -231,7 +231,7 @@
   "Store statements and attachments in the LRS"
   [lrs auth-identity statements attachments]
   (try (p/-store-statements lrs auth-identity statements attachments)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef store-statements
@@ -258,7 +258,7 @@
   "Get statements from the LRS"
   [lrs auth-identity params ltags]
   (try (p/-get-statements lrs auth-identity params ltags)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef get-statements
@@ -313,7 +313,7 @@
   "Given the LRS and context, return an identity or nil (401)"
   [lrs ctx]
   (try (p/-authenticate lrs ctx)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef authenticate
@@ -326,7 +326,7 @@
    thing."
   [lrs ctx auth-identity]
   (try (p/-authorize lrs ctx auth-identity)
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs js/Error) ex
          {:error ex})))
 
 (s/fdef auth

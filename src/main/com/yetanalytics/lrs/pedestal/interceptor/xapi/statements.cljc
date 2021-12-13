@@ -261,7 +261,7 @@
        (try (assoc-in ctx
                       [:response :headers "X-Experience-API-Consistent-Through"]
                       (lrs/consistent-through lrs ctx auth-identity))
-            (catch Exception ex
+            (catch #?(:clj Exception :cljs js/Error) ex
               (assoc ctx
                      :io.pedestal.interceptor.chain/error
                      ex)))
