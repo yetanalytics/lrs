@@ -258,9 +258,13 @@
                    [:response :headers "X-Experience-API-Consistent-Through"]
                    (a/<! (lrs/consistent-through-async lrs ctx auth-identity))))
        (lrsp/statements-resource? lrs)
-       (assoc-in ctx
-                 [:response :headers "X-Experience-API-Consistent-Through"]
-                 (lrs/consistent-through lrs ctx auth-identity))
+       (try (assoc-in ctx
+                      [:response :headers "X-Experience-API-Consistent-Through"]
+                      (lrs/consistent-through lrs ctx auth-identity))
+            (catch Exception ex
+              (assoc ctx
+                     :io.pedestal.interceptor.chain/error
+                     ex)))
        :else
        (assoc-in ctx
                  [:response :headers "X-Experience-API-Consistent-Through"]
