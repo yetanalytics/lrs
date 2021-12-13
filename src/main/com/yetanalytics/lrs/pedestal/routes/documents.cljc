@@ -388,12 +388,17 @@
                                       doc
                                       true))))
           ;; Sync
-          (post-response ctx (lrs/set-document
-                              lrs
-                              auth-identity
-                              params
-                              doc
-                              true))))))})
+          (post-response
+           ctx
+           (try
+             (lrs/set-document
+              lrs
+              auth-identity
+              params
+              doc
+              true)
+             (catch Exception ex
+               {:error ex})))))))})
 
 
 
