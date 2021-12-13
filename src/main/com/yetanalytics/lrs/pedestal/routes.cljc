@@ -85,22 +85,40 @@
     :enter (fn health-fn [ctx]
              (assoc ctx :response {:status 200 :body ""}))}))
 
-(defn build [{:keys [lrs path-prefix]
-                     :or {path-prefix "/xapi"}}]
+(defn build
+  "Given a map with :lrs implementation, builds and returns xAPI routes
+  in pedestal table format.
+
+  Optional keys:
+    :path-prefix - defines the prefix from root for xAPI routes, default /xapi
+    :wrap-interceptors - a vector of interceptors to apply to every route.
+      The default vector includes an error interceptor which should be replaced
+      if this setting is provided."
+  [{:keys [lrs
+           path-prefix
+           wrap-interceptors]
+    :or {path-prefix "/xapi"
+         wrap-interceptors [i/error-interceptor]}}]
   (let [lrs-i                       (i/lrs-interceptor lrs)
-        global-interceptors-no-auth (conj i/common-interceptors
-                                          lrs-i)
-        global-interceptors         (conj i/common-interceptors
-                                          lrs-i
-                                          auth-i/lrs-authenticate
-                                          auth-i/lrs-authorize)
-        protected-interceptors      (into global-interceptors
-                                          i/xapi-protected-interceptors)
-        document-interceptors       (into (conj i/doc-interceptors-base
+        global-interceptors-no-auth (into wrap-interceptors
+                                          (conj i/common-interceptors
+                                                lrs-i))
+        global-interceptors         (into wrap-interceptors
+                                          (conj i/common-interceptors
                                                 lrs-i
                                                 auth-i/lrs-authenticate
-                                                auth-i/lrs-authorize)
-                                          i/xapi-protected-interceptors)]
+                                                auth-i/lrs-authorize))
+        protected-interceptors      (into wrap-interceptors
+                                          (concat
+                                           global-interceptors
+                                           i/xapi-protected-interceptors))
+        document-interceptors       (into wrap-interceptors
+                                          (concat
+                                           (conj i/doc-interceptors-base
+                                                 lrs-i
+                                                 auth-i/lrs-authenticate
+                                                 auth-i/lrs-authorize)
+                                           i/xapi-protected-interceptors))]
     (into #{;; health check
             ["/health"
              :get (conj global-interceptors-no-auth
@@ -116,13 +134,14 @@
 
             ;; xapi statements
             [(format "%s/statements" path-prefix)
-             :get (into [auth-i/www-authenticate]
-                        (concat
-                         protected-interceptors
-                         [statements-i/set-consistent-through
-                          (xapi-i/params-interceptor
-                           :xapi.statements.GET.request/params)
-                          statements/handle-get]))]
+             :get (into
+                   [auth-i/www-authenticate]
+                   (concat
+                    protected-interceptors
+                    [statements-i/set-consistent-through
+                     (xapi-i/params-interceptor
+                      :xapi.statements.GET.request/params)
+                     statements/handle-get]))]
             [(format "%s/statements" path-prefix)
              :head (conj protected-interceptors
                          statements-i/set-consistent-through
