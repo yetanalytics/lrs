@@ -7,9 +7,7 @@
                                 :sha "13b4e1a0da7676f61edb2344c47d6b71e32e846d"
                                 :exclusions [org.clojure/clojurescript]}
   cheshire/cheshire {:mvn/version "5.10.1"}
-  io.pedestal/pedestal.service {:mvn/version "0.5.9"}
-  ;; Use this version since there is a CVE in Pedestal's version
-  ring/ring-core {:mvn/version "1.9.4"}
+  io.pedestal/pedestal.service {:mvn/version "0.5.10"}
   macchiato/core {:mvn/version "0.2.17"
                   :exclusions [funcool/cuerdas]}
   funcool/cuerdas {:mvn/version "2020.03.26-2"}
