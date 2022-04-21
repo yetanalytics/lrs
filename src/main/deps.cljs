@@ -6,6 +6,7 @@
             "cookies"            "0.8.0" ;; "0.7.1"
             "lru"                "3.1.0"
             "multiparty"         "4.2.1" ;; "4.1.3"
+            "minimist"           "1.2.6"
             "random-bytes"       "1.0.0"
             "simple-encryptor"   "3.0.0" ;; "1.2.0"
             "url"                "0.11.0"
