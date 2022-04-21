@@ -9,8 +9,11 @@ jobs:
         target: [test-lib-clj, test-lib-cljs, test-conformance-clj-sync, test-conformance-clj-async, test-conformance-cljs, npm-audit]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Setup CI Environment
-        uses: yetanalytics/actions/setup-env@v0
+        uses: yetanalytics/actions/setup-env@v0.0.2
 
       - name: Run make target ${{ matrix.target }}
         run: make ${{ matrix.target }}
