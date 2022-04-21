@@ -3,8 +3,7 @@
  {org.clojure/clojure {:mvn/version "1.10.1"}
   org.clojure/clojurescript {:mvn/version "1.10.741"}
   org.clojure/core.async {:mvn/version "1.1.587"}
-  com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
-                                :sha "13b4e1a0da7676f61edb2344c47d6b71e32e846d"
+  com.yetanalytics/xapi-schema {:mvn/version "1.2.0"
                                 :exclusions [org.clojure/clojurescript]}
   cheshire/cheshire {:mvn/version "5.10.1"}
   io.pedestal/pedestal.service {:mvn/version "0.5.10"}

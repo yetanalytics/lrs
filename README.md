@@ -1,6 +1,6 @@
 # com.yetanalytics/lrs
 
-[![CI](https://github.com/yetanalytics/lrs/actions/workflows/main.yml/badge.svg)](https://github.com/yetanalytics/lrs/actions/workflows/main.yml)
+[![CI](https://github.com/yetanalytics/lrs/actions/workflows/main.yml/badge.svg)](https://github.com/yetanalytics/lrs/actions/workflows/main.yml) [![Clojars Project](https://img.shields.io/clojars/v/com.yetanalytics/lrs.svg)](https://clojars.org/com.yetanalytics/lrs)
 
 Yet Analytics Core LRS Library. Includes protocols and functions used to implement a conformant [xAPI Learning Record Store](https://github.com/adlnet/xAPI-Spec).
 
