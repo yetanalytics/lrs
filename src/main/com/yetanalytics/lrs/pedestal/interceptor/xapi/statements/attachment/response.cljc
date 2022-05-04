@@ -1,6 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
   (:require
    [clojure.core.async :as a :include-macros true]
+   [clojure.string :as cs]
    #?@(:clj [[cheshire.core :as json]]
        :cljs [[goog.string :refer [format]]
               [goog.string.format]])))
@@ -28,6 +29,7 @@
      :cljs (.stringify js/JSON (clj->js data))))
 
 (defn build-multipart-async
+  "Produce a channel body for a multipart response"
   [statement-result-chan]
   (let [body-chan (a/chan)]
     (a/go
@@ -96,3 +98,54 @@
       ;; Close the body chan
       (a/close! body-chan))
     body-chan))
+
+(defn build-multipart-sync
+  "Produce a string body for a multipart response."
+  [{:keys [statement-result
+           statement
+           attachments]}]
+  (str
+   "--" boundary
+   ;; Statement JSON header
+   crlf
+   "Content-Type:application/json"
+   crlf
+   crlf
+   ;; Statement JSON
+   (cond
+     ;; single
+     statement
+     (json-string statement)
+     ;; multiple
+     statement-result
+     (let [{:keys [statements
+                   more]} statement-result]
+       (str
+        statement-result-pre
+        (cs/join ","
+                 (map json-string statements))
+        (if (not-empty more)
+          (format "],\"more\":\"%s\"}"
+                  more)
+          statement-result-post))))
+   (when (not-empty attachments)
+     (apply str
+            (for [{:keys [content contentType sha2]} attachments]
+              (str
+               ;; Attachment Headers
+               crlf
+               "--" boundary
+               crlf
+               (format "Content-Type:%s" contentType)
+               crlf
+               "Content-Transfer-Encoding:binary"
+               crlf
+               (format "X-Experience-API-Hash:%s" sha2)
+               crlf
+               crlf
+               ;; Attachment body
+               #?(:clj (slurp content)
+                  :cljs content)))))
+   ;; Close multipart
+   crlf
+   "--" boundary "--"))

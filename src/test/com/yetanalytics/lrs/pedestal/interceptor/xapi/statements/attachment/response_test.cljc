@@ -1,6 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test
   (:require [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
              :refer [build-multipart-async
+                     build-multipart-sync
                      json-string]]
             [clojure.string :as cs]
             [clojure.test :refer [deftest testing is]]
@@ -58,7 +59,7 @@
 
 (def boundary "105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0")
 
-(deftest build-multipart-async-single-test
+(deftest build-multipart-single-test
   (sup/test-async
    (a/go
      (is
@@ -81,9 +82,12 @@
                           attachment]))
              (->> (a/into []))
              a/<!
-             ->string-body))))))
+             ->string-body)
+         (build-multipart-sync
+          {:statement statement-with-attachment
+           :attachments [attachment]}))))))
 
-(deftest build-multipart-async-multiple-test
+(deftest build-multipart-multiple-test
   (sup/test-async
    (a/go
      (is
@@ -107,9 +111,14 @@
                           attachment]))
              (->> (a/into []))
              a/<!
-             ->string-body))))))
+             ->string-body)
+         (build-multipart-sync
+          {:statement-result
+           {:statements [statement-with-attachment
+                         statement-with-attachment]}
+           :attachments [attachment]}))))))
 
-(deftest build-multipart-async-multiple-more-test
+(deftest build-multipart-multiple-more-test
   (let [more "https://lrs.example.com/xapi/statements"]
     (sup/test-async
      (a/go
@@ -137,4 +146,10 @@
                             attachment]))
                (->> (a/into []))
                a/<!
-               ->string-body)))))))
+               ->string-body)
+           (build-multipart-sync
+            {:statement-result
+             {:statements [statement-with-attachment
+                           statement-with-attachment]
+              :more more}
+             :attachments [attachment]})))))))
