@@ -2,14 +2,11 @@
   (:require
    [clojure.core.async :as a :include-macros true]
    #?@(:clj [[cheshire.core :as json]]
-       :cljs [[goog.string :as gstring]
+       :cljs [[goog.string :refer [format]]
               [goog.string.format]])))
 
 ;; TODO: Dynamic boundary?
 ;; TODO: make this async, work on a servlet output stream
-
-(def fmt #?(:clj format
-            :cljs gstring/format))
 
 (def crlf "\r\n")
 
@@ -17,7 +14,7 @@
   "105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0")
 
 (def content-type
-  (fmt "multipart/mixed; boundary=%s"
+  (format "multipart/mixed; boundary=%s"
           boundary))
 
 (def statement-result-pre
@@ -53,8 +50,8 @@
             (do (a/>! body-chan statement-result-pre)
                 (recur :statements s-count))
             :more
-            (do (a/>! body-chan (fmt "],\"more\":\"%s\"}"
-                                     (a/<! statement-result-chan)))
+            (do (a/>! body-chan (format "],\"more\":\"%s\"}"
+                                        (a/<! statement-result-chan)))
                 (recur :more s-count))
             :attachments
             (do
@@ -80,11 +77,11 @@
                            "--"
                            boundary
                            crlf
-                           (fmt "Content-Type:%s" contentType)
+                           (format "Content-Type:%s" contentType)
                            crlf
                            "Content-Transfer-Encoding:binary"
                            crlf
-                           (fmt "X-Experience-API-Hash:%s" sha2)
+                           (format "X-Experience-API-Hash:%s" sha2)
                            crlf
                            crlf))
                 ;; Attachment Content
