@@ -62,7 +62,8 @@
           "{\"object\":{\"id\":\"https://example.com/activity\"},\"authority\":{\"account\":{\"homePage\":\"https://example.com\",\"name\":\"someaccount\"},\"objectType\":\"Agent\"},\"verb\":{\"id\":\"https://example.com/verb\"},\"id\":\"78efaab3-1c65-4cb7-9289-f34e0594b274\",\"timestamp\":\"2022-05-04T13:32:10.486195Z\",\"version\":\"1.0.3\",\"stored\":\"2022-05-04T13:32:10.486195Z\",\"attachments\":[{\"usageType\":\"https://example.com/usagetype\",\"display\":{\"en-US\":\"someattachment\"},\"contentType\":\"application/octet-stream\",\"length\":10,\"sha2\":\"01d448afd928065458cf670b60f5a594d735af0172c8d67f22a81680132681ca\"}],\"actor\":{\"mbox\":\"mailto:bob@example.com\",\"objectType\":\"Agent\"}}"
           "]}"
           "\r\n--105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0\r\nContent-Type:text/plain\r\nContent-Transfer-Encoding:binary\r\nX-Experience-API-Hash:01d448afd928065458cf670b60f5a594d735af0172c8d67f22a81680132681ca\r\n\r\n"
-          (vec content)
+          #?(:clj (vec content)
+             :cljs "some text\n some more")
           "\r\n--105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0--"]
          (-> (build-multipart-async
               (a/to-chan [:statements
@@ -83,7 +84,8 @@
           "{\"object\":{\"id\":\"https://example.com/activity\"},\"authority\":{\"account\":{\"homePage\":\"https://example.com\",\"name\":\"someaccount\"},\"objectType\":\"Agent\"},\"verb\":{\"id\":\"https://example.com/verb\"},\"id\":\"78efaab3-1c65-4cb7-9289-f34e0594b274\",\"timestamp\":\"2022-05-04T13:32:10.486195Z\",\"version\":\"1.0.3\",\"stored\":\"2022-05-04T13:32:10.486195Z\",\"attachments\":[{\"usageType\":\"https://example.com/usagetype\",\"display\":{\"en-US\":\"someattachment\"},\"contentType\":\"application/octet-stream\",\"length\":10,\"sha2\":\"01d448afd928065458cf670b60f5a594d735af0172c8d67f22a81680132681ca\"}],\"actor\":{\"mbox\":\"mailto:bob@example.com\",\"objectType\":\"Agent\"}}"
           "],\"more\":\"https://lrs.example.com/xapi/statements\"}"
           "\r\n--105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0\r\nContent-Type:text/plain\r\nContent-Transfer-Encoding:binary\r\nX-Experience-API-Hash:01d448afd928065458cf670b60f5a594d735af0172c8d67f22a81680132681ca\r\n\r\n"
-          (vec content)
+          #?(:clj (vec content)
+             :cljs "some text\n some more")
           "\r\n--105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0--"]
          (-> (build-multipart-async
               (a/to-chan [:statements
