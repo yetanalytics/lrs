@@ -282,6 +282,8 @@
              s-count 0]
         (if-let [x (a/<! statement-result-chan)]
           (case x
+            ;; terminate on error producing invalid JSON
+            ::lrsp/async-error nil
             :statements
             (do (a/>! body-chan "{\"statements\":[")
                 (recur :statements s-count))

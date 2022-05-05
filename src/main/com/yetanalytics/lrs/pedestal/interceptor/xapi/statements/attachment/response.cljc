@@ -1,6 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
   (:require
    [clojure.core.async :as a :include-macros true]
+   [com.yetanalytics.lrs.protocol :as lrsp]
    #?@(:clj [[cheshire.core :as json]]
        :cljs [[goog.string :refer [format]]
               [goog.string.format]])))
@@ -40,12 +41,13 @@
                            crlf))
       (loop [stage   :init
              s-count 0] ; s-count is used with multiple statements to enclose
-        (when-let [x (a/<! statement-result-chan)]
+        (if-let [x (a/<! statement-result-chan)]
           (case x
+            ;; terminate immediately on async error
+            ::lrsp/async-error nil
             ;; Headers
             :statement
-            (do (a/>! body-chan (json-string (a/<! statement-result-chan)))
-                (recur :statement s-count))
+            (recur :statement s-count)
             :statements
             (do (a/>! body-chan statement-result-pre)
                 (recur :statements s-count))
@@ -61,6 +63,9 @@
               (recur :attachments s-count))
             ;; Now we have a stage, dispatch on that
             (case stage
+              :statement
+              (do (a/>! body-chan (json-string x))
+                  (recur :statement s-count))
               :statements
               (do
                 ;; Maybe comma
@@ -87,12 +92,12 @@
                 ;; Attachment Content
                 (a/>! body-chan
                       content)
-                (recur :attachments s-count))))))
-      ;; End
-      (a/>! body-chan (str crlf
-                           "--"
-                           boundary
-                           "--"))
+                (recur :attachments s-count))))
+          ;; Successful completion end boundary
+          (a/>! body-chan (str crlf
+                               "--"
+                               boundary
+                               "--"))))
       ;; Close the body chan
       (a/close! body-chan))
     body-chan))

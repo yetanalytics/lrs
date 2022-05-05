@@ -2,6 +2,7 @@
   (:require [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
              :refer [build-multipart-async
                      json-string]]
+            [com.yetanalytics.lrs.protocol :as lrsp]
             [clojure.string :as cs]
             [clojure.test :refer [deftest testing is]]
             [clojure.core.async :as a]
@@ -83,6 +84,41 @@
              a/<!
              ->string-body))))))
 
+(deftest build-multipart-async-single-statement-error-test
+  (sup/test-async
+   (a/go
+     (is
+      (= (cs/join
+          "\r\n"
+          [(str "--" boundary)
+           (str "Content-Type:application/json\r\n\r\n")])
+         (-> (build-multipart-async
+              (a/to-chan [:statement
+                          ::lrsp/async-error]))
+             (->> (a/into []))
+             a/<!
+             ->string-body))))))
+
+(deftest build-multipart-async-single-attachment-error-test
+  (sup/test-async
+   (a/go
+     (is
+      (= (cs/join
+          "\r\n"
+          [(str "--" boundary)
+           (str "Content-Type:application/json\r\n")
+           stmt-json
+           ;; No attachments or closing boundary
+           ])
+         (-> (build-multipart-async
+              (a/to-chan [:statement
+                          statement-with-attachment
+                          :attachments
+                          ::lrsp/async-error]))
+             (->> (a/into []))
+             a/<!
+             ->string-body))))))
+
 (deftest build-multipart-async-multiple-test
   (sup/test-async
    (a/go
@@ -105,6 +141,53 @@
                           statement-with-attachment
                           :attachments
                           attachment]))
+             (->> (a/into []))
+             a/<!
+             ->string-body))))))
+
+(deftest build-multipart-async-multiple-statement-error-test
+  (sup/test-async
+   (a/go
+     (is
+      (= (cs/join
+          "\r\n"
+          [(str "--" boundary)
+           (str "Content-Type:application/json\r\n")
+           (str "{\"statements\":[" stmt-json)
+           ;; No closing JSON, boundary
+           ])
+         (-> (build-multipart-async
+              (a/to-chan [:statements
+                          statement-with-attachment
+                          ::lrsp/async-error]))
+             (->> (a/into []))
+             a/<!
+             ->string-body))))))
+
+(deftest build-multipart-async-multiple-attachment-error-test
+  (sup/test-async
+   (a/go
+     (is
+      (= (cs/join
+          "\r\n"
+          [(str "--" boundary)
+           (str "Content-Type:application/json\r\n")
+           (str "{\"statements\":[" stmt-json "," stmt-json "]}")
+           (str "--" boundary)
+           (str "Content-Type:" attachment-ctype)
+           (str "Content-Transfer-Encoding:binary")
+           (str "X-Experience-API-Hash:" attachment-sha2 "\r\n")
+           #?(:clj (slurp content)
+              :cljs content)
+           ;; No closing boundary
+           ])
+         (-> (build-multipart-async
+              (a/to-chan [:statements
+                          statement-with-attachment
+                          statement-with-attachment
+                          :attachments
+                          attachment
+                          ::lrsp/async-error]))
              (->> (a/into []))
              a/<!
              ->string-body))))))
