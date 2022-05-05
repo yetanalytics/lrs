@@ -270,23 +270,6 @@
                  [:response :headers "X-Experience-API-Consistent-Through"]
                  (ss/now-stamp))))})
 
-#?(:clj
-   (defn lazy-statement-result [{:keys [statements more]}
-                                ^OutputStream os]
-     (with-open [w (io/writer os)]
-       ;; Write everything up to the beginning of the statements
-       (.write w "{\"statements\": [")
-       (doseq [x (interpose :comma statements)]
-         (if (= :comma x)
-           (.write w ",")
-           (json/with-writer [w {}]
-             (json/write x))))
-       (let [^String terminal (if more
-                                (fmt "], \"more\": \"%s\"}" more)
-                                "]}")]
-         (.write w
-                 terminal)))))
-
 (defn json-string [x]
   #?(:clj (json/generate-string x)
      :cljs (.stringify js/JSON (clj->js x))))
