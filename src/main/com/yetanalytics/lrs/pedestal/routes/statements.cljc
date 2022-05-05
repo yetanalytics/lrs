@@ -149,8 +149,7 @@
            statement-result
            statement
            attachments
-           etag]
-    :as ret}]
+           etag]}]
   (if error
     ;; Error!
     (error-response ctx error)
@@ -163,7 +162,19 @@
               {:status  200
                :headers (cond-> {"Content-Type" att-resp/content-type}
                           etag (assoc "etag" etag))
-               :body    (att-resp/build-multipart-sync ret)}
+               ;; shim, the protocol will be expected to return this
+               :body    (att-resp/build-multipart-async
+                         (a/to-chan
+                          (if (some? statement)
+                            ;; Single statement
+                            (concat (list :statement statement)
+                                    (cons :attachments attachments))
+                            ;; Multiple statements
+                            (concat (cons :statements
+                                          (:statements statement-result))
+                                    (when-let [more (:more statement-result)]
+                                      (list :more more))
+                                    (cons :attachments attachments)))))}
               (if (si/accept-html? ctx)
                 (if statement-result
                   ;; Multiple statements
