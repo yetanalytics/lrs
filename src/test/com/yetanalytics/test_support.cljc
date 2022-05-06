@@ -1,9 +1,10 @@
 (ns com.yetanalytics.test-support
   (:require
+   [clojure.core.async :as a :include-macros true]
    [clojure.spec.alpha :as s :include-macros true]
+   [clojure.test :refer [deftest testing is #?(:cljs async)] :include-macros true]
    [clojure.test.check]
-   #?@(:clj [[clojure.test :refer [deftest testing is] :include-macros true]
-             [clojure.spec.test.alpha :as stest :include-macros true]])))
+   #?@(:clj [[clojure.spec.test.alpha :as stest :include-macros true]])))
 
 #?(:clj (alias 'stc 'clojure.spec.test.check))
 
@@ -50,3 +51,13 @@
                  (is
                   ~(list 'empty?
                          `(failures (stest/check (quote ~sym) ~opts))))))))))
+
+;; a la https://stackoverflow.com/a/30781278/3532563
+(defn test-async
+  "Asynchronous test awaiting ch to produce a value or close."
+  [ch]
+  #?(:clj
+     (a/<!! ch)
+     :cljs
+     (async done
+            (a/take! ch (fn [_] (done))))))

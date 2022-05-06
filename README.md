@@ -27,6 +27,12 @@ To use the dev profile, which contains all dev/repl/test stuff, use the `:dev` a
 * `test-conformance` - Run all conformance tests.
 * `test-all` - Run all lib and conformance tests.
 
+## Implementation Notes
+
+### Async `GET /statements` Error Handling
+
+LRS Applications implementing the `com.yetanalytics.lrs.protocol/-get-statements-async` method return a channel containing results. Since the body is streamed it is not possible to change the status of the request if an error is encountered. Applications can immediately terminate the stream (resulting in a malformed body) by passing `:com.yetanalytics.lrs.protocol/async-error` to the channel. This is preferable to returning a structurally valid response that is missing data. See [this PR](https://github.com/yetanalytics/lrs/pull/78) for more information.
+
 ## Bench Testing
 
 Facilities to bench test any LRS with [DATASIM](https://github.com/yetanalytics/datasim) are available. For instance, to bench the in-memory LRS:

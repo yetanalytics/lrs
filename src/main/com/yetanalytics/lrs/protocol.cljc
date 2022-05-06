@@ -405,13 +405,18 @@
   (sc/from-port
    (or-error (s/keys :req-un [:store-statements-ret/statement-ids]))))
 
+(s/def ::async-error
+  #{::async-error})
+
 (s/def ::get-statements-async-ret
   (sc/from-port-coll
    (s/alt
-    ;; can return one or more errors
+    ;; can return one error
     :exception
     (s/cat :header #{:error}
            :error :ret/error)
+    ;; can return headers followed by zero or more items
+    ;; if ::async-error keyword is passed, terminates stream
     :result
     (s/cat :result
            (s/alt
@@ -425,7 +430,8 @@
                                      :more-link :xapi.statements.GET.response.statement-result/more))))
            :attachments
            (s/? (s/cat :header #{:attachments}
-                       :attachments (s/* ::ss/attachment)))))))
+                       :attachments (s/* ::ss/attachment)))
+           :error (s/? ::async-error)))))
 
 (s/def ::consistent-through-async-ret
   (sc/from-port

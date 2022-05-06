@@ -4,7 +4,7 @@
              [clojure.java.io :as io]
              [io.pedestal.log :as log]]
        :cljs [cljs.nodejs
-              [goog.string :as gstring]
+              [goog.string :refer [format]]
               goog.string.format
               [com.yetanalytics.lrs.util.log :as log]])
    [io.pedestal.interceptor.chain :as chain]
@@ -23,8 +23,6 @@
    [clojure.string :as cs])
   #?(:clj (:import [java.io InputStream OutputStream]
                    [com.fasterxml.jackson.core JsonParseException])))
-
-(def fmt #?(:clj format :cljs gstring/format))
 
 ;; The general flow for these is 1. parse 2. validate 3. place in context
 
@@ -270,23 +268,6 @@
                  [:response :headers "X-Experience-API-Consistent-Through"]
                  (ss/now-stamp))))})
 
-#?(:clj
-   (defn lazy-statement-result [{:keys [statements more]}
-                                ^OutputStream os]
-     (with-open [w (io/writer os)]
-       ;; Write everything up to the beginning of the statements
-       (.write w "{\"statements\": [")
-       (doseq [x (interpose :comma statements)]
-         (if (= :comma x)
-           (.write w ",")
-           (json/with-writer [w {}]
-             (json/write x))))
-       (let [^String terminal (if more
-                                (fmt "], \"more\": \"%s\"}" more)
-                                "]}")]
-         (.write w
-                 terminal)))))
-
 (defn json-string [x]
   #?(:clj (json/generate-string x)
      :cljs (.stringify js/JSON (clj->js x))))
@@ -299,13 +280,15 @@
              s-count 0]
         (if-let [x (a/<! statement-result-chan)]
           (case x
+            ;; terminate on error producing invalid JSON
+            ::lrsp/async-error nil
             :statements
             (do (a/>! body-chan "{\"statements\":[")
                 (recur :statements s-count))
             :more
             (do (a/>! body-chan
-                      (fmt "],\"more\":\"%s\"}"
-                           (a/<! statement-result-chan)))
+                      (format "],\"more\":\"%s\"}"
+                              (a/<! statement-result-chan)))
                 (recur :more s-count))
             ;; else
             (do
