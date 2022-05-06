@@ -4,7 +4,7 @@
              [clojure.java.io :as io]
              [io.pedestal.log :as log]]
        :cljs [cljs.nodejs
-              [goog.string :as gstring]
+              [goog.string :refer [format]]
               goog.string.format
               [com.yetanalytics.lrs.util.log :as log]])
    [io.pedestal.interceptor.chain :as chain]
@@ -23,8 +23,6 @@
    [clojure.string :as cs])
   #?(:clj (:import [java.io InputStream OutputStream]
                    [com.fasterxml.jackson.core JsonParseException])))
-
-(def fmt #?(:clj format :cljs gstring/format))
 
 ;; The general flow for these is 1. parse 2. validate 3. place in context
 
@@ -289,8 +287,8 @@
                 (recur :statements s-count))
             :more
             (do (a/>! body-chan
-                      (fmt "],\"more\":\"%s\"}"
-                           (a/<! statement-result-chan)))
+                      (format "],\"more\":\"%s\"}"
+                              (a/<! statement-result-chan)))
                 (recur :more s-count))
             ;; else
             (do
