@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [deftest testing is]]
             [com.yetanalytics.test-support :as support :refer [deftest-check-ns]]
             [com.yetanalytics.lrs.impl.memory :as mem]
-            [com.yetanalytics.lrs :refer [get-statements store-statements]]
+            [com.yetanalytics.lrs :as lrs]
             [clojure.string :as cs]
             [com.yetanalytics.datasim.input :as sim-input]
             [com.yetanalytics.datasim.sim :as sim]
@@ -27,32 +27,32 @@
               :input :json "dev-resources/datasim/input/tc3.json"))))
 
 ;; instrument LRS api fns throughout tests
-(stest/instrument `[get-about
-                    get-about-async
-                    set-document
-                    set-document-async
-                    get-document
-                    get-document-async
-                    get-document-ids
-                    get-document-ids-async
-                    delete-document
-                    delete-document-async
-                    delete-documents
-                    delete-documents-async
-                    get-activity
-                    get-activity-async
-                    get-person
-                    get-person-async
-                    store-statements
-                    store-statements-async
-                    get-statements
-                    get-statements-async
-                    consistent-through
-                    consistent-through-async
-                    authenticate
-                    authenticate-async
-                    authorize
-                    authorize-async])
+(stest/instrument `[lrs/get-about
+                    lrs/get-about-async
+                    lrs/set-document
+                    lrs/set-document-async
+                    lrs/get-document
+                    lrs/get-document-async
+                    lrs/get-document-ids
+                    lrs/get-document-ids-async
+                    lrs/delete-document
+                    lrs/delete-document-async
+                    lrs/delete-documents
+                    lrs/delete-documents-async
+                    lrs/get-activity
+                    lrs/get-activity-async
+                    lrs/get-person
+                    lrs/get-person-async
+                    lrs/store-statements
+                    lrs/store-statements-async
+                    lrs/get-statements
+                    lrs/get-statements-async
+                    lrs/consistent-through
+                    lrs/consistent-through-async
+                    lrs/authenticate
+                    lrs/authenticate-async
+                    lrs/authorize
+                    lrs/authorize-async])
 
 (deftest query-test
   (let [auth-id {:auth   {:no-op {}}
@@ -66,12 +66,12 @@
         ;; no normalization going on
         s-count        100
         lrs            (doto (mem/new-lrs {:statements-result-max s-count})
-                         (store-statements auth-id
-                                           (into [] (take s-count)
-                                                 test-statements)
-                                           []))
+                         (lrs/store-statements auth-id
+                                               (into [] (take s-count)
+                                                     test-statements)
+                                               []))
         get-ss         #(into []
-                              (get-in (get-statements lrs auth-id % #{"en-US"})
+                              (get-in (lrs/get-statements lrs auth-id % #{"en-US"})
                                       [:statement-result :statements]))
         ret-statements (get-ss {:limit 100})]
     (testing (format "%s valid return statements?" (count ret-statements))
@@ -166,10 +166,10 @@
                    (get "id"))]
         (is
          (:statement
-          (get-statements lrs
-                          auth-id
-                          {:statementId (cs/upper-case id)}
-                          #{"en-US"})))))
+          (lrs/get-statements lrs
+                              auth-id
+                              {:statementId (cs/upper-case id)}
+                              #{"en-US"})))))
 
     (testing "registration param is normalized"
       (let [reg (-> ret-statements
@@ -178,30 +178,30 @@
         (is reg)
         (is
          (not-empty
-          (get-in  (get-statements lrs
-                                   auth-id
-                                   {:registration (cs/upper-case reg)}
-                                   #{"en-US"})
+          (get-in  (lrs/get-statements lrs
+                                       auth-id
+                                       {:registration (cs/upper-case reg)}
+                                       #{"en-US"})
                    [:statement-result :statements])))))
 
     (testing "ID keys are normalized"
       (let [s   (first test-statements)
             id  (get s "id")
             lrs (doto (mem/new-lrs {:statements-result-max s-count})
-                  (store-statements
+                  (lrs/store-statements
                    auth-id
                    [(-> s
                         (update "id" cs/upper-case)
                         (update-in ["context" "registration"] cs/upper-case))]
                    []))]
-        (is (:statement (get-statements
+        (is (:statement (lrs/get-statements
                          lrs
                          auth-id
                          {:statementId id}
                          #{"en-US"})))
-          ;; This test will pass even w/o normalized IDs, but it makes sure we
-          ;; don't screw up the rel index
-        (is (not-empty (get-in (get-statements
+        ;; This test will pass even w/o normalized IDs, but it makes sure we
+        ;; don't screw up the rel index
+        (is (not-empty (get-in (lrs/get-statements
                                 lrs
                                 auth-id
                                 {:verb (get-in s ["verb" "id"])}
@@ -209,7 +209,7 @@
                                [:statement-result :statements])))
 
         (testing "reg index"
-          (is (not-empty (get-in (get-statements
+          (is (not-empty (get-in (lrs/get-statements
                                   lrs
                                   auth-id
                                   {:registration (get-in s ["context"
@@ -219,8 +219,8 @@
 
         (testing "original case is preserved"
           (is (= (cs/upper-case id)
-                 (get-in (get-statements lrs
-                                         auth-id
-                                         {:statementId id}
-                                         #{"en-US"})
+                 (get-in (lrs/get-statements lrs
+                                             auth-id
+                                             {:statementId id}
+                                             #{"en-US"})
                          [:statement "id"]))))))))
