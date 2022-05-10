@@ -74,5 +74,6 @@
                  (try (validate-statements-multiparts
                        statements
                        [multipart])
-                      (catch clojure.lang.ExceptionInfo exi
+                      (catch #?(:clj clojure.lang.ExceptionInfo
+                                :cljs ExceptionInfo) exi
                         (-> exi ex-data :type))))))))))
