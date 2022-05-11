@@ -123,18 +123,33 @@
                       "length"      20
                       "sha2"        "7e0c4bbe6280e85cf8525dd7afe8d6ffe9051fbc5fadff71d4aded1ba4c74b53"}])]]
         (testing "works with a dup multipart"
-          (is (= [statements [multipart
-                              multipart]]
+          (is (= [statements [multipart multipart]]
                  (validate-statements-multiparts
                   statements
                   [multipart
                    multipart]))))
-        #_(testing "works with a dedup multipart"
-            (is (= [statements [multipart]]
-                   (validate-statements-multiparts
-                    statements
-                    [multipart
-                     multipart]))))
+        (testing "fails with left over multiparts"
+          (is (= ::attachment/statement-attachment-mismatch
+                 (try (validate-statements-multiparts
+                       [s-template]
+                       [multipart])
+                      (catch #?(:clj clojure.lang.ExceptionInfo
+                                :cljs ExceptionInfo) exi
+                        (-> exi ex-data :type)))))
+          (is (= ::attachment/statement-attachment-mismatch
+                 (try (validate-statements-multiparts
+                       [(assoc s-template
+                               "attachments"
+                               [{"usageType"   "https://example.com/usagetype"
+                                 "display"     {"en-US" "someattachment"}
+                                 "contentType" "application/octet-stream"
+                                 "length"      20
+                                 "sha2"        "7e0c4bbe6280e85cf8525dd7afe8d6ffe9051fbc5fadff71d4aded1ba4c74b53"}])]
+                       [multipart
+                        multipart])
+                      (catch #?(:clj clojure.lang.ExceptionInfo
+                                :cljs ExceptionInfo) exi
+                        (-> exi ex-data :type))))))
         (testing "fails with a single multipart"
           (is (= ::attachment/invalid-multipart-format
                  (try (validate-statements-multiparts
