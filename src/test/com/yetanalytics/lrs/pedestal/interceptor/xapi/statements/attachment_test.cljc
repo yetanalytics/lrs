@@ -51,7 +51,7 @@
                                (.getBytes sig "UTF-8"))
                          :cljs sig)))
               :input-stream
-              slurp))))
+              #?(:clj slurp)))))
     (testing "invalid-sig"
       (let [invalid-sig (apply str (drop 10 sig))]
         (is (= ::attachment/invalid-signature-json
