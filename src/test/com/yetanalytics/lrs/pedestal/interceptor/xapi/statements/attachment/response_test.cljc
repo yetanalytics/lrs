@@ -76,10 +76,10 @@
               :cljs content)
            (str "--" boundary "--")])
          (-> (build-multipart-async
-              (a/to-chan [:statement
-                          statement-with-attachment
-                          :attachments
-                          attachment]))
+              (a/to-chan! [:statement
+                           statement-with-attachment
+                           :attachments
+                           attachment]))
              (->> (a/into []))
              a/<!
              ->string-body))))))
@@ -93,8 +93,8 @@
           [(str "--" boundary)
            (str "Content-Type:application/json\r\n\r\n")])
          (-> (build-multipart-async
-              (a/to-chan [:statement
-                          ::lrsp/async-error]))
+              (a/to-chan! [:statement
+                           ::lrsp/async-error]))
              (->> (a/into []))
              a/<!
              ->string-body))))))
@@ -111,10 +111,10 @@
            ;; No attachments or closing boundary
            ])
          (-> (build-multipart-async
-              (a/to-chan [:statement
-                          statement-with-attachment
-                          :attachments
-                          ::lrsp/async-error]))
+              (a/to-chan! [:statement
+                           statement-with-attachment
+                           :attachments
+                           ::lrsp/async-error]))
              (->> (a/into []))
              a/<!
              ->string-body))))))
@@ -136,11 +136,11 @@
               :cljs content)
            (str "--" boundary "--")])
          (-> (build-multipart-async
-              (a/to-chan [:statements
-                          statement-with-attachment
-                          statement-with-attachment
-                          :attachments
-                          attachment]))
+              (a/to-chan! [:statements
+                           statement-with-attachment
+                           statement-with-attachment
+                           :attachments
+                           attachment]))
              (->> (a/into []))
              a/<!
              ->string-body))))))
@@ -157,9 +157,9 @@
            ;; No closing JSON, boundary
            ])
          (-> (build-multipart-async
-              (a/to-chan [:statements
-                          statement-with-attachment
-                          ::lrsp/async-error]))
+              (a/to-chan! [:statements
+                           statement-with-attachment
+                           ::lrsp/async-error]))
              (->> (a/into []))
              a/<!
              ->string-body))))))
@@ -182,12 +182,12 @@
            ;; No closing boundary
            ])
          (-> (build-multipart-async
-              (a/to-chan [:statements
-                          statement-with-attachment
-                          statement-with-attachment
-                          :attachments
-                          attachment
-                          ::lrsp/async-error]))
+              (a/to-chan! [:statements
+                           statement-with-attachment
+                           statement-with-attachment
+                           :attachments
+                           attachment
+                           ::lrsp/async-error]))
              (->> (a/into []))
              a/<!
              ->string-body))))))
@@ -210,14 +210,14 @@
            #?(:clj (slurp content)
               :cljs content)
            (str "--" boundary "--")])
-           (-> (build-multipart-async
-                (a/to-chan [:statements
-                            statement-with-attachment
-                            statement-with-attachment
-                            :more
-                            more
-                            :attachments
-                            attachment]))
-               (->> (a/into []))
-               a/<!
-               ->string-body)))))))
+         (-> (build-multipart-async
+              (a/to-chan! [:statements
+                           statement-with-attachment
+                           statement-with-attachment
+                           :more
+                           more
+                           :attachments
+                           attachment]))
+             (->> (a/into []))
+             a/<!
+             ->string-body)))))))

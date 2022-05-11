@@ -259,7 +259,7 @@
                                   :form-params batch}))
                         (partition-all batch-size payload))
         ;; enter the async zone
-        req-chan  (a/to-chan requests)
+        req-chan  (a/to-chan! requests)
         resp-chan (a/chan (count requests)) ; buffer enough for all results
         ;; init time
         ^Instant t-zero (Instant/now)
