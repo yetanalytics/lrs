@@ -133,35 +133,46 @@
 
 (defn validate-sig
   "Validate a signed statement against a multipart and return if valid."
-  [statement {:keys [#?(:clj ^InputStream input-stream
-                        :cljs ^String input-stream)] :as multipart}]
-  (let [^String jws
-        #?(:clj (with-open [in input-stream]
-                  (slurp in :encoding "UTF-8"))
-           :cljs input-stream)
-        {:keys [headers payload]}
-        (decode-sig jws)
-        {:keys [alg _typ]}
-        headers]
-    (cond
-      (not (#{"RS256" "RS384" "RS512"}
-            alg))
-      (throw (ex-info "JWS Algorithm MUST be RS256, RS384, or RS512"
-                      {:type      ::invalid-signature-alg
-                       :jws       jws
-                       :statement statement}))
-      (not (ss/statements-immut-equal?
-            (dissoc statement "attachments")
-            payload))
-      (throw (ex-info "Statement signature does not match statement"
-              {:type      ::invalid-signature-mismatch
-               :jws       jws
-               :statement statement}))
-      :else ; If everything's good, return the multipart w/ a new input stream
-      (assoc multipart
-             :input-stream
-             #?(:clj (ByteArrayInputStream. (.getBytes jws "UTF-8"))
-                :cljs jws)))))
+  [statement
+   attachment-object
+   {:keys [#?(:clj ^InputStream input-stream
+              :cljs ^String input-stream)] :as multipart}]
+  (if-not (= (:content-type multipart)
+             (get attachment-object "contentType")
+             "application/octet-stream")
+    (throw
+     (ex-info
+      "Statement signature attachment contentType must be application/octet-stream"
+      {:type                 ::invalid-signature-attachment-content-type
+       :attachment-object    attachment-object
+       :attachment-multipart multipart}))
+    (let [^String jws
+          #?(:clj (with-open [in input-stream]
+                    (slurp in :encoding "UTF-8"))
+             :cljs input-stream)
+          {:keys [headers payload]}
+          (decode-sig jws)
+          {:keys [alg _typ]}
+          headers]
+      (cond
+        (not (#{"RS256" "RS384" "RS512"}
+              alg))
+        (throw (ex-info "JWS Algorithm MUST be RS256, RS384, or RS512"
+                        {:type      ::invalid-signature-alg
+                         :jws       jws
+                         :statement statement}))
+        (not (ss/statements-immut-equal?
+              (dissoc statement "attachments")
+              payload))
+        (throw (ex-info "Statement signature does not match statement"
+                        {:type      ::invalid-signature-mismatch
+                         :jws       jws
+                         :statement statement}))
+        :else ; If everything's good, return the multipart w/ a new input stream
+        (assoc multipart
+               :input-stream
+               #?(:clj (ByteArrayInputStream. (.getBytes jws "UTF-8"))
+                  :cljs jws))))))
 
 (defn multipart-map
   "Given a list of multiparts, make a map of vectors of them by xapi hash"
@@ -183,24 +194,13 @@
 (defn make-sha-multipart-pair
   "Given the attachment object `att-obj`, return a pair of its SHA and the
    multipart, or `nil` if `att-obj` is a fileURL."
-  [sig multi-parts att-obj]
+  [statement multi-parts att-obj]
   ;; If we match...
   (if-let [[sha mps] (find multi-parts (get att-obj "sha2"))]
     (let [mp (first mps)]
       ;; If it's a signature...
       (if (sig? att-obj)
-        (if (= (:content-type mp)
-               (get att-obj "contentType")
-               "application/octet-stream")
-          ;; If the ctype is valid, validate the sig
-          [sha (validate-sig sig mp)]
-          ;; If that ctype was wrong, throw
-          (throw
-           (ex-info
-            "Statement signature attachment contentType must be application/octet-stream"
-            {:type                 ::invalid-signature-attachment-content-type
-             :attachment-object    att-obj
-             :attachment-multipart mp})))
+        [sha (validate-sig statement att-obj mp)]
         ;; If not, return the sha and multipart
         [sha mp]))
     ;; If we don't, this better be a fileURL
@@ -255,23 +255,3 @@
                        :leftover-multiparts (into [] leftover-multiparts)}))
       ;; If not, let's return the statements and multiparts
       [valid-statements valid-multiparts])))
-
-;; The following comment block is left for dev purposes
-(comment
-
-  (def s-json "{\"actor\":{\"objectType\":\"Agent\",\"name\":\"xAPI mbox\",\"mbox\":\"mailto:xapi@adlnet.gov\"},\"verb\":{\"id\":\"http://adlnet.gov/expapi/verbs/attended\",\"display\":{\"en-GB\":\"attended\",\"en-US\":\"attended\"}},\"object\":{\"objectType\":\"Activity\",\"id\":\"http://www.example.com/meetings/occurances/34534\"},\"id\":\"2e2f1ad7-8d10-4c73-ae6e-2842729e25ce\",\"attachments\":[{\"usageType\":\"http://adlnet.gov/expapi/attachments/signature\",\"display\":{\"en-US\":\"Signed by the Test Suite\"},\"description\":{\"en-US\":\"Signed by the Test Suite\"},\"contentType\":\"application/octet-stream\",\"length\":796,\"sha2\":\"f7db3634a22ea2fe4de1fc519751046a3bdf1e5605a316a19343109bd6daa388\"}]}")
-
-  (def sig "eyJhbGciOiJSUzI1NiJ9.eyJhY3RvciI6eyJvYmplY3RUeXBlIjoiQWdlbnQiLCJuYW1lIjoieEFQSSBtYm94IiwibWJveCI6Im1haWx0bzp4YXBpQGFkbG5ldC5nb3YifSwidmVyYiI6eyJpZCI6Imh0dHA6Ly9hZGxuZXQuZ292L2V4cGFwaS92ZXJicy9hdHRlbmRlZCIsImRpc3BsYXkiOnsiZW4tR0IiOiJhdHRlbmRlZCIsImVuLVVTIjoiYXR0ZW5kZWQifX0sIm9iamVjdCI6eyJvYmplY3RUeXBlIjoiQWN0aXZpdHkiLCJpZCI6Imh0dHA6Ly93d3cuZXhhbXBsZS5jb20vbWVldGluZ3Mvb2NjdXJhbmNlcy8zNDUzNCJ9LCJpZCI6IjJlMmYxYWQ3LThkMTAtNGM3My1hZTZlLTI4NDI3MjllMjVjZSJ9.roBpi7viDC4DyNikcWtjuvfXEfrVqNtukVfOjoj-VEGbskcxc9H21GKQBsw3LxnpblIpiDPithCs2AOZK7RFy4vB9wsL5HmX8jpxGvGnYCWNEbVRGoYyntFWjF3wFtTaJMHvZLnirL6k1qhxdfJPcV2C-uc-FXC9AR4__xYbJioJDb37wvPtetD8x8YTdkMkM7nlv20GjV3YF-wa_cxt9hWVS-8LDikCswY6PpMLFR6eYeqIqrZxJQtqDhsZK3k28eHDxAnNB-dGoYeiSeFSbcToyVh4iz2lZGNUmfkltiVs7mLTVJNilU0Z41JIFrdYEGXEfYQwFmiIf5denL5_lg")
-
-  (def s-parsed (parse-string s-json))
-
-  (= (dissoc s-parsed "attachments") (:payload (decode-sig sig)))
-
-  (keys s-parsed)
-
-  (validate-sig s-parsed
-                {:input-stream sig})
-
-  #?(:clj
-     (= (json/parse-string-strict s-json)
-        (json/parse-string s-json))))
