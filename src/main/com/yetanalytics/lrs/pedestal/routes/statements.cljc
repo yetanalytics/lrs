@@ -164,7 +164,7 @@
                           etag (assoc "etag" etag))
                ;; shim, the protocol will be expected to return this
                :body    (att-resp/build-multipart-async
-                         (a/to-chan
+                         (a/to-chan!
                           (if (some? statement)
                             ;; Single statement
                             (concat (list :statement statement)
@@ -190,7 +190,7 @@
                   {:status  200
                    :headers {"Content-Type" "application/json"}
                    :body    (si/lazy-statement-result-async
-                             (a/to-chan
+                             (a/to-chan!
                               (concat (cons :statements
                                             (:statements statement-result))
                                       (when-let [more (:more statement-result)]
