@@ -186,8 +186,8 @@
        (if-let [statement-data (get-in ctx [:request :json-params])]
          (try (condp s/valid? statement-data
                 ::xs/statement
-                (let [[_ valid-multiparts]
-                      (attachment/validate-statements-multiparts
+                (let [valid-multiparts
+                      (attachment/validate-multiparts
                        [statement-data]
                        multiparts)
                       attachment-data
@@ -199,8 +199,8 @@
                           ::xs/statement statement-data
                           :xapi.statements/attachments attachment-data))
                 ::xs/statements
-                (let [[_ valid-multiparts]
-                      (attachment/validate-statements-multiparts
+                (let [valid-multiparts
+                      (attachment/validate-multiparts
                        statement-data
                        multiparts)
                       attachment-data

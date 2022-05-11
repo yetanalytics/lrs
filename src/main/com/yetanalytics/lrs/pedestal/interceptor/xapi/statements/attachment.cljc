@@ -85,17 +85,6 @@
   [multiparts]
   (mapv save-attachment multiparts))
 
-(defn statements-attachments
-  "For each statement, get any attachment objects,
-   and make of them a seq of seqs."
-  [statements]
-  (for [{:strs [attachments
-                object]
-         :as statement} statements]
-    (->> (get object "attachments")
-         (concat attachments)
-         (cons statement))))
-
 (defn delete-attachments!
   "Delete all tempfiles for a sequence of attachments"
   [attachments]
@@ -162,6 +151,7 @@
                          :jws       jws
                          :statement statement}))
         (not (ss/statements-immut-equal?
+              ;; TODO: make sure this doesn't trigger on substatement paths
               (dissoc statement "attachments")
               payload))
         (throw (ex-info "Statement signature does not match statement"
@@ -174,84 +164,68 @@
                #?(:clj (ByteArrayInputStream. (.getBytes jws "UTF-8"))
                   :cljs jws))))))
 
-(defn multipart-map
-  "Given a list of multiparts, make a map of vectors of them by xapi hash"
-  [multiparts]
-  (reduce (fn [m {:keys [headers] :as multipart}]
-            (update m
-                    (get headers "X-Experience-API-Hash")
-                    (fnil conj [])
-                    multipart))
-          {}
-          multiparts))
-
 (defn sig?
   "Predicate, returns true if the given attachment object is a signature"
   [attachment-object]
   (= "http://adlnet.gov/expapi/attachments/signature"
      (get attachment-object "usageType")))
 
-(defn make-sha-multipart-pair
-  "Given the attachment object `att-obj`, return a pair of its SHA and the
-   multipart, or `nil` if `att-obj` is a fileURL."
-  [statement multi-parts att-obj]
-  ;; If we match...
-  (if-let [[sha mps] (find multi-parts (get att-obj "sha2"))]
-    (let [mp (first mps)]
-      ;; If it's a signature...
-      (if (sig? att-obj)
-        [sha (validate-sig statement att-obj mp)]
-        ;; If not, return the sha and multipart
-        [sha mp]))
-    ;; If we don't, this better be a fileURL
-    (when-not (get att-obj "fileUrl")
-      (throw (ex-info "Invalid multipart format"
-                      {:type ::invalid-multipart-format})))))
+(defn multipart-map-dedupe
+  "Given a list of multiparts, make a map of vectors of them by xapi hash.
+  Removes duplicate multiparts."
+  [multiparts]
+  (reduce (fn [m {:keys [headers] :as multipart}]
+            (let [sha (get headers "X-Experience-API-Hash")]
+              (if-let [extant (get m sha)]
+                m
+                (assoc m sha multipart))))
+          {}
+          multiparts))
 
-(defn validate-statements-multiparts
-  "Validate and return statements and their multipart attachments"
-  [statements multiparts]
-  (let [;; collect the attachments per statement and reduce over them
-        {valid-statements    :s-acc
-         valid-multiparts    :a-acc
-         leftover-multiparts :mps}
+(defn validate-multiparts
+  "Given a list of statements and a list of multiparts, return valid multiparts,
+  deduplicated."
+  [statements
+   multiparts]
+  (let [{:keys [sha2s
+                mpart-map]}
         (reduce
-         (fn [{:keys [mps] :as m}
-              [s & att-objs]]
-           ;; match the attachment objects to a multipart
-           ;; or assert that they are a fileURL
-           (let [;; Reduce over multiparts and find relevant attachments
-                 [next-mps
-                  valid-matched]
-                 (reduce
-                  (fn [[mps' acc :as state] ao]
-                    (if-let [[sha mp :as match]
-                             (make-sha-multipart-pair
-                              s mps' ao)]
-                      [(if (< 1 (count (get mps' sha)))
-                         (update mps' sha #(into [] (rest %)))
-                         (dissoc mps' sha))
-                       (conj acc match)]
-                      state))
-                  [mps []]
-                  att-objs)
-
-                 valid-shas    (map first valid-matched)]
-             (-> m
-                 (update :s-acc conj s)
-                 (update :a-acc into (map second valid-matched))
-                 (assoc :mps
-                        next-mps))))
-         {;; accumulators for the statements + attachments
-          :s-acc []
-          :a-acc []
-          ;; the multiparts to join up, by Hash
-          :mps   (multipart-map multiparts)}
-         (statements-attachments statements))]
-    (if (seq leftover-multiparts)
-      ;; If we have leftovers, it's bad
+         (fn [{:keys [sha2s mpart-map]
+               :as state}
+              {:keys [statement
+                      attachment-path]
+               {:strs [sha2 fileUrl]
+                :as att-obj} :attachment}]
+           (if-let [match-mp (get mpart-map sha2)]
+             (cond-> (update state :sha2s conj sha2)
+               ;; Validate + recreate sig mp
+               (and (= "attachments"
+                       (first attachment-path))
+                    (sig? att-obj))
+               (update-in
+                [:mpart-map sha2]
+                (partial validate-sig
+                         statement
+                         att-obj)))
+             ;; Allow attachments w/o a fileUrl to silently drop
+             (if fileUrl
+               state
+               (throw
+                ;; TODO: name of this error?
+                (ex-info "Invalid multipart format"
+                         {:type ::invalid-multipart-format})))))
+         {:sha2s []
+          :mpart-map (multipart-map-dedupe multiparts)}
+         (ss/all-attachment-objects statements))
+        sha2s-out (distinct sha2s)]
+    (if-let [leftover-multiparts (-> (apply dissoc
+                                            mpart-map
+                                            sha2s-out)
+                                     not-empty
+                                     vals)]
       (throw (ex-info "Attachment sha2s differ from statement sha2s"
                       {:type                ::statement-attachment-mismatch
                        :leftover-multiparts (into [] leftover-multiparts)}))
-      ;; If not, let's return the statements and multiparts
-      [valid-statements valid-multiparts])))
+      (into []
+            (for [sha2 sha2s-out]
+              (get mpart-map sha2))))))

@@ -6,7 +6,7 @@
              :as attachment
              :refer [decode-sig
                      validate-sig
-                     validate-statements-multiparts]])
+                     validate-multiparts]])
   #?(:clj (:import [java.io ByteArrayInputStream])))
 
 (deftest sig-test
@@ -68,7 +68,7 @@
                            :cljs ExceptionInfo) exi
                    (-> exi ex-data :type)))))))))
 
-(deftest validate-statements-multiparts-test
+(deftest validate-multiparts-test
   (let [s-template {"id"          "78efaab3-1c65-4cb7-9289-f34e0594b274"
                     "actor"       {"mbox"       "mailto:bob@example.com"
                                    "objectType" "Agent"}
@@ -85,26 +85,22 @@
                                           (.getBytes "some text\n some more" "UTF-8"))
                                     :cljs "some text\n some more")}]
     (testing "empty"
-      (is (= [[] []]
-             (validate-statements-multiparts
+      (is (= []
+             (validate-multiparts
               []
               []))))
 
     (testing "simple"
-      (let [statements
-            [(assoc s-template
-                    "attachments"
-                    [{"usageType"   "https://example.com/usagetype"
-                      "display"     {"en-US" "someattachment"}
-                      "contentType" "application/octet-stream"
-                      "length"      20
-                      "sha2"        "7e0c4bbe6280e85cf8525dd7afe8d6ffe9051fbc5fadff71d4aded1ba4c74b53"}])]
-            multiparts
-            [multipart]]
-        (is (= [statements multiparts]
-               (validate-statements-multiparts
-                statements
-                multiparts)))))
+      (is (= [multipart]
+             (validate-multiparts
+              [(assoc s-template
+                      "attachments"
+                      [{"usageType"   "https://example.com/usagetype"
+                        "display"     {"en-US" "someattachment"}
+                        "contentType" "application/octet-stream"
+                        "length"      20
+                        "sha2"        "7e0c4bbe6280e85cf8525dd7afe8d6ffe9051fbc5fadff71d4aded1ba4c74b53"}])]
+              [multipart]))))
     (testing "dup reference"
       ;; TODO: per this test, the lib currently requires that each referenced
       ;; multipart be provided, even if they share a SHA.
@@ -122,38 +118,21 @@
                       "contentType" "application/octet-stream"
                       "length"      20
                       "sha2"        "7e0c4bbe6280e85cf8525dd7afe8d6ffe9051fbc5fadff71d4aded1ba4c74b53"}])]]
-        (testing "works with a dup multipart"
-          (is (= [statements [multipart multipart]]
-                 (validate-statements-multiparts
+        (testing "works with a dup multipart, deduplicates"
+          (is (= [multipart]
+                 (validate-multiparts
                   statements
                   [multipart
                    multipart]))))
+        (testing "works with a dedup multipart"
+          (is (= [multipart]
+                 (validate-multiparts
+                  statements
+                  [multipart]))))
         (testing "fails with left over multiparts"
           (is (= ::attachment/statement-attachment-mismatch
-                 (try (validate-statements-multiparts
-                       [s-template]
-                       [multipart])
-                      (catch #?(:clj clojure.lang.ExceptionInfo
-                                :cljs ExceptionInfo) exi
-                        (-> exi ex-data :type)))))
-          (is (= ::attachment/statement-attachment-mismatch
-                 (try (validate-statements-multiparts
-                       [(assoc s-template
-                               "attachments"
-                               [{"usageType"   "https://example.com/usagetype"
-                                 "display"     {"en-US" "someattachment"}
-                                 "contentType" "application/octet-stream"
-                                 "length"      20
-                                 "sha2"        "7e0c4bbe6280e85cf8525dd7afe8d6ffe9051fbc5fadff71d4aded1ba4c74b53"}])]
-                       [multipart
-                        multipart])
-                      (catch #?(:clj clojure.lang.ExceptionInfo
-                                :cljs ExceptionInfo) exi
-                        (-> exi ex-data :type))))))
-        (testing "fails with a single multipart"
-          (is (= ::attachment/invalid-multipart-format
-                 (try (validate-statements-multiparts
-                       statements
+                 (try (validate-multiparts
+                       [s-template] ;; no attachments
                        [multipart])
                       (catch #?(:clj clojure.lang.ExceptionInfo
                                 :cljs ExceptionInfo) exi
