@@ -137,6 +137,12 @@
         (stest/check `ss/statement-ref?
                      {stc-opts {:num-tests 10 :max-size 3}})))))
 
+(deftest all-attachment-objects-test
+  (is (empty?
+       (failures
+        (stest/check `ss/all-attachment-objects
+                     {stc-opts {:num-tests 2 :max-size 2}})))))
+
 (deftest all-attachment-hashes-test
   (is (empty?
        (failures
