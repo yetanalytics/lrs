@@ -535,32 +535,6 @@
 (defn voiding-statement? [s]
   (some-> s (get-in ["verb" "id"]) (= "http://adlnet.gov/expapi/verbs/voided")))
 
-(defn all-attachment-hashes
-  "For each statement, get any attachment hashes. If skip-file-urls is true,
-   will only return sha2s from attachments w/o fileURL."
-  [statements & [skip-file-urls]]
-  (distinct
-   (keep
-    (fn [{:strs [sha2 fileUrl] :as _attachment}]
-      (if skip-file-urls
-        (when-not fileUrl
-          sha2)
-        sha2))
-    (mapcat
-     (fn [{:strs [attachments
-                  object]
-           :as _statement}]
-       (concat attachments
-               (get object "attachments")))
-     statements))))
-
-(s/fdef all-attachment-hashes
-  :args (s/cat :statements
-               (s/coll-of ::xs/statement)
-               :skip-file-urls
-               (s/? boolean?))
-  :ret (s/coll-of :attachment/sha2))
-
 ;; A representation of a stored attachment
 ;; TODO: generalize
 (s/def :attachment/content
@@ -593,6 +567,64 @@
 
 (s/def ::attachments
   (s/coll-of ::attachment))
+
+(s/def ::attachment-path
+  (s/cat
+   :root-or-sub (s/? #{"object"})
+   :attachment-key #{"attachments"}
+   :index nat-int?))
+
+(defn all-attachment-objects
+  "Given a collection of statements, return a lazy seq of maps containing:
+    :statement - the containing statement
+    :attachment - the attachment object
+    :attachment-path - the path of the attachment object in the statement"
+  [statements]
+  (mapcat
+   (fn [{:strs [attachments
+                object]
+         :as statement}]
+     (concat (for [[idx att] (map-indexed vector attachments)]
+               {:statement statement
+                :attachment att
+                :attachment-path ["attachments" idx]})
+             (for [[idx att] (map-indexed vector
+                                          (get object "attachments"))]
+               {:statement statement
+                :attachment att
+                :attachment-path ["object" "attachments" idx]})))
+   statements))
+
+(s/fdef all-attachment-objects
+  :args (s/cat :statements
+               (s/coll-of ::xs/statement))
+  :ret (s/coll-of
+        (s/keys :req-un
+                [::xs/statement
+                 ::xs/attachment
+                 ::attachment-path])))
+
+(defn all-attachment-hashes
+  "For each statement, get any attachment hashes. If skip-file-urls is true,
+   will only return sha2s from attachments w/o fileURL."
+  [statements & [skip-file-urls]]
+  (distinct
+   (keep
+    (fn [{:strs [sha2 fileUrl] :as _attachment}]
+      (if skip-file-urls
+        (when-not fileUrl
+          sha2)
+        sha2))
+    (map
+     :attachment
+     (all-attachment-objects statements)))))
+
+(s/fdef all-attachment-hashes
+  :args (s/cat :statements
+               (s/coll-of ::xs/statement)
+               :skip-file-urls
+               (s/? boolean?))
+  :ret (s/coll-of :attachment/sha2))
 
 (defn statement-rel-docs
   "Get related activities and agents"

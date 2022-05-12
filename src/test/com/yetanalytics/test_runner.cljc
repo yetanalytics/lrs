@@ -14,6 +14,7 @@
    com.yetanalytics.lrs.impl.memory-test
    com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
    com.yetanalytics.lrs.auth-test
+   com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
    com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test))
 
 (defmethod test/report #?(:cljs [::test/default :begin-test-ns]
@@ -51,6 +52,7 @@
    'com.yetanalytics.lrs.impl.memory-test
    'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
    'com.yetanalytics.lrs.auth-test
+   'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
    'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test))
 
 (defn ^:export -main []
