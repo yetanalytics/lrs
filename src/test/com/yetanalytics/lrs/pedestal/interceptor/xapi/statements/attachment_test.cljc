@@ -137,6 +137,14 @@
                  (validate-multiparts
                   statements
                   [multipart]))))
+        (testing "fails with missing attachment"
+          (is (= ::attachment/statement-attachment-missing
+                 (try (validate-multiparts
+                       statements
+                       []) ;; no attachments
+                      (catch #?(:clj clojure.lang.ExceptionInfo
+                                :cljs ExceptionInfo) exi
+                        (-> exi ex-data :type))))))
         (testing "fails with left over multiparts"
           (is (= ::attachment/statement-attachment-mismatch
                  (try (validate-multiparts

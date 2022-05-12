@@ -211,9 +211,8 @@
              (if fileUrl
                state
                (throw
-                ;; TODO: name of this error?
-                (ex-info "Invalid multipart format"
-                         {:type ::invalid-multipart-format})))))
+                (ex-info "Statement references missing attachment and no fileUrl is present"
+                         {:type ::statement-attachment-missing})))))
          {:sha2s []
           :mpart-map (multipart-map-dedupe multiparts)}
          (ss/all-attachment-objects statements))
