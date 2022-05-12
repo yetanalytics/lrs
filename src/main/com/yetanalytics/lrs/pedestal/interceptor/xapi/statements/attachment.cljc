@@ -182,40 +182,47 @@
           {}
           multiparts))
 
+(defn- attachment-reduce-fn
+  "Reduce over statement attachment references and attempt to match them to the
+  provided map of multiparts. Validates signatures when appropriate.
+  Throws on missing attachment or signature errors."
+  [{:keys [sha2s mpart-map]
+    :as state}
+   {:keys [statement
+           attachment-path]
+    {:strs [sha2 fileUrl]
+     :as att-obj} :attachment}]
+  (if-let [match-mp (get mpart-map sha2)]
+    (cond-> (update state :sha2s conj sha2)
+      ;; Validate + recreate sig mp
+      (and (= "attachments"
+              (first attachment-path))
+           (sig? att-obj))
+      (update-in
+       [:mpart-map sha2]
+       (partial validate-sig
+                statement
+                att-obj)))
+    ;; Allow attachments w/o a fileUrl to silently drop
+    (if fileUrl
+      state
+      (throw
+       (ex-info
+        "Statement references missing attachment and no fileUrl is present"
+        {:type ::statement-attachment-missing})))))
+
 (defn validate-multiparts
   "Given a list of statements and a list of multiparts, return valid multiparts,
   deduplicated."
   [statements
    multiparts]
   (let [{:keys [sha2s
-                mpart-map]}
-        (reduce
-         (fn [{:keys [sha2s mpart-map]
-               :as state}
-              {:keys [statement
-                      attachment-path]
-               {:strs [sha2 fileUrl]
-                :as att-obj} :attachment}]
-           (if-let [match-mp (get mpart-map sha2)]
-             (cond-> (update state :sha2s conj sha2)
-               ;; Validate + recreate sig mp
-               (and (= "attachments"
-                       (first attachment-path))
-                    (sig? att-obj))
-               (update-in
-                [:mpart-map sha2]
-                (partial validate-sig
-                         statement
-                         att-obj)))
-             ;; Allow attachments w/o a fileUrl to silently drop
-             (if fileUrl
-               state
-               (throw
-                (ex-info "Statement references missing attachment and no fileUrl is present"
-                         {:type ::statement-attachment-missing})))))
-         {:sha2s []
-          :mpart-map (multipart-map-dedupe multiparts)}
-         (ss/all-attachment-objects statements))
+                mpart-map]} (reduce
+                             attachment-reduce-fn
+                             {:sha2s []
+                              :mpart-map (multipart-map-dedupe
+                                          multiparts)}
+                             (ss/all-attachment-objects statements))
         sha2s-out (distinct sha2s)]
     (if-let [leftover-multiparts (-> (apply dissoc
                                             mpart-map
