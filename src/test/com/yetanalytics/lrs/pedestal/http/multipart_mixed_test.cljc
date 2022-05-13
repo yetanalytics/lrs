@@ -1,7 +1,8 @@
 (ns com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
-  (:require [clojure.test :as test :refer [deftest is] :include-macros true]
+  (:require [clojure.test :as test :refer [deftest is testing] :include-macros true]
             [com.yetanalytics.lrs.pedestal.http.multipart-mixed :as multipart]
             [clojure.spec.alpha :as s :include-macros true]
+            [clojure.string :as cs]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as ss]
             #?(:cljs [fs]
                :clj [clojure.java.io :as io])))
@@ -27,4 +28,14 @@
                     :multiparts (s/* ::ss/multipart))
              #?(:clj (with-open [in (io/input-stream (.getBytes body "UTF-8"))]
                        (multipart/parse-parts in boundary))
-                :cljs (multipart/parse-parts body boundary))))))
+                :cljs (multipart/parse-parts body boundary)))))
+  (testing "bad line breaks"
+    (let [bad-body (cs/replace body #"\r\n" "\n")]
+      (is (= ::multipart/invalid-multipart-body
+             (try
+               #?(:clj (with-open [in (io/input-stream (.getBytes body "UTF-8"))]
+                         (multipart/parse-parts in boundary))
+                  :cljs (multipart/parse-parts body boundary))
+               (catch #?(:clj clojure.lang.ExceptionInfo
+                         :cljs ExceptionInfo) exi
+                 (-> exi ex-data :type))))))))
