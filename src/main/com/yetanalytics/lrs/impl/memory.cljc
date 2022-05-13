@@ -570,7 +570,7 @@
       (loop [results           (statements-seq @state params ltags)
              last-id            nil
              result-count       0
-             result-attachments (list)]
+             result-attachments {}]
         (if (and (< 0 limit)
                  (= result-count limit)
                  (first results))
@@ -592,14 +592,14 @@
               (recur (rest results)
                      (ss/normalize-id (get statement "id"))
                      (inc result-count)
-                     (into result-attachments
-                           (when attachments
-                             (keep
-                              (:state/attachments @state)
-                              (ss/all-attachment-hashes [statement]))))))
+                     ;; deduplicate attachments
+                     (merge result-attachments
+                            (select-keys
+                             (:state/attachments @state)
+                             (ss/all-attachment-hashes [statement])))))
             (when attachments
               (a/>! result-chan :attachments)
-              (doseq [att result-attachments]
+              (doseq [att (vals result-attachments)]
                 (a/>! result-chan att))))))
       (a/close! result-chan))
     result-chan))
