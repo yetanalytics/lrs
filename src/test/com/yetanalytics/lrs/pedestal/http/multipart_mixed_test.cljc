@@ -33,9 +33,9 @@
     (let [bad-body (cs/replace body #"\r\n" "\n")]
       (is (= ::multipart/invalid-multipart-body
              (try
-               #?(:clj (with-open [in (io/input-stream (.getBytes body "UTF-8"))]
+               #?(:clj (with-open [in (io/input-stream (.getBytes bad-body "UTF-8"))]
                          (multipart/parse-parts in boundary))
-                  :cljs (multipart/parse-parts body boundary))
+                  :cljs (multipart/parse-parts bad-body boundary))
                (catch #?(:clj clojure.lang.ExceptionInfo
                          :cljs ExceptionInfo) exi
                  (-> exi ex-data :type))))))))
