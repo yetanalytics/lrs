@@ -21,7 +21,7 @@
 ;; TODO: Test!!!
 (defn- make-boundary-pattern
   [boundary]
-  (re-pattern (str "(?m)\\R?^--" boundary "(?:--)?$\\R?")))
+  (re-pattern (str "(?m)(\\r\\n)?^--" boundary "(?:--)?$(\\r\\n)?")))
 
 (defn parse-parts [#?(:clj ^InputStream in
                       :cljs ^String in)
@@ -37,7 +37,7 @@
                                                  scanner
                                                  boundary-pattern))
                        :let [[headers-str
-                              body-str] (cs/split file-chunk #"\R{2}")
+                              body-str] (cs/split file-chunk #"\r\n\r\n")
                              headers    (parse-body-headers headers-str)
                              body-bytes (.getBytes ^String body-str "UTF-8")]]
                    {:content-type   (get headers "Content-Type")
