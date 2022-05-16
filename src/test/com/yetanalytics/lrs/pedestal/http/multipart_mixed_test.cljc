@@ -84,10 +84,18 @@
     (let [bad-body (subs body 0 (- (count body) 2))]
       (is (= ::multipart/invalid-multipart-body
              (parse-body bad-body)))))
-  (testing "doesn't allow preamble"
-    (let [bad-body (str "preamble" body)]
-      (is (= ::multipart/invalid-multipart-body
-             (parse-body bad-body)))))
+  (testing "allows preamble"
+    (let [preamble-body (str "preamble" body)]
+      (is (nil? (s/explain-data
+                 (s/cat :statement-part ::ss/statement-part
+                        :multiparts (s/* ::ss/multipart))
+                 (parse-body preamble-body))))))
+  (testing "allows epilogue"
+    (let [preamble-body (str body "epilogue")]
+      (is (nil? (s/explain-data
+                 (s/cat :statement-part ::ss/statement-part
+                        :multiparts (s/* ::ss/multipart))
+                 (parse-body preamble-body))))))
   (testing "doesn't allow missing first boundary"
     (let [bad-body (subs body 29)]
       (is (= ::multipart/invalid-multipart-body

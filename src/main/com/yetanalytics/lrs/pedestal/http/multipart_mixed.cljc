@@ -32,7 +32,7 @@
 ;; mail sending program must not generate such entities.
 (defn- boundary-pat-open
   [boundary]
-  (format "(?:^(?:\\r\\n)?--%s\\r\\n)" boundary))
+  (format "(?:^(?:(:?.*)?\\r\\n)?--%s\\r\\n)" boundary))
 
 (defn- boundary-pat-mid
   [boundary]
