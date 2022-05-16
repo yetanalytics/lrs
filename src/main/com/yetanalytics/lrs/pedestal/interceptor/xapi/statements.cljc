@@ -145,13 +145,6 @@
                               :body
                               {:error
                                {:message "Invalid Multipart Body"}}})
-                      ::multipart/incomplete-multipart
-                      (assoc (chain/terminate ctx)
-                             :response
-                             {:status 400
-                              :body
-                              {:error
-                               {:message "Incomplete Multipart Request"}}})
                       ::multipart/too-much-content
                       (assoc (chain/terminate ctx)
                              :response

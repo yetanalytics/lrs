@@ -31,7 +31,7 @@
                 :cljs (multipart/parse-parts body boundary)))))
   (testing "bad line breaks"
     (let [bad-body (cs/replace body #"\r\n" "\n")]
-      (is (= ::multipart/incomplete-multipart
+      (is (= ::multipart/invalid-multipart-body
              (try
                #?(:clj (with-open [in (io/input-stream (.getBytes bad-body "UTF-8"))]
                          (multipart/parse-parts in boundary))

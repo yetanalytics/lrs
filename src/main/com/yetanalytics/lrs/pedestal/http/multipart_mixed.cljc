@@ -64,8 +64,8 @@
                 (throw (ex-info "Invalid Multipart Body"
                                 {:type ::invalid-multipart-body})))
               (catch Exception _
-                (throw (ex-info "Incomplete Multipart Request"
-                                {:type ::incomplete-multipart})))]
+                (throw (ex-info "Invalid Multipart Body"
+                                {:type ::invalid-multipart-body})))]
         :cljs [(catch js/Error jse
                  (throw (ex-info "Invalid Multipart Body"
                                  {:type ::invalid-multipart-body}
