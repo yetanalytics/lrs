@@ -1,6 +1,8 @@
 (ns com.yetanalytics.lrs.pedestal.http.multipart-mixed
   (:require
-   [clojure.string :as cs])
+   [clojure.string :as cs]
+   #?@(:cljs [[goog.string :refer [format]]
+              [goog.string.format]]))
   #?(:clj (:import [java.util Scanner]
                    [java.io ByteArrayInputStream InputStream])))
 
@@ -18,10 +20,32 @@
           (mapv cs/trim
                 (cs/split h-str #"\s*:\s*" 2)))))
 
-;; TODO: Test!!!
-(defn- make-boundary-pattern
+;; A la https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html
+
+;; The requirement that the encapsulation boundary begins with a CRLF implies
+;; that the body of a multipart entity must itself begin with a CRLF before the
+;; first encapsulation line -- that is, if the "preamble" area is not used, the
+;; entity headers must be followed by TWO CRLFs. This is indeed how such
+;; entities should be composed. A tolerant mail reading program, however, may
+;; interpret a body of type multipart that begins with an encapsulation line NOT
+;; initiated by a CRLF as also being an encapsulation boundary, but a compliant
+;; mail sending program must not generate such entities.
+
+(defn make-boundary-pattern
   [boundary]
-  (re-pattern (str "(?m)(\\r\\n)?^--" boundary "(?:--)?$(\\r\\n)?")))
+  (re-pattern
+   (format (str
+            ;; First boundary is lax on the first CRLF (see above)
+            "(?:^(?:\\r\\n)?--%s\\r\\n)"
+            "|"
+            ;; Intermediate boundary
+            "(?:\\r\\n--%s\\r\\n)"
+            "|"
+            ;; Terminal boundary
+            "(?:\\r\\n--%s--(?:.|\\R)*$)")
+           boundary
+           boundary
+           boundary)))
 
 (defn parse-parts [#?(:clj ^InputStream in
                       :cljs ^String in)
@@ -29,14 +53,15 @@
   (try
     #?(:clj
        (let [boundary-pattern (make-boundary-pattern boundary)]
-         (with-open [scanner (Scanner. in)]
-           (assert (.hasNext scanner boundary-pattern)
+         (with-open [scanner (.useDelimiter (Scanner. in) boundary-pattern)]
+           (assert (.hasNext scanner)
                    "No initial multipart boundary.")
            (into []
-                 (for [file-chunk (iterator-seq (.useDelimiter
-                                                 scanner
-                                                 boundary-pattern))
-                       :let [[headers-str
+                 (for [file-chunk (iterator-seq scanner)
+                       :let [_ (assert
+                                (not (cs/includes? file-chunk boundary))
+                                "Multipart parts must not include boundary.")
+                             [headers-str
                               body-str] (cs/split file-chunk #"\r\n\r\n")
                              headers    (parse-body-headers headers-str)
                              body-bytes (.getBytes ^String body-str "UTF-8")]]
@@ -46,13 +71,13 @@
                     :input-stream   (ByteArrayInputStream. body-bytes)}))))
        :cljs
        (let [boundary-pattern (make-boundary-pattern boundary)
-             chunks           (cs/split (cs/trim in) boundary-pattern)]
+             chunks           (cs/split in boundary-pattern)]
          (assert (= "" (first chunks)))
          (into []
                (for [file-chunk (rest chunks)
-                     ;; Using cs/split in cljs leaves extra crlfs around content
-                     ;; so we remove them with trim
-                     :let [file-chunk (cs/trim file-chunk)
+                     :let [_ (assert
+                              (not (cs/includes? file-chunk boundary))
+                              "Multipart parts must not include boundary.")
                            [headers-str
                             body-str] (cs/split file-chunk #"\r\n\r\n")
                            headers    (parse-body-headers headers-str)]]
@@ -60,12 +85,14 @@
                   :content-length (.-length body-str)
                   :headers        headers
                   :input-stream   body-str}))))
-    #?@(:clj [(catch AssertionError _
+    #?@(:clj [(catch AssertionError ae
                 (throw (ex-info "Invalid Multipart Body"
-                                {:type ::invalid-multipart-body})))
-              (catch Exception _
+                                {:type ::invalid-multipart-body}
+                                ae)))
+              (catch Exception ex
                 (throw (ex-info "Invalid Multipart Body"
-                                {:type ::invalid-multipart-body})))]
+                                {:type ::invalid-multipart-body}
+                                ex)))]
         :cljs [(catch js/Error jse
                  (throw (ex-info "Invalid Multipart Body"
                                  {:type ::invalid-multipart-body}
