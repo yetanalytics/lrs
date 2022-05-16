@@ -40,7 +40,7 @@
 
 (defn- boundary-pat-close
   [boundary]
-  (format "(?:\\r\\n--%s--(?:.|\\R)*$)" boundary))
+  (format "(?:\\r\\n--%s--(?:.|\r\n|\n)*$)" boundary))
 
 (defn make-boundary-pattern
   [boundary]

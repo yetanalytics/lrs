@@ -42,7 +42,14 @@
     (is (= [""
             statement-part
             sig-part]
-           (cs/split body (multipart/make-boundary-pattern boundary))))))
+           (cs/split body (multipart/make-boundary-pattern boundary)))))
+  (testing "ignores extras"
+    (is (= [""
+            statement-part
+            sig-part]
+           (cs/split
+            (str body "\r\n foo bar")
+            (multipart/make-boundary-pattern boundary))))))
 
 #?(:clj
    (deftest scanner-boundary-test
