@@ -30,45 +30,58 @@
 ;; interpret a body of type multipart that begins with an encapsulation line NOT
 ;; initiated by a CRLF as also being an encapsulation boundary, but a compliant
 ;; mail sending program must not generate such entities.
+(defn- boundary-pat-open
+  [boundary]
+  (format "(?:^(?:\\r\\n)?--%s\\r\\n)" boundary))
+
+(defn- boundary-pat-mid
+  [boundary]
+  (format "(?:\\r\\n--%s\\r\\n)" boundary))
+
+(defn- boundary-pat-close
+  [boundary]
+  (format "(?:\\r\\n--%s--(?:.|\\R)*$)" boundary))
 
 (defn make-boundary-pattern
   [boundary]
   (re-pattern
-   (format (str
-            ;; First boundary is lax on the first CRLF (see above)
-            "(?:^(?:\\r\\n)?--%s\\r\\n)"
-            "|"
-            ;; Intermediate boundary
-            "(?:\\r\\n--%s\\r\\n)"
-            "|"
-            ;; Terminal boundary
-            "(?:\\r\\n--%s--(?:.|\\R)*$)")
-           boundary
-           boundary
-           boundary)))
+   (str
+    ;; First boundary is lax on the first CRLF (see above)
+    (boundary-pat-open boundary)
+    "|"
+    ;; Intermediate boundary
+    (boundary-pat-mid boundary)
+    "|"
+    ;; Terminal boundary
+    (boundary-pat-close boundary))))
 
 (defn parse-parts [#?(:clj ^InputStream in
                       :cljs ^String in)
                    ^String boundary]
   (try
     #?(:clj
-       (let [boundary-pattern (make-boundary-pattern boundary)]
-         (with-open [scanner (.useDelimiter (Scanner. in) boundary-pattern)]
-           (assert (.hasNext scanner)
-                   "No initial multipart boundary.")
-           (into []
-                 (for [file-chunk (iterator-seq scanner)
-                       :let [_ (assert
-                                (not (cs/includes? file-chunk boundary))
-                                "Multipart parts must not include boundary.")
-                             [headers-str
-                              body-str] (cs/split file-chunk #"\r\n\r\n")
-                             headers    (parse-body-headers headers-str)
-                             body-bytes (.getBytes ^String body-str "UTF-8")]]
-                   {:content-type   (get headers "Content-Type")
-                    :content-length (count body-bytes)
-                    :headers        headers
-                    :input-stream   (ByteArrayInputStream. body-bytes)}))))
+       (with-open [scanner (.useDelimiter (Scanner. in)
+                                          (re-pattern
+                                           (str (boundary-pat-mid boundary)
+                                                "|"
+                                                (boundary-pat-close boundary))))]
+         ;; Skip the (anchored) opening boundary or throw
+         (.skip scanner
+                (re-pattern
+                 (boundary-pat-open boundary)))
+         (into []
+               (for [file-chunk (iterator-seq scanner)
+                     :let [_ (assert
+                              (not (cs/includes? file-chunk boundary))
+                              "Multipart parts must not include boundary.")
+                           [headers-str
+                            body-str] (cs/split file-chunk #"\r\n\r\n")
+                           headers    (parse-body-headers headers-str)
+                           body-bytes (.getBytes ^String body-str "UTF-8")]]
+                 {:content-type   (get headers "Content-Type")
+                  :content-length (count body-bytes)
+                  :headers        headers
+                  :input-stream   (ByteArrayInputStream. body-bytes)})))
        :cljs
        (let [boundary-pattern (make-boundary-pattern boundary)
              chunks           (cs/split in boundary-pattern)]
