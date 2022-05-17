@@ -37,7 +37,18 @@ LRS Applications implementing the `com.yetanalytics.lrs.protocol/-get-statements
 
 #### `PUT/POST /statements`
 
-xAPI clients can send statement data with arbitrary file attachments using the `multipart/mixed` Content-Type [per the spec](https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#requirements-for-attachment-statement-batches). An attachment referenced in an xAPI statement (or substatement) that does not have a `fileUrl` property must be included *at least once* in the request body as a part identified by hash. In addition, multiple attachment objects, either in a single statement or across multiple statements in the same request, can refer to the same attachment, as recommended by the spec.
+xAPI clients can send statement data with arbitrary file attachments using the `multipart/mixed` Content-Type [per the spec](https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#requirements-for-attachment-statement-batches).
+
+##### Format
+
+Request bodies should be formatted as `multipart/mixed` per [RFC 1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html) with the following exceptions:
+
+* Preamble text is not supported, with the exception that a single leading CRLF before the first boundary is permitted for compatibility.
+* Epilogue text is not supported, but any number of empty trailing lines is permitted for compatibility.
+
+##### Normalization
+
+An attachment referenced in an xAPI statement (or substatement) that does not have a `fileUrl` property must be included *at least once* in the request body as a part identified by hash. In addition, multiple attachment objects, either in a single statement or across multiple statements in the same request, can refer to the same attachment, as recommended by the spec.
 
 In practice this means that duplicate attachments *may* be present on the request. `lrs` will normalize/deduplicate attachments before sending them to implementation code such that every attachment in the list has a distinct hash. See [this PR](https://github.com/yetanalytics/lrs/pull/81) for more information.
 
