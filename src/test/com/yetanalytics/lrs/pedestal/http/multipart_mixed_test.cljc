@@ -109,7 +109,11 @@
       (is (= ::multipart/invalid-multipart-body
              (parse-body bad-body)))))
   (testing "doesn't allow preamble"
-    (let [bad-body (str "preamble" body)]
+    (let [bad-body (str "preamble\r\n" body)]
+      (is (= ::multipart/invalid-multipart-body
+             (parse-body bad-body)))))
+  (testing "doesn't allow eplogue"
+    (let [bad-body (str body "\r\nepilogue")]
       (is (= ::multipart/invalid-multipart-body
              (parse-body bad-body)))))
   (testing "doesn't allow missing first boundary"

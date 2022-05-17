@@ -41,7 +41,7 @@
 
 (defn- boundary-pat-close
   [boundary]
-  (format "\\r\\n--%s--(.|\r\n|\n)*$" boundary))
+  (format "\\r\\n--%s--(\r\n|\n)*$" boundary))
 
 (defn- assert-valid
   [test message]
