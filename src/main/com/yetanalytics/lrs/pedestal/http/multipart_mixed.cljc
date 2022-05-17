@@ -97,6 +97,23 @@
                   (count bound-a))
                idx-b)))))
 
+(defn parse-part [^String part boundary]
+  (assert-valid
+   (not (cs/includes? part boundary))
+   "Multipart parts must not include boundary."
+   ::invalid-no-boundary-in-multipart)
+  (let [[headers-str
+         body-str] (cs/split part #"\r\n\r\n")
+        headers    (parse-body-headers headers-str)
+        #?@(:clj [body-bytes (.getBytes body-str "UTF-8")])]
+
+    {:content-type   (get headers "Content-Type")
+     :content-length #?(:clj (count body-bytes)
+                        :cljs (.-length body-str))
+     :headers        headers
+     :input-stream   #?(:clj (ByteArrayInputStream. body-bytes)
+                        :cljs body-str)}))
+
 (defn parse-parts [#?(:clj ^InputStream in
                       :cljs ^String in)
                    ^String boundary]
@@ -114,22 +131,7 @@
                  (boundary-pat-open boundary)))
          (loop [multiparts []]
            (if (.hasNext scanner)
-             (let [^String file-chunk (.next scanner)
-                   _
-                   (assert-valid
-                    (not (cs/includes? file-chunk boundary))
-                    "Multipart parts must not include boundary."
-                    ::invalid-no-boundary-in-multipart)
-                   [headers-str
-                    body-str]         (cs/split file-chunk #"\r\n\r\n")
-                   headers            (parse-body-headers headers-str)
-                   body-bytes         (.getBytes ^String body-str "UTF-8")]
-               (recur
-                (conj multiparts
-                      {:content-type   (get headers "Content-Type")
-                       :content-length (count body-bytes)
-                       :headers        headers
-                       :input-stream   (ByteArrayInputStream. body-bytes)})))
+             (recur (conj multiparts (parse-part (.next scanner) boundary)))
              (do
                ;; Skip the (anchored) close boundary or throw
                (.skip scanner
@@ -139,19 +141,8 @@
                multiparts))))
        :cljs
        (into []
-             (for [file-chunk (split-multiparts boundary in)
-                   :let [_
-                         (assert-valid
-                          (not (cs/includes? file-chunk boundary))
-                          "Multipart parts must not include boundary."
-                          ::invalid-no-boundary-in-multipart)
-                         [headers-str
-                          body-str] (cs/split file-chunk #"\r\n\r\n")
-                         headers    (parse-body-headers headers-str)]]
-               {:content-type   (get headers "Content-Type")
-                :content-length (.-length body-str)
-                :headers        headers
-                :input-stream   body-str})))
+             (map #(parse-part % boundary)
+                  (split-multiparts boundary in))))
     (catch #?(:clj Exception
               :cljs js/Error) ex
       (throw (ex-info "Invalid Multipart Body"

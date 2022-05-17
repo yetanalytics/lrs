@@ -73,6 +73,15 @@
                sig-part]
               (multipart/split-multiparts boundary (str body "\r\n")))))))
 
+(deftest parse-part-test
+  (testing "Decodes valid bodies"
+    (is (= (first body-multiparts)
+           (-> (multipart/parse-part statement-part boundary)
+               #?(:clj (update :input-stream slurp)))))
+    (is (= (second body-multiparts)
+           (-> (multipart/parse-part sig-part boundary)
+               #?(:clj (update :input-stream slurp)))))))
+
 (defn- parse-body
   [body]
   (try
