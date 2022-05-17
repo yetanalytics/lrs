@@ -71,7 +71,7 @@
               (multipart/split-multiparts boundary (str "\r\n" body))))
        (is (= [statement-part
                sig-part]
-              (multipart/split-multiparts boundary (str body "\r\n foo bar")))))))
+              (multipart/split-multiparts boundary (str body "\r\n")))))))
 
 (defn- parse-body
   [body]
@@ -100,6 +100,13 @@
               #?(:clj #(update % :input-stream slurp)
                  :cljs identity)
               (parse-body leading-crlf-body))))))
+  (testing "allows trailing CRLF"
+    (let [leading-crlf-body (str body "\r\n")]
+      (is (= body-multiparts
+             (map
+              #?(:clj #(update % :input-stream slurp)
+                 :cljs identity)
+              (parse-body leading-crlf-body))))))
   (testing "doesn't allow bad line breaks"
     (let [bad-body (cs/replace body #"\r\n" "\n")]
       (is (= ::multipart/invalid-multipart-body
@@ -112,7 +119,7 @@
     (let [bad-body (str "preamble\r\n" body)]
       (is (= ::multipart/invalid-multipart-body
              (parse-body bad-body)))))
-  (testing "doesn't allow eplogue"
+  (testing "doesn't allow epilogue"
     (let [bad-body (str body "\r\nepilogue")]
       (is (= ::multipart/invalid-multipart-body
              (parse-body bad-body)))))
