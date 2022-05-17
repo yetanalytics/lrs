@@ -59,28 +59,19 @@
      "20a919870593a42d81370fcc23725b40e19bbafadb15498683ffd45adc82928f"},
     :input-stream   sig-part-data}])
 
-(deftest make-boundary-pattern-test
-  (testing "splits parts"
-    (is (= [""
-            statement-part
-            sig-part]
-           (cs/split body (multipart/make-boundary-pattern boundary)))))
-  (testing "ignores extras"
-    (is (= [""
-            statement-part
-            sig-part]
-           (cs/split
-            (str body "\r\n foo bar")
-            (multipart/make-boundary-pattern boundary))))))
-
-#?(:clj
-   (deftest scanner-boundary-test
-     (is (= [statement-part
-             sig-part]
-            (with-open [scanner (.useDelimiter
-                                 (Scanner. (io/input-stream (.getBytes body)))
-                                 (multipart/make-boundary-pattern boundary))]
-              (into [] (iterator-seq scanner)))))))
+#?(:cljs
+   (deftest split-multiparts-test
+     (testing "splits parts"
+       (is (= [statement-part
+               sig-part]
+              (multipart/split-multiparts boundary body))))
+     (testing "ignores extras"
+       (is (= [statement-part
+               sig-part]
+              (multipart/split-multiparts boundary (str "\r\n" body))))
+       (is (= [statement-part
+               sig-part]
+              (multipart/split-multiparts boundary (str body "\r\n foo bar")))))))
 
 (defn- parse-body
   [body]
