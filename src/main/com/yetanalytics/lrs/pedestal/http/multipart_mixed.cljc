@@ -44,10 +44,10 @@
   (format "\\r\\n--%s--(\r\n|\n)*$" boundary))
 
 (defn- assert-valid
-  [test message]
+  [test message type-k]
   (when-not test
     (throw (ex-info message
-                    {:type ::invalid-multipart-body}))))
+                    {:type type-k}))))
 
 #?(:cljs
    (defn split-multiparts
@@ -70,14 +70,25 @@
            all-pos (concat open-re-pos
                            mid-re-pos
                            close-re-pos)]
-       (assert-valid (= 1 (count open-re-pos)) "One opening boundary")
-       (assert-valid (= 0 open-idx) "Opening boundary starts string")
-       (assert-valid (<= 1 (count mid-re-pos)) "At least one mid boundary")
-       (assert-valid (= 1 (count close-re-pos)) "One closing boundary")
+       (assert-valid (= 1 (count open-re-pos))
+                     "Only one opening boundary can be present"
+                     ::invalid-one-opening-boundary)
+       (assert-valid (= 0 open-idx)
+                     "Opening boundary must begin the string"
+                     ::invalid-pos-opening-boundary)
+       (assert-valid (<= 1 (count mid-re-pos))
+                     "At least one mid boundary must be present"
+                     ::invalid-at-least-one-mid-boundary)
+       (assert-valid (= 1 (count close-re-pos))
+                     "Only one closing boundary can be present"
+                     ::invalid-one-closing-boundary)
        (assert-valid (= (count body)
                         (+ close-idx (count close-bound)))
-                     "Closing boundary ends string")
-       (assert-valid (distinct? all-pos) "All boundary positions must be distinct")
+                     "Closing boundary must end string"
+                     ::invalid-pos-closing-boundary)
+       (assert-valid (distinct? all-pos)
+                     "All boundary positions must be distinct"
+                     ::invalid-distinct-boundary-pos)
        (for [[[idx-a
                bound-a :as a]
               [idx-b :as b]] (partition 2 1 all-pos)]
@@ -105,9 +116,10 @@
            (if (.hasNext scanner)
              (let [^String file-chunk (.next scanner)
                    _
-                   (assert
+                   (assert-valid
                     (not (cs/includes? file-chunk boundary))
-                    "Multipart parts must not include boundary.")
+                    "Multipart parts must not include boundary."
+                    ::invalid-no-boundary-in-multipart)
                    [headers-str
                     body-str]         (cs/split file-chunk #"\r\n\r\n")
                    headers            (parse-body-headers headers-str)
@@ -129,9 +141,10 @@
        (into []
              (for [file-chunk (split-multiparts boundary in)
                    :let [_
-                         (assert
+                         (assert-valid
                           (not (cs/includes? file-chunk boundary))
-                          "Multipart parts must not include boundary.")
+                          "Multipart parts must not include boundary."
+                          ::invalid-no-boundary-in-multipart)
                          [headers-str
                           body-str] (cs/split file-chunk #"\r\n\r\n")
                          headers    (parse-body-headers headers-str)]]
@@ -139,18 +152,11 @@
                 :content-length (.-length body-str)
                 :headers        headers
                 :input-stream   body-str})))
-    #?@(:clj [(catch AssertionError ae
-                (throw (ex-info "Invalid Multipart Body"
-                                {:type ::invalid-multipart-body}
-                                ae)))
-              (catch Exception ex
-                (throw (ex-info "Invalid Multipart Body"
-                                {:type ::invalid-multipart-body}
-                                ex)))]
-        :cljs [(catch js/Error jse
-                 (throw (ex-info "Invalid Multipart Body"
-                                 {:type ::invalid-multipart-body}
-                                 jse)))])))
+    (catch #?(:clj Exception
+              :cljs js/Error) ex
+      (throw (ex-info "Invalid Multipart Body"
+                      {:type ::invalid-multipart-body}
+                      ex)))))
 
 (def content-type-regex
   #"(?:^\s*multipart/mixed\s*;\s*boundary\s*=\s*)(?:(?:\"(.*)\".*$)|(?:([a-zA-Z0-9\'\+\-\_]*)$))")
