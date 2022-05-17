@@ -38,12 +38,26 @@
 
 (def body
   (format
-   "\r\n--%s\r\n%s\r\n--%s\r\n%s\r\n--%s--"
+   "--%s\r\n%s\r\n--%s\r\n%s\r\n--%s--"
    boundary
    statement-part
    boundary
    sig-part
    boundary))
+
+(def body-multiparts
+  [{:content-type   "application/json",
+    :content-length 629,
+    :headers        {"Content-Type" "application/json"},
+    :input-stream   statement-part-data}
+   {:content-type   "application/octet-stream",
+    :content-length 796,
+    :headers
+    {"Content-Type"              "application/octet-stream",
+     "Content-Transfer-Encoding" "binary",
+     "X-Experience-API-Hash"
+     "20a919870593a42d81370fcc23725b40e19bbafadb15498683ffd45adc82928f"},
+    :input-stream   sig-part-data}])
 
 (deftest make-boundary-pattern-test
   (testing "splits parts"
@@ -81,24 +95,20 @@
 (deftest parse-parts-test
   (testing "valid multipart body"
     (let [parse-result (parse-body body)]
-      (is (= [{:content-type   "application/json",
-               :content-length 629,
-               :headers        {"Content-Type" "application/json"},
-               :input-stream   statement-part-data}
-              {:content-type   "application/octet-stream",
-               :content-length 796,
-               :headers
-               {"Content-Type"              "application/octet-stream",
-                "Content-Transfer-Encoding" "binary",
-                "X-Experience-API-Hash"
-                "20a919870593a42d81370fcc23725b40e19bbafadb15498683ffd45adc82928f"},
-               :input-stream   sig-part-data}]
+      (is (= body-multiparts
              #?(:clj (map #(update % :input-stream slurp) parse-result)
                 :cljs parse-result)))
       (is (nil? (s/explain-data
                  (s/cat :statement-part ::ss/statement-part
                         :multiparts (s/* ::ss/multipart))
                  parse-result)))))
+  (testing "allows leading CRLF"
+    (let [leading-crlf-body (str "\r\n" body)]
+      (is (= body-multiparts
+             (map
+              #?(:clj #(update % :input-stream slurp)
+                 :cljs identity)
+              (parse-body leading-crlf-body))))))
   (testing "doesn't allow bad line breaks"
     (let [bad-body (cs/replace body #"\r\n" "\n")]
       (is (= ::multipart/invalid-multipart-body
