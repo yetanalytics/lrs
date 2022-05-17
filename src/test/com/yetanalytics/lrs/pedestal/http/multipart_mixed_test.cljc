@@ -110,12 +110,12 @@
                  :cljs identity)
               (parse-body leading-crlf-body))))))
   (testing "allows trailing CRLF"
-    (let [leading-crlf-body (str body "\r\n")]
+    (let [trailing-crlf-body (str body "\r\n")]
       (is (= body-multiparts
              (map
               #?(:clj #(update % :input-stream slurp)
                  :cljs identity)
-              (parse-body leading-crlf-body))))))
+              (parse-body trailing-crlf-body))))))
   (testing "doesn't allow bad line breaks"
     (let [bad-body (cs/replace body #"\r\n" "\n")]
       (is (= ::multipart/invalid-multipart-body
