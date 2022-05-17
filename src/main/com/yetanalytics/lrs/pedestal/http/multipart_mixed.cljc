@@ -60,28 +60,39 @@
                    ^String boundary]
   (try
     #?(:clj
-       (with-open [scanner (.useDelimiter (Scanner. in)
-                                          (re-pattern
-                                           (str (boundary-pat-mid boundary)
-                                                "|"
-                                                (boundary-pat-close boundary))))]
+       (with-open [^Scanner scanner (.useDelimiter
+                                     (Scanner. in)
+                                     (re-pattern
+                                      (str (boundary-pat-mid boundary)
+                                           "|"
+                                           (boundary-pat-close boundary))))]
          ;; Skip the (anchored) opening boundary or throw
          (.skip scanner
                 (re-pattern
                  (boundary-pat-open boundary)))
-         (into []
-               (for [file-chunk (iterator-seq scanner)
-                     :let [_ (assert
-                              (not (cs/includes? file-chunk boundary))
-                              "Multipart parts must not include boundary.")
-                           [headers-str
-                            body-str] (cs/split file-chunk #"\r\n\r\n")
-                           headers    (parse-body-headers headers-str)
-                           body-bytes (.getBytes ^String body-str "UTF-8")]]
-                 {:content-type   (get headers "Content-Type")
-                  :content-length (count body-bytes)
-                  :headers        headers
-                  :input-stream   (ByteArrayInputStream. body-bytes)})))
+         (loop [multiparts []]
+           (if (.hasNext scanner)
+             (let [file-chunk ^String (.next scanner)
+                   _          (assert
+                      (not (cs/includes? file-chunk boundary))
+                      "Multipart parts must not include boundary.")
+                   [headers-str
+                    body-str] (cs/split file-chunk #"\r\n\r\n")
+                   headers    (parse-body-headers headers-str)
+                   body-bytes (.getBytes ^String body-str "UTF-8")]
+               (recur
+                (conj multiparts
+                      {:content-type   (get headers "Content-Type")
+                       :content-length (count body-bytes)
+                       :headers        headers
+                       :input-stream   (ByteArrayInputStream. body-bytes)})))
+             (do
+               ;; Skip the (anchored) close boundary or throw
+               (.skip scanner
+                      (re-pattern
+                       (boundary-pat-close boundary)))
+               ;; return multiparts
+               multiparts))))
        :cljs
        (let [boundary-pattern (make-boundary-pattern boundary)
              chunks           (cs/split in boundary-pattern)]
