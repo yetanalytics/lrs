@@ -72,14 +72,15 @@
                  (boundary-pat-open boundary)))
          (loop [multiparts []]
            (if (.hasNext scanner)
-             (let [file-chunk ^String (.next scanner)
-                   _          (assert
-                      (not (cs/includes? file-chunk boundary))
-                      "Multipart parts must not include boundary.")
+             (let [^String file-chunk (.next scanner)
+                   _
+                   (assert
+                    (not (cs/includes? file-chunk boundary))
+                    "Multipart parts must not include boundary.")
                    [headers-str
-                    body-str] (cs/split file-chunk #"\r\n\r\n")
-                   headers    (parse-body-headers headers-str)
-                   body-bytes (.getBytes ^String body-str "UTF-8")]
+                    body-str]         (cs/split file-chunk #"\r\n\r\n")
+                   headers            (parse-body-headers headers-str)
+                   body-bytes         (.getBytes ^String body-str "UTF-8")]
                (recur
                 (conj multiparts
                       {:content-type   (get headers "Content-Type")
