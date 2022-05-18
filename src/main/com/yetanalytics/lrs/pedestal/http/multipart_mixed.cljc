@@ -53,20 +53,18 @@
    (defn split-multiparts
      "Splits multipart body parts, ensuring start + end and at least 2 parts"
      [boundary body]
-     (let [[[open-idx open-bound]
-            :as open-re-pos] (u/re-pos
-                              (re-pattern
-                               (boundary-pat-open boundary))
-                              body)
+     (let [open-re-pos (u/re-pos
+                        (re-pattern
+                         (boundary-pat-open boundary))
+                        body)
            mid-re-pos (u/re-pos
                        (re-pattern
                         (boundary-pat-mid boundary))
                        body)
-           [[close-idx close-bound]
-            :as close-re-pos] (u/re-pos
-                               (re-pattern
-                                (boundary-pat-close boundary))
-                               body)
+           close-re-pos (u/re-pos
+                         (re-pattern
+                          (boundary-pat-close boundary))
+                         body)
            all-pos (concat open-re-pos
                            mid-re-pos
                            close-re-pos)]
@@ -80,8 +78,8 @@
                      "Only one closing boundary can be present"
                      ::invalid-one-closing-boundary)
        (for [[[idx-a
-               bound-a :as a]
-              [idx-b :as b]] (partition 2 1 all-pos)]
+               bound-a]
+              [idx-b]] (partition 2 1 all-pos)]
          (subs body
                (+ idx-a
                   (count bound-a))
