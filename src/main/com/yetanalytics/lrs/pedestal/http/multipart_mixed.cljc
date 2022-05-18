@@ -73,22 +73,12 @@
        (assert-valid (= 1 (count open-re-pos))
                      "Only one opening boundary can be present"
                      ::invalid-one-opening-boundary)
-       (assert-valid (= 0 open-idx)
-                     "Opening boundary must begin the string"
-                     ::invalid-pos-opening-boundary)
        (assert-valid (<= 1 (count mid-re-pos))
                      "At least one mid boundary must be present"
                      ::invalid-at-least-one-mid-boundary)
        (assert-valid (= 1 (count close-re-pos))
                      "Only one closing boundary can be present"
                      ::invalid-one-closing-boundary)
-       (assert-valid (= (count body)
-                        (+ close-idx (count close-bound)))
-                     "Closing boundary must end string"
-                     ::invalid-pos-closing-boundary)
-       (assert-valid (distinct? all-pos)
-                     "All boundary positions must be distinct"
-                     ::invalid-distinct-boundary-pos)
        (for [[[idx-a
                bound-a :as a]
               [idx-b :as b]] (partition 2 1 all-pos)]
