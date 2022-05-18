@@ -7,8 +7,7 @@
             #?(:cljs [fs]
                :clj [clojure.java.io :as io])
             #?@(:cljs [[goog.string :refer [format]]
-                       [goog.string.format]]))
-  #?(:clj (:import [java.util Scanner])))
+                       [goog.string.format]])))
 
 (def header
   "Content-Type:application/octet-stream\r\nContent-Transfer-Encoding:binary\r\nX-Experience-API-Hash:20a919870593a42d81370fcc23725b40e19bbafadb15498683ffd45adc82928f")
