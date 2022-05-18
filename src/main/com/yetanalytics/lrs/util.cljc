@@ -20,8 +20,8 @@
    (defn regex-modifiers
      "Returns the modifiers of a regex, concatenated as a string."
      [re]
-     (str (if (.-multiline re) "m")
-          (if (.-ignoreCase re) "i"))))
+     (str (when (.-multiline re) "m")
+          (when (.-ignoreCase re) "i"))))
 
 #?(:cljs
    (defn re-pos
