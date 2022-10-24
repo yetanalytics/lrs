@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## [1.2.13] - 2022-10-24
+- Update GitHub CI and CD to remove deprecation warnings
+
+<!-- TODO: Fill in intervening tags -->
+
 ## [1.1.3] - 2021-11-10
 - Fixed bug preventing attachments with duplicate SHAs
 - Standardized signed statement comparison with extant statement comparison
