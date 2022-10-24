@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## [1.2.10] - 2022-10-24
+## [1.2.13] - 2022-10-24
 - Update GitHub CI and CD to remove deprecation warnings
 
 <!-- TODO: Fill in intervening tags -->
