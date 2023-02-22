@@ -6,10 +6,13 @@
   com.yetanalytics/xapi-schema {:mvn/version "1.2.0"
                                 :exclusions [org.clojure/clojurescript]}
   cheshire/cheshire {:mvn/version "5.10.1"}
-  io.pedestal/pedestal.service {:mvn/version "0.5.10"
-                                ;; exclude msgpack (via tools.analyzer)
-                                ;; clears CVE-2022-41719
-                                :exclusions [org.msgpack/msgpack]}
+  io.pedestal/pedestal.service
+  {:mvn/version "0.5.10"
+   ;; exclude msgpack (via tools.analyzer)
+   ;; clears CVE-2022-41719
+   :exclusions [org.msgpack/msgpack
+                commons-fileupload/commons-fileupload]}
+  commons-fileupload/commons-fileupload {:mvn/version "1.5"}
   macchiato/core {:mvn/version "0.2.17"
                   :exclusions [funcool/cuerdas]}
   funcool/cuerdas {:mvn/version "2020.03.26-2"}
