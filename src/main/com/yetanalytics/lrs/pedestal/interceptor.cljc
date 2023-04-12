@@ -37,7 +37,15 @@
   (i/interceptor
    {:name ::extract-xapi-version
     :enter (fn [ctx]
-             (if-let [version (get-in ctx [:request :headers "x-experience-api-version"])]
+             (if-let [version (or (and (some-> ctx :request :params :method)
+                                       ;; TODO: coerce with csk or the like
+                                       (get-in
+                                        ctx
+                                        [:request :form-params :X-Experience-API-Version]
+                                        (get-in
+                                         ctx
+                                         [:request :form-params :x-experience-api-version])))
+                                  (get-in ctx [:request :headers "x-experience-api-version"]))]
                (assoc ctx
                       :com.yetanalytics.lrs/version
                       version)
@@ -149,7 +157,7 @@
     :leave (fn [ctx]
              (assoc-in ctx
                        [:response :headers "x-experience-api-version"]
-                       ;; Should be latest patch version
+                       ;; Latest patch version per the spec
                        "2.0.0"))}))
 
 (defn calculate-etag [x]
