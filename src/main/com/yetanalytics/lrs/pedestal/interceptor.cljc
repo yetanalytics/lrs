@@ -157,8 +157,8 @@
     :leave (fn [ctx]
              (assoc-in ctx
                        [:response :headers "x-experience-api-version"]
-                       ;; Latest patch version per the spec
-                       "2.0.0"))}))
+                       ;; Get version from context or latest patch
+                       (:com.yetanalytics.lrs/version ctx "2.0.0")))}))
 
 (defn calculate-etag [x]
   (sha-1 x))
