@@ -93,10 +93,14 @@
     :path-prefix - defines the prefix from root for xAPI routes, default /xapi
     :wrap-interceptors - a vector of interceptors to apply to every route.
       The default vector includes an error interceptor which should be replaced
-      if this setting is provided."
+      if this setting is provided.
+    :file-scanner - a function that takes the content of any arbitrary
+      user-submitted file and returns nil if it is safe, or a map with :message
+      describing why it is unsafe. If unsafe the request will fail with a 400."
   [{:keys [lrs
            path-prefix
-           wrap-interceptors]
+           wrap-interceptors
+           file-scanner]
     :or {path-prefix "/xapi"
          wrap-interceptors [i/error-interceptor]}}]
   (let [lrs-i                       (i/lrs-interceptor lrs)
@@ -150,19 +154,25 @@
                          statements/handle-get)
              :route-name :com.yetanalytics.lrs.xapi.statements/head]
             [(format "%s/statements" path-prefix)
-             :put (conj protected-interceptors
-                        statements-i/set-consistent-through
-                        (xapi-i/params-interceptor
-                         :xapi.statements.PUT.request/params)
-                        statements-i/parse-multiparts
-                        statements-i/validate-request-statements
-                        statements/handle-put)]
+             :put (-> protected-interceptors
+                      (into [statements-i/set-consistent-through
+                             (xapi-i/params-interceptor
+                              :xapi.statements.PUT.request/params)
+                             statements-i/parse-multiparts
+                             statements-i/validate-request-statements])
+                      (cond->
+                        file-scanner
+                        (conj (statements-i/scan-attachments file-scanner)))
+                      (conj statements/handle-put))]
             [(format "%s/statements" path-prefix)
-             :post (conj protected-interceptors
-                         statements-i/set-consistent-through
-                         statements-i/parse-multiparts
-                         statements-i/validate-request-statements
-                         statements/handle-post)]
+             :post (-> protected-interceptors
+                       (into [statements-i/set-consistent-through
+                              statements-i/parse-multiparts
+                              statements-i/validate-request-statements])
+                       (cond->
+                         file-scanner
+                         (conj (statements-i/scan-attachments file-scanner)))
+                       (conj statements/handle-post))]
             [(format "%s/statements" path-prefix)
              :any method-not-allowed
              :route-name :com.yetanalytics.lrs.xapi.statements/any]
