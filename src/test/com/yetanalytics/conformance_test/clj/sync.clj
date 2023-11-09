@@ -15,6 +15,7 @@
                "-e"
                "http://localhost:8080/xapi"
                "-b"
-               "-z")]
+               "-z"
+               "-x" "1.0.3")]
       (http/stop s)
       (is (true? ret)))))
