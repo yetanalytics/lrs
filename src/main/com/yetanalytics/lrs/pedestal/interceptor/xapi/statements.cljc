@@ -243,10 +243,14 @@
    :enter
    (fn [ctx]
      (let [attachments (get-in ctx [:xapi :xapi.statements/attachments])]
-       (if-let [attachment-errors (some-> attachments
-                                          (->> (keep (fn [{:keys [content]}]
-                                                       (file-scanner content))))
-                                          not-empty)]
+       (if-let [attachment-errors
+                (some-> attachments
+                        (->> (keep (fn [{:keys [content]}]
+                                     (try
+                                       (file-scanner content)
+                                       (catch #?(:clj Exception :cljs js/Error) _
+                                         {:message "Scan Error"})))))
+                        not-empty)]
          (do
            (attachment/delete-attachments! attachments)
            (assoc (chain/terminate ctx)
