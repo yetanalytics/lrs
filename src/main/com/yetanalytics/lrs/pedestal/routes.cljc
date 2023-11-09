@@ -2,6 +2,7 @@
   (:require
    [com.yetanalytics.lrs.pedestal.interceptor :as i]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi-i]
+   [com.yetanalytics.lrs.pedestal.interceptor.xapi.document :as doc-i]
    [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as statements-i]
    [com.yetanalytics.lrs.pedestal.routes.about :as about]
    [com.yetanalytics.lrs.pedestal.routes.statements :as statements]
@@ -17,7 +18,9 @@
   {:status 405})
 
 (defn build-document-routes
-  [interceptors & {:keys [path-prefix] :or {path-prefix "/xapi"}}]
+  [interceptors & {:keys [path-prefix
+                          file-scanner]
+                   :or   {path-prefix "/xapi"}}]
   ;; Build all possible doc routes by looping over each pair of
   ;; resource + doc type and HTTP method
   (into
@@ -39,29 +42,35 @@
         method-not-allowed
         :route-name (keyword route-name-ns (name method))]
        (let [params-interceptors
-             [(xapi-i/params-interceptor
-               (case resource-tuple
-                 ["activities" "state"]
-                 (case method
-                   :put    :xapi.activities.state.PUT.request/params
-                   :post   :xapi.activities.state.POST.request/params
-                   :get    :xapi.activities.state.GET.request/params
-                   :head   :xapi.activities.state.GET.request/params
-                   :delete :xapi.activities.state.DELETE.request/params)
-                 ["activities" "profile"]
-                 (case method
-                   :put    :xapi.activities.profile.PUT.request/params
-                   :post   :xapi.activities.profile.POST.request/params
-                   :get    :xapi.activities.profile.GET.request/params
-                   :head   :xapi.activities.profile.GET.request/params
-                   :delete :xapi.activities.profile.DELETE.request/params)
-                 ["agents"     "profile"]
-                 (case method
-                   :put    :xapi.agents.profile.PUT.request/params
-                   :post   :xapi.agents.profile.POST.request/params
-                   :get    :xapi.agents.profile.GET.request/params
-                   :head   :xapi.agents.profile.GET.request/params
-                   :delete :xapi.agents.profile.DELETE.request/params)))]
+             (cond->
+                 [(xapi-i/params-interceptor
+                   (case resource-tuple
+                     ["activities" "state"]
+                     (case method
+                       :put    :xapi.activities.state.PUT.request/params
+                       :post   :xapi.activities.state.POST.request/params
+                       :get    :xapi.activities.state.GET.request/params
+                       :head   :xapi.activities.state.GET.request/params
+                       :delete :xapi.activities.state.DELETE.request/params)
+                     ["activities" "profile"]
+                     (case method
+                       :put    :xapi.activities.profile.PUT.request/params
+                       :post   :xapi.activities.profile.POST.request/params
+                       :get    :xapi.activities.profile.GET.request/params
+                       :head   :xapi.activities.profile.GET.request/params
+                       :delete :xapi.activities.profile.DELETE.request/params)
+                     ["agents"     "profile"]
+                     (case method
+                       :put    :xapi.agents.profile.PUT.request/params
+                       :post   :xapi.agents.profile.POST.request/params
+                       :get    :xapi.agents.profile.GET.request/params
+                       :head   :xapi.agents.profile.GET.request/params
+                       :delete :xapi.agents.profile.DELETE.request/params)))]
+               ;; Scan files if scanner is present on PUT/POST
+               (and file-scanner
+                    (contains? #{:put :post} method))
+               (conj
+                (doc-i/scan-document file-scanner)))
              method-interceptor
              (case method
                :put    documents/handle-put
@@ -211,4 +220,5 @@
 
           ;; documents
           (build-document-routes document-interceptors
-                                 :path-prefix path-prefix))))
+                                 :path-prefix path-prefix
+                                 :file-scanner file-scanner))))

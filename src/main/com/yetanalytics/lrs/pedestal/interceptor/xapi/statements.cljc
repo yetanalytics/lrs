@@ -252,10 +252,11 @@
            (assoc (chain/terminate ctx)
                   :response
                   {:status 400
-                   :body {:error {:message
-                                  (format "Scan failed, Errors: %s"
-                                          (cs/join ", "
-                                                   (map :message attachment-errors)))}}}))
+                   :body {:error
+                          {:message
+                           (format "Attachment scan failed, Errors: %s"
+                                   (cs/join ", "
+                                            (map :message attachment-errors)))}}}))
          ctx)))})
 
 (def set-consistent-through
