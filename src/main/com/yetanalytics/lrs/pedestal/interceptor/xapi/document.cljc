@@ -2,7 +2,10 @@
   "Document Interceptors"
   (:require
    [io.pedestal.interceptor.chain :as chain]
-   #?(:clj [clojure.java.io :as io]))
+   [com.yetanalytics.lrs.util :as u]
+   #?(:clj [clojure.java.io :as io])
+   #?@(:cljs [[goog.string :refer [format]]
+              [goog.string.format]]))
   #?(:clj (:import [java.io ByteArrayOutputStream ByteArrayInputStream])))
 
 #?(:clj
@@ -31,11 +34,12 @@
          (assoc (chain/terminate ctx)
                 :response
                 {:status 400
-                 :headers {"content-type" "application/json"}
-                 :body {:error
-                        {:message
-                         (format "Document scan failed, Error: %s"
-                                 (:message scan-error))}}})
+                 :headers {"Content-Type" "application/json"}
+                 :body (u/json-string
+                        {:error
+                         {:message
+                          (format "Document scan failed, Error: %s"
+                                  (:message scan-error))}})})
          (assoc-in ctx
                    [:request :body]
                    #?(:clj (ByteArrayInputStream. body-bytes)
