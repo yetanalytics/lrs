@@ -31,6 +31,7 @@
          (assoc (chain/terminate ctx)
                 :response
                 {:status 400
+                 :headers {"content-type" "application/json"}
                  :body {:error
                         {:message
                          (format "Document scan failed, Error: %s"
