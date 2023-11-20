@@ -245,11 +245,12 @@
      (let [attachments (get-in ctx [:xapi :xapi.statements/attachments])]
        (if-let [attachment-errors
                 (some-> attachments
-                        (->> (keep (fn [{:keys [content]}]
-                                     (try
-                                       (file-scanner content)
-                                       (catch #?(:clj Exception :cljs js/Error) _
-                                         {:message "Scan Error"})))))
+                        (->>
+                         (keep (fn [{:keys [content]}]
+                                 (try
+                                   (file-scanner content)
+                                   (catch #?(:clj Exception :cljs js/Error) _
+                                     {:message "Scan Error"})))))
                         not-empty)]
          (do
            (attachment/delete-attachments! attachments)
@@ -259,8 +260,9 @@
                    :body {:error
                           {:message
                            (format "Attachment scan failed, Errors: %s"
-                                   (cs/join ", "
-                                            (map :message attachment-errors)))}}}))
+                                   (cs/join
+                                    ", "
+                                    (map :message attachment-errors)))}}}))
          ctx)))})
 
 (def set-consistent-through
