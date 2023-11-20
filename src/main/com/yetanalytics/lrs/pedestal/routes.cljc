@@ -41,9 +41,8 @@
         method
         method-not-allowed
         :route-name (keyword route-name-ns (name method))]
-       (let [params-interceptors
-             (cond->
-                 [(xapi-i/params-interceptor
+       (let [doc-params-interceptor
+             (xapi-i/params-interceptor
                    (case resource-tuple
                      ["activities" "state"]
                      (case method
@@ -65,7 +64,9 @@
                        :post   :xapi.agents.profile.POST.request/params
                        :get    :xapi.agents.profile.GET.request/params
                        :head   :xapi.agents.profile.GET.request/params
-                       :delete :xapi.agents.profile.DELETE.request/params)))]
+                       :delete :xapi.agents.profile.DELETE.request/params)))
+             params-interceptors
+             (cond-> [doc-params-interceptor]
                ;; Scan files if scanner is present on PUT/POST
                (and file-scanner
                     (contains? #{:put :post} method))
