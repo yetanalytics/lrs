@@ -59,8 +59,14 @@
                     [:body :status]))))
           (finally
             (http/stop server)))))
+    ;; And a scanner that always passes
     (testing "Success"
-      (let [server (support/test-server)]
+      (let [server (support/test-server
+                    :route-opts
+                    {:file-scanner
+                     (fn [in]
+                       (slurp in)
+                       nil)})]
         (try
           (http/start server)
           (testing "Attachment"
