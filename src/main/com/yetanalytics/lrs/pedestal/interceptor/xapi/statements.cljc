@@ -253,6 +253,7 @@
                                      {:message "Scan Error"})))))
                         not-empty)]
          (do
+           ;; Delete (possibly) unsafe tempfiles
            (attachment/delete-attachments! attachments)
            (assoc (chain/terminate ctx)
                   :response
