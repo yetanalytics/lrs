@@ -43,28 +43,28 @@
         :route-name (keyword route-name-ns (name method))]
        (let [doc-params-interceptor
              (xapi-i/params-interceptor
-                   (case resource-tuple
-                     ["activities" "state"]
-                     (case method
-                       :put    :xapi.activities.state.PUT.request/params
-                       :post   :xapi.activities.state.POST.request/params
-                       :get    :xapi.activities.state.GET.request/params
-                       :head   :xapi.activities.state.GET.request/params
-                       :delete :xapi.activities.state.DELETE.request/params)
-                     ["activities" "profile"]
-                     (case method
-                       :put    :xapi.activities.profile.PUT.request/params
-                       :post   :xapi.activities.profile.POST.request/params
-                       :get    :xapi.activities.profile.GET.request/params
-                       :head   :xapi.activities.profile.GET.request/params
-                       :delete :xapi.activities.profile.DELETE.request/params)
-                     ["agents"     "profile"]
-                     (case method
-                       :put    :xapi.agents.profile.PUT.request/params
-                       :post   :xapi.agents.profile.POST.request/params
-                       :get    :xapi.agents.profile.GET.request/params
-                       :head   :xapi.agents.profile.GET.request/params
-                       :delete :xapi.agents.profile.DELETE.request/params)))
+              (case resource-tuple
+                ["activities" "state"]
+                (case method
+                  :put    :xapi.activities.state.PUT.request/params
+                  :post   :xapi.activities.state.POST.request/params
+                  :get    :xapi.activities.state.GET.request/params
+                  :head   :xapi.activities.state.GET.request/params
+                  :delete :xapi.activities.state.DELETE.request/params)
+                ["activities" "profile"]
+                (case method
+                  :put    :xapi.activities.profile.PUT.request/params
+                  :post   :xapi.activities.profile.POST.request/params
+                  :get    :xapi.activities.profile.GET.request/params
+                  :head   :xapi.activities.profile.GET.request/params
+                  :delete :xapi.activities.profile.DELETE.request/params)
+                ["agents"     "profile"]
+                (case method
+                  :put    :xapi.agents.profile.PUT.request/params
+                  :post   :xapi.agents.profile.POST.request/params
+                  :get    :xapi.agents.profile.GET.request/params
+                  :head   :xapi.agents.profile.GET.request/params
+                  :delete :xapi.agents.profile.DELETE.request/params)))
              params-interceptors
              (cond-> [doc-params-interceptor]
                ;; Scan files if scanner is present on PUT/POST
