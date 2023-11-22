@@ -236,6 +236,36 @@
                 {:status 400
                  :body {:error {:message "No Statement Data Provided"}}}))))})
 
+(defn scan-attachments
+  "Scan attachment files with a user-provided function."
+  [file-scanner]
+  {:name ::scan-attachments
+   :enter
+   (fn [ctx]
+     (let [attachments (get-in ctx [:xapi :xapi.statements/attachments])]
+       (if-let [attachment-errors
+                (some-> attachments
+                        (->>
+                         (keep (fn [{:keys [content]}]
+                                 (try
+                                   (file-scanner content)
+                                   (catch #?(:clj Exception :cljs js/Error) _
+                                     {:message "Scan Error"})))))
+                        not-empty)]
+         (do
+           ;; Delete (possibly) unsafe tempfiles
+           (attachment/delete-attachments! attachments)
+           (assoc (chain/terminate ctx)
+                  :response
+                  {:status 400
+                   :body {:error
+                          {:message
+                           (format "Attachment scan failed, Errors: %s"
+                                   (cs/join
+                                    ", "
+                                    (map :message attachment-errors)))}}}))
+         ctx)))})
+
 (def set-consistent-through
   {:name ::set-consistent-through
    :leave

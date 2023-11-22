@@ -4,8 +4,9 @@
    clojure.test.check.properties
    [clojure.test :as test
     :refer [run-tests] :include-macros true]
-   #?(:clj com.yetanalytics.lrs-test
-      :cljs [cljs.nodejs :refer [process]])
+   #?@(:clj [com.yetanalytics.lrs-test
+             com.yetanalytics.lrs.scan-test]
+       :cljs [[cljs.nodejs :refer [process]]])
    com.yetanalytics.lrs.xapi.activities-test
    com.yetanalytics.lrs.xapi.agents-test
    com.yetanalytics.lrs.xapi.document-test
@@ -43,7 +44,8 @@
 (defn- run-lrs-tests
   []
   (run-tests
-   #?(:clj 'com.yetanalytics.lrs-test)
+   #?@(:clj ['com.yetanalytics.lrs-test
+             'com.yetanalytics.lrs.scan-test])
    'com.yetanalytics.lrs.xapi.activities-test
    'com.yetanalytics.lrs.xapi.agents-test
    'com.yetanalytics.lrs.xapi.document-test

@@ -4,7 +4,12 @@
    [clojure.spec.alpha :as s :include-macros true]
    [clojure.test :refer [deftest testing is #?(:cljs async)] :include-macros true]
    [clojure.test.check]
-   #?@(:clj [[clojure.spec.test.alpha :as stest :include-macros true]])))
+   #?@(:clj [[clojure.spec.test.alpha :as stest :include-macros true]])
+   [io.pedestal.http :as http]
+   [com.yetanalytics.lrs.impl.memory :as mem]
+   [com.yetanalytics.lrs.pedestal.routes :as r]
+   [com.yetanalytics.lrs.pedestal.interceptor :as i]
+   #?(:cljs [com.yetanalytics.node-chain-provider :as provider])))
 
 #?(:clj (alias 'stc 'clojure.spec.test.check))
 
@@ -61,3 +66,35 @@
      :cljs
      (async done
             (a/take! ch (fn [_] (done))))))
+
+(defn test-server
+  "Create (but do not start) an in-memory LRS for testing purposes."
+  [& {:keys [port
+             lrs-mode
+             route-opts]
+      :or   {port       8080
+             lrs-mode   :sync
+             route-opts {}}}]
+  (let [lrs     (mem/new-lrs {})
+        service {:env                     :dev
+                 ::lrs                    lrs
+                 ::http/routes            (r/build
+                                           (merge
+                                            {:lrs lrs
+                                             :wrap-interceptors
+                                             [i/error-interceptor]}
+                                            route-opts))
+                 #?@(:clj [::http/resource-path "/public"])
+                 ::http/host              "0.0.0.0"
+                 ::http/port              port
+                 ::http/container-options {:h2c? true
+                                           :h2?  false
+                                           :ssl? false}
+                 ::http/allowed-origins   {:creds           true
+                                           :allowed-origins (constantly true)}
+                 ::http/type              #?(:clj :jetty
+                                             :cljs provider/macchiato-server-fn)
+                 ::http/join?             false}]
+    (-> service
+        i/xapi-default-interceptors
+        http/create-server)))
