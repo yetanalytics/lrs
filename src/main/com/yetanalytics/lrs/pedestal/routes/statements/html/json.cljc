@@ -276,4 +276,4 @@
            (if (and (string? json)
                     (linky? json))
              (a json json)
-             (str (escaped-html-str json)))])))))
+             (escaped-html-str json))])))))
