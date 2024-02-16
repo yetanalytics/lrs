@@ -163,7 +163,7 @@
                      (sort-by #(get key-weights (first %) 0) >)
                      (map-indexed
                       (fn coerce-kv [idx [k v]]
-                        (let [kn      (name k)
+                        (let [kn      (escaped-html-str (name k))
                               scalar? (and (not (rendered? v))
                                            (or (link-tuple? v)
                                                (not (coll? v))))
