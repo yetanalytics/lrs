@@ -42,6 +42,16 @@
     (web-link? href)
     (assoc :target "_blank")))1
 
+(defn escaped-html-str
+  "Change special characters into HTML character entities."
+  [text]
+  (.. (str text)
+      (replace "&"  "&amp;")
+      (replace "<"  "&lt;")
+      (replace ">"  "&gt;")
+      (replace "\"" "&quot;")
+      (replace "'"  "&#39;")))
+
 (defn a
   [link text]
   [:a
@@ -65,7 +75,7 @@
   (reduce-kv
    (fn [m k v]
      (let [kw (keyword nil (format "data-%s" (name k)))]
-       (assoc m kw v)))
+       (assoc m kw (escaped-html-str v))))
    (empty data)
    data))
 
@@ -94,16 +104,6 @@
      ;; include json for maps so we can generate a CSS <PRE> for instance
      (map? json) (assoc :json (u/json-string json
                                              :pretty true)))))
-
-(defn escaped-html-str
-  "Change special characters into HTML character entities."
-  [text]
-  (.. (str text)
-      (replace "&"  "&amp;")
-      (replace "<"  "&lt;")
-      (replace ">"  "&gt;")
-      (replace "\"" "&quot;")
-      (replace "'"  "&#39;")))
 
 (defn json->hiccup
   [json
