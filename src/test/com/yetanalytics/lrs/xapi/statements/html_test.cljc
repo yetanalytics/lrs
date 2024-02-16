@@ -42,7 +42,7 @@
           rendered (#?(:clj  html/html
                        :cljs hic/render-html) 
                     hvec)]
-      (is (= (strip-uuids rendered) 
+      (is (= (strip-uuids (str rendered)) 
              (strip-uuids expected-sanitized-render))))))
 
 

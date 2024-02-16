@@ -351,7 +351,7 @@
          :truncate-after-mod -9
          :url-params         params)]
     (if (unwrap? ctx)
-      #?(:clj (html/html statement-rendered)
+      #?(:clj  (str (html/html statement-rendered))
          :cljs (hic/render-html statement-rendered))
       (page head
             [:body
