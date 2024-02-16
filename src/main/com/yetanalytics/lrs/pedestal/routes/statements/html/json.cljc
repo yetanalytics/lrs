@@ -75,7 +75,8 @@
   (reduce-kv
    (fn [m k v]
      (let [kw (keyword nil (format "data-%s" (name k)))]
-       (assoc m kw (escaped-html-str v))))
+       (assoc m kw #?(:clj  v
+                      :cljs (escaped-html-str v)))))
    (empty data)
    data))
 
@@ -163,7 +164,8 @@
                      (sort-by #(get key-weights (first %) 0) >)
                      (map-indexed
                       (fn coerce-kv [idx [k v]]
-                        (let [kn      (escaped-html-str (name k))
+                        (let [kn      #?(:clj  (name k)
+                                         :cljs (escaped-html-str (name k)))
                               scalar? (and (not (rendered? v))
                                            (or (link-tuple? v)
                                                (not (coll? v))))
@@ -276,4 +278,5 @@
            (if (and (string? json)
                     (linky? json))
              (a json json)
-             (escaped-html-str json))])))))
+             #?(:clj  (str json)
+                :cljs (escaped-html-str json)))])))))
