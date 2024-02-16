@@ -118,9 +118,10 @@
           (cs/join "\n"
                    (map
                     (fn [hvec]
-                      (#?(:clj html/html
-                          :cljs hic/render-html)
-                       hvec))
+                      (str
+                       (#?(:clj  html/html
+                           :cljs hic/render-html)
+                        hvec)))
                     hvecs))))
 
 (defn actor-pred
@@ -419,7 +420,7 @@
             (inject-ascending
              path-prefix params))]
     (if (unwrap? ctx)
-      #?(:clj (html/html statement-response-rendered)
+      #?(:clj  (str (html/html statement-response-rendered))
          :cljs (hic/render-html statement-response-rendered))
       (page
        head
