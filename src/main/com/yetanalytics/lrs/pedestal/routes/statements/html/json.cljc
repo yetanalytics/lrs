@@ -1,7 +1,6 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html.json
   "Simple json structural elements for statement data"
   (:require [com.yetanalytics.lrs.util :as u]
-            [hiccup.util :refer [escape-html]]
             [clojure.string :as cs]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))
@@ -95,6 +94,16 @@
      ;; include json for maps so we can generate a CSS <PRE> for instance
      (map? json) (assoc :json (u/json-string json
                                              :pretty true)))))
+
+(defn escaped-html-str
+  "Change special characters into HTML character entities."
+  [text]
+  (.. (str text)
+      (replace "&"  "&amp;")
+      (replace "<"  "&lt;")
+      (replace ">"  "&gt;")
+      (replace "\"" "&quot;")
+      (replace "'"  "&#39;")))
 
 (defn json->hiccup
   [json
@@ -267,4 +276,4 @@
            (if (and (string? json)
                     (linky? json))
              (a json json)
-             (str (escape-html json)))])))))
+             (str (escaped-html-str json)))])))))
