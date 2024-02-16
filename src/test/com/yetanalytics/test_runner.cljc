@@ -12,6 +12,7 @@
    com.yetanalytics.lrs.xapi.document-test
    com.yetanalytics.lrs.xapi.statements-test
    com.yetanalytics.lrs.xapi.statements.timestamp-test
+   com.yetanalytics.lrs.xapi.statements.html-test
    com.yetanalytics.lrs.impl.memory-test
    com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
    com.yetanalytics.lrs.auth-test
@@ -51,6 +52,7 @@
    'com.yetanalytics.lrs.xapi.document-test
    'com.yetanalytics.lrs.xapi.statements-test
    'com.yetanalytics.lrs.xapi.statements.timestamp-test
+   'com.yetanalytics.lrs.xapi.statements.html-test
    'com.yetanalytics.lrs.impl.memory-test
    'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
    'com.yetanalytics.lrs.auth-test
