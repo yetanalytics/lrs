@@ -1,5 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html
-  (:require #?@(:clj [[hiccup.core :as html]
+  (:require #?@(:clj [[hiccup2.core :as html]
                       [clojure.java.io :as io]]
                 :cljs [[hiccups.runtime :as hic]
                        [goog.string :refer [format]]
