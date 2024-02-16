@@ -1,6 +1,7 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html.json
   "Simple json structural elements for statement data"
   (:require [com.yetanalytics.lrs.util :as u]
+            [hiccup.util :refer [escape-html]]
             [clojure.string :as cs]
             #?@(:cljs [[goog.string :refer [format]]
                        goog.string.format])))
@@ -266,4 +267,4 @@
            (if (and (string? json)
                     (linky? json))
              (a json json)
-             (str json))])))))
+             (str (escape-html json)))])))))
