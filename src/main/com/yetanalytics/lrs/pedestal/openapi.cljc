@@ -212,8 +212,8 @@
                      :responses   {204 (gc/response "No content")}
                      :operationId :put-statement
                      :description ""}
-   :statements-post {:requestBody (gc/request {:oneOf [(gc/a :r#statementId)
-                                                       :r#statementId]})
+   :statements-post {:requestBody (gc/request {:oneOf [(gc/a :r#Statement)
+                                                       :r#Statement]})
                      :responses   {200 (gc/response "Array of Statement id(s) (UUID) in the same order as the corresponding stored Statements."
                                                     (gc/a :r#statementId))}
                      :operationId :post-statement
