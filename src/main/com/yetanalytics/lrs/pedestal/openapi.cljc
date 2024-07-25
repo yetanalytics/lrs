@@ -5,11 +5,7 @@
    [com.yetanalytics.gen-openapi.core :as gc]))
 
 (def components
-  {:securitySchemes
-   {:bearerAuth {:type :http
-                 :scheme :bearer
-                 :bearerFormat :JWT}}
-   :responses
+  {:responses
    {:error-400 (g/response "Bad Request" :r#Error)
     :error-401 (g/response "Unauthorized" :r#Error)}
    :schemas
@@ -52,9 +48,6 @@
     :IRI {:type :string :format :iri}
     :IRL :t#string
     :MailToIRI {:type :string :format :email}
-    :KeyPair (gs/o {:api-key :t#string
-                    :secret-key :t#string})
-
     :Person {:type :object
              :properties {:objectType {:type :string :pattern "Person"}
                           :name (gs/a :t#string)
@@ -63,10 +56,6 @@
                           :openid* (gs/a :r#URI)
                           :account* (gs/a :r#Account)}
              :required [:objectType]}
-    :Scopes (gs/o {:scopes (gs/a :t#string)})
-    :ScopedKeyPair {:allOf [:r#KeyPair
-                            :r#Scopes]}
-
     :statementId {:type :string}
     :Statement {:type :object :description "https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Data.md#20-statements"}
 
@@ -212,8 +201,8 @@
                      :responses   {204 (gc/response "No content")}
                      :operationId :put-statement
                      :description ""}
-   :statements-post {:requestBody (gc/request {:oneOf [(gc/a :r#statementId)
-                                                       :r#statementId]})
+   :statements-post {:requestBody (gc/request {:oneOf [(gc/a :r#Statement)
+                                                       :r#Statement]})
                      :responses   {200 (gc/response "Array of Statement id(s) (UUID) in the same order as the corresponding stored Statements."
                                                     (gc/a :r#statementId))}
                      :operationId :post-statement
