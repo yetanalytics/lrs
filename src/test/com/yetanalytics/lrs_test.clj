@@ -54,12 +54,25 @@
                     lrs/authorize
                     lrs/authorize-async])
 
+(def auth-id
+  {:auth   {:no-op {}}
+   :prefix ""
+   :scopes #{:scope/all}
+   :agent  {"mbox" "mailto:lrs@yetanalytics.io"}})
+
+(deftest empty-store-test
+  (let [lrs            (doto (mem/new-lrs {:statements-result-max 100})
+                         (lrs/store-statements auth-id [] []))
+        ret-statements (get-in (lrs/get-statements lrs
+                                                   auth-id
+                                                   {:limit 100}
+                                                   #{"en-US"})
+                               [:statement-result :statements])]
+    (is (s/valid? ::xs/statements ret-statements))
+    (is (empty? ret-statements))))
+
 (deftest query-test
-  (let [auth-id {:auth   {:no-op {}}
-                 :prefix ""
-                 :scopes #{:scope/all}
-                 :agent  {"mbox" "mailto:lrs@yetanalytics.io"}}
-        ;; The serialized state shouldn't be used for this, because we're
+  (let [;; The serialized state shouldn't be used for this, because we're
         ;; changing things around.
         ;; The datasim data is not currently normalized, but only happens at a
         ;; max precision of 1 ms. That's timestamps though, looks like we have
@@ -75,8 +88,7 @@
                                       [:statement-result :statements]))
         ret-statements (get-ss {:limit 100})]
     (testing (format "%s valid return statements?" (count ret-statements))
-      (is (s/valid? (s/every ::xs/statement)
-                    ret-statements)))
+      (is (s/valid? ::xs/statements ret-statements)))
     (testing "preserved?"
       (is (= (dissoc (first ret-statements)
                      "authority"
