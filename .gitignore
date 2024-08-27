@@ -20,3 +20,7 @@ npm-debug.log
 package.json
 *.log
 /out_test
+.calva/
+.clj-kondo/*
+!.clj-kondo/config.edn
+.lsp/
