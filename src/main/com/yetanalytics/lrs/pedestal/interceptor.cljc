@@ -232,22 +232,24 @@
           ;; Log all unhandled/bubbled errors
           (log/error :msg "Unhandled LRS Error"
                      :exception ex)
-          (let [err-type
-                (cond
-                  (nil? ex)    {:name "unknown"}
-                  (exi? ex)    (let [{:keys [type exception-type]} (ex-data ex)
-                                     type-k (or exception-type
-                                                type
-                                                :unknown/unknown)
-                                     [tns tname] ((juxt namespace name) type-k)]
-                                 (merge (when tns {:ns tns})
-                                        {:name tname}))
-                  (error? ex)  {:name (str (type ex))}
-                  (string? ex) {:name ex}
-                  :else        {:name "unknown"})]
-            (assoc ctx :response {:status 500
-                                  :body   {:error
-                                           {:type err-type}}})))))}))
+          (assoc ctx
+                 :response
+                 {:status 500
+                  :body {:error
+                         (merge
+                          {:message "Unhandled LRS Error"}
+                          (cond
+                            (nil? ex)    {:type "unknown"}
+                            (exi? ex)    (let [{:keys [type exception-type]} (ex-data ex)
+                                               type-k (or exception-type
+                                                          type
+                                                          :unknown/unknown)
+                                               [tns tname] ((juxt namespace name) type-k)]
+                                           (merge (when tns {:ns tns})
+                                                  {:type tname}))
+                            (error? ex)  {:type (str (type ex))}
+                            (string? ex) {:type ex}
+                            :else        {:type "unknown"}))}}))))}))
 
 ;; Time Requests
 
@@ -409,7 +411,6 @@
            :cljs (body-params/body-params))]
     [x-forwarded-for-interceptor
      http/json-body
-     error-interceptor
      body-params
      ;; xapi/alternate-request-syntax-interceptor
      set-xapi-version-interceptor

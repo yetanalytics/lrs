@@ -1,15 +1,13 @@
 (ns com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response
   (:require
    [clojure.core.async :as a :include-macros true]
+   [com.yetanalytics.lrs.protocol :as lrsp]
    #?@(:clj [[cheshire.core :as json]]
-       :cljs [[goog.string :as gstring]
+       :cljs [[goog.string :refer [format]]
               [goog.string.format]])))
 
 ;; TODO: Dynamic boundary?
 ;; TODO: make this async, work on a servlet output stream
-
-(def fmt #?(:clj format
-            :cljs gstring/format))
 
 (def crlf "\r\n")
 
@@ -17,7 +15,7 @@
   "105423a5219f5a63362a375ba7a64a8f234da19c7d01e56800c3c64b26bb2fa0")
 
 (def content-type
-  (fmt "multipart/mixed; boundary=%s"
+  (format "multipart/mixed; boundary=%s"
           boundary))
 
 (def statement-result-pre
@@ -43,18 +41,19 @@
                            crlf))
       (loop [stage   :init
              s-count 0] ; s-count is used with multiple statements to enclose
-        (when-let [x (a/<! statement-result-chan)]
+        (if-let [x (a/<! statement-result-chan)]
           (case x
+            ;; terminate immediately on async error
+            ::lrsp/async-error nil
             ;; Headers
             :statement
-            (do (a/>! body-chan (json-string (a/<! statement-result-chan)))
-                (recur :statement s-count))
+            (recur :statement s-count)
             :statements
             (do (a/>! body-chan statement-result-pre)
                 (recur :statements s-count))
             :more
-            (do (a/>! body-chan (fmt "],\"more\":\"%s\"}"
-                                     (a/<! statement-result-chan)))
+            (do (a/>! body-chan (format "],\"more\":\"%s\"}"
+                                        (a/<! statement-result-chan)))
                 (recur :more s-count))
             :attachments
             (do
@@ -64,6 +63,9 @@
               (recur :attachments s-count))
             ;; Now we have a stage, dispatch on that
             (case stage
+              :statement
+              (do (a/>! body-chan (json-string x))
+                  (recur :statement s-count))
               :statements
               (do
                 ;; Maybe comma
@@ -80,22 +82,22 @@
                            "--"
                            boundary
                            crlf
-                           (fmt "Content-Type:%s" contentType)
+                           (format "Content-Type:%s" contentType)
                            crlf
                            "Content-Transfer-Encoding:binary"
                            crlf
-                           (fmt "X-Experience-API-Hash:%s" sha2)
+                           (format "X-Experience-API-Hash:%s" sha2)
                            crlf
                            crlf))
                 ;; Attachment Content
                 (a/>! body-chan
                       content)
-                (recur :attachments s-count))))))
-      ;; End
-      (a/>! body-chan (str crlf
-                           "--"
-                           boundary
-                           "--"))
+                (recur :attachments s-count))))
+          ;; Successful completion end boundary
+          (a/>! body-chan (str crlf
+                               "--"
+                               boundary
+                               "--"))))
       ;; Close the body chan
       (a/close! body-chan))
     body-chan))

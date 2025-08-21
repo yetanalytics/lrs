@@ -1,6 +1,9 @@
 (ns com.yetanalytics.lrs.pedestal.http.multipart-mixed
   (:require
-   [clojure.string :as cs])
+   [clojure.string :as cs]
+   #?@(:cljs [[com.yetanalytics.lrs.util :as u]
+              [goog.string :refer [format]]
+              [goog.string.format]]))
   #?(:clj (:import [java.util Scanner]
                    [java.io ByteArrayInputStream InputStream])))
 
@@ -18,58 +21,121 @@
           (mapv cs/trim
                 (cs/split h-str #"\s*:\s*" 2)))))
 
-;; TODO: Test!!!
-(defn- make-boundary-pattern
+;; A la https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html
+
+;; The requirement that the encapsulation boundary begins with a CRLF implies
+;; that the body of a multipart entity must itself begin with a CRLF before the
+;; first encapsulation line -- that is, if the "preamble" area is not used, the
+;; entity headers must be followed by TWO CRLFs. This is indeed how such
+;; entities should be composed. A tolerant mail reading program, however, may
+;; interpret a body of type multipart that begins with an encapsulation line NOT
+;; initiated by a CRLF as also being an encapsulation boundary, but a compliant
+;; mail sending program must not generate such entities.
+(defn- boundary-pat-open
   [boundary]
-  (re-pattern (str "(?m)\\R?^--" boundary "(?:--)?$\\R?")))
+  (format "^(\\r\\n)?--%s\\r\\n" boundary))
+
+(defn- boundary-pat-mid
+  [boundary]
+  (format "(?<!^)\\r\\n--%s\\r\\n(?!$)" boundary))
+
+(defn- boundary-pat-close
+  [boundary]
+  (format "\\r\\n--%s--(\r\n|\n)*$" boundary))
+
+(defn- assert-valid
+  [test message type-k]
+  (when-not test
+    (throw (ex-info message
+                    {:type type-k}))))
+
+#?(:cljs
+   (defn split-multiparts
+     "Splits multipart body parts, ensuring start + end and at least 2 parts"
+     [boundary body]
+     (let [open-re-pos (u/re-pos
+                        (re-pattern
+                         (boundary-pat-open boundary))
+                        body)
+           mid-re-pos (u/re-pos
+                       (re-pattern
+                        (boundary-pat-mid boundary))
+                       body)
+           close-re-pos (u/re-pos
+                         (re-pattern
+                          (boundary-pat-close boundary))
+                         body)
+           all-pos (concat open-re-pos
+                           mid-re-pos
+                           close-re-pos)]
+       (assert-valid (= 1 (count open-re-pos))
+                     "Only one opening boundary can be present"
+                     ::invalid-one-opening-boundary)
+       (assert-valid (<= 1 (count mid-re-pos))
+                     "At least one mid boundary must be present"
+                     ::invalid-at-least-one-mid-boundary)
+       (assert-valid (= 1 (count close-re-pos))
+                     "Only one closing boundary can be present"
+                     ::invalid-one-closing-boundary)
+       (for [[[idx-a
+               bound-a]
+              [idx-b]] (partition 2 1 all-pos)]
+         (subs body
+               (+ idx-a
+                  (count bound-a))
+               idx-b)))))
+
+(defn parse-part [^String part boundary]
+  (assert-valid
+   (not (cs/includes? part boundary))
+   "Multipart parts must not include boundary."
+   ::invalid-no-boundary-in-multipart)
+  (let [[headers-str
+         body-str] (cs/split part #"\r\n\r\n")
+        headers    (parse-body-headers headers-str)
+        #?@(:clj [body-bytes (.getBytes body-str "UTF-8")])]
+
+    {:content-type   (get headers "Content-Type")
+     :content-length #?(:clj (count body-bytes)
+                        :cljs (.-length body-str))
+     :headers        headers
+     :input-stream   #?(:clj (ByteArrayInputStream. body-bytes)
+                        :cljs body-str)}))
 
 (defn parse-parts [#?(:clj ^InputStream in
                       :cljs ^String in)
                    ^String boundary]
   (try
     #?(:clj
-       (let [boundary-pattern (make-boundary-pattern boundary)]
-         (with-open [scanner (Scanner. in)]
-           (assert (.hasNext scanner boundary-pattern)
-                   "No initial multipart boundary.")
-           (into []
-                 (for [file-chunk (iterator-seq (.useDelimiter
-                                                 scanner
-                                                 boundary-pattern))
-                       :let [[headers-str
-                              body-str] (cs/split file-chunk #"\R{2}")
-                             headers    (parse-body-headers headers-str)
-                             body-bytes (.getBytes ^String body-str "UTF-8")]]
-                   {:content-type   (get headers "Content-Type")
-                    :content-length (count body-bytes)
-                    :headers        headers
-                    :input-stream   (ByteArrayInputStream. body-bytes)}))))
+       (with-open [^Scanner scanner (.useDelimiter
+                                     (Scanner. in)
+                                     (re-pattern
+                                      (str (boundary-pat-mid boundary)
+                                           "|"
+                                           (boundary-pat-close boundary))))]
+         ;; Skip the (anchored) opening boundary or throw
+         (.skip scanner
+                (re-pattern
+                 (boundary-pat-open boundary)))
+         (loop [multiparts []]
+           (if (.hasNext scanner)
+             (recur (conj multiparts (parse-part (.next scanner) boundary)))
+             (do
+               ;; Skip the (anchored) close boundary or throw
+               (.skip scanner
+                      (re-pattern
+                       (boundary-pat-close boundary)))
+               ;; return multiparts
+               multiparts))))
        :cljs
-       (let [boundary-pattern (make-boundary-pattern boundary)
-             chunks           (cs/split (cs/trim in) boundary-pattern)]
-         (assert (= "" (first chunks)))
-         (into []
-               (for [file-chunk (rest chunks)
-                     ;; Using cs/split in cljs leaves extra crlfs around content
-                     ;; so we remove them with trim
-                     :let [file-chunk (cs/trim file-chunk)
-                           [headers-str
-                            body-str] (cs/split file-chunk #"\r\n\r\n")
-                           headers    (parse-body-headers headers-str)]]
-                 {:content-type   (get headers "Content-Type")
-                  :content-length (.-length body-str)
-                  :headers        headers
-                  :input-stream   body-str}))))
-    #?@(:clj [(catch AssertionError _
-                (throw (ex-info "Invalid Multipart Body"
-                                {:type ::invalid-multipart-body})))
-              (catch Exception _
-                (throw (ex-info "Incomplete Multipart Request"
-                                {:type ::incomplete-multipart})))]
-        :cljs [(catch js/Error jse
-                 (throw (ex-info "Invalid Multipart Body"
-                                 {:type ::invalid-multipart-body}
-                                 jse)))])))
+       (into []
+             (map #(parse-part % boundary)
+                  (split-multiparts boundary in))))
+    (catch #?(:clj Exception
+              :cljs js/Error) ex
+      (throw (ex-info "Invalid Multipart Body"
+                      {:type ::invalid-multipart-body}
+                      ex)))))
 
 (def content-type-regex
   #"(?:^\s*multipart/mixed\s*;\s*boundary\s*=\s*)(?:(?:\"(.*)\".*$)|(?:([a-zA-Z0-9\'\+\-\_]*)$))")

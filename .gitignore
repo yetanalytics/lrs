@@ -18,6 +18,9 @@ npm-debug.log
 /node_modules
 .rebel_readline_history
 package.json
-package-lock.json
 *.log
 /out_test
+.calva/
+.clj-kondo/*
+!.clj-kondo/config.edn
+.lsp/

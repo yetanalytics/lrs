@@ -42,6 +42,16 @@
     (web-link? href)
     (assoc :target "_blank")))1
 
+(defn escaped-html-str
+  "Change special characters into HTML character entities."
+  [text]
+  (.. (str text)
+      (replace "&"  "&amp;")
+      (replace "<"  "&lt;")
+      (replace ">"  "&gt;")
+      (replace "\"" "&quot;")
+      (replace "'"  "&#39;")))
+
 (defn a
   [link text]
   [:a
@@ -65,7 +75,8 @@
   (reduce-kv
    (fn [m k v]
      (let [kw (keyword nil (format "data-%s" (name k)))]
-       (assoc m kw v)))
+       (assoc m kw #?(:clj  v
+                      :cljs (escaped-html-str v)))))
    (empty data)
    data))
 
@@ -153,7 +164,8 @@
                      (sort-by #(get key-weights (first %) 0) >)
                      (map-indexed
                       (fn coerce-kv [idx [k v]]
-                        (let [kn      (name k)
+                        (let [kn      #?(:clj  (name k)
+                                         :cljs (escaped-html-str (name k)))
                               scalar? (and (not (rendered? v))
                                            (or (link-tuple? v)
                                                (not (coll? v))))
@@ -266,4 +278,5 @@
            (if (and (string? json)
                     (linky? json))
              (a json json)
-             (str json))])))))
+             #?(:clj  (str json)
+                :cljs (escaped-html-str json)))])))))

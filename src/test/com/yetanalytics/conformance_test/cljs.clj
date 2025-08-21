@@ -51,6 +51,7 @@
                    "-e"
                    "http://localhost:8080/xapi"
                    "-b"
-                   "-z")]
+                   "-z"
+                   "-x" "1.0.3")]
       (stop-fn)
       (is (true? ret)))))

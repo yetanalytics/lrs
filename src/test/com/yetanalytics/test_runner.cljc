@@ -4,16 +4,20 @@
    clojure.test.check.properties
    [clojure.test :as test
     :refer [run-tests] :include-macros true]
-   #?(:clj com.yetanalytics.lrs-test
-      :cljs [cljs.nodejs :refer [process]])
+   #?@(:clj [com.yetanalytics.lrs-test
+             com.yetanalytics.lrs.scan-test]
+       :cljs [[cljs.nodejs :refer [process]]])
    com.yetanalytics.lrs.xapi.activities-test
    com.yetanalytics.lrs.xapi.agents-test
    com.yetanalytics.lrs.xapi.document-test
    com.yetanalytics.lrs.xapi.statements-test
    com.yetanalytics.lrs.xapi.statements.timestamp-test
+   com.yetanalytics.lrs.xapi.statements.html-test
    com.yetanalytics.lrs.impl.memory-test
    com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
-   com.yetanalytics.lrs.auth-test))
+   com.yetanalytics.lrs.auth-test
+   com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
+   com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test))
 
 (defmethod test/report #?(:cljs [::test/default :begin-test-ns]
                           :clj :begin-test-ns)
@@ -41,15 +45,19 @@
 (defn- run-lrs-tests
   []
   (run-tests
-   #?(:clj 'com.yetanalytics.lrs-test)
+   #?@(:clj ['com.yetanalytics.lrs-test
+             'com.yetanalytics.lrs.scan-test])
    'com.yetanalytics.lrs.xapi.activities-test
    'com.yetanalytics.lrs.xapi.agents-test
    'com.yetanalytics.lrs.xapi.document-test
    'com.yetanalytics.lrs.xapi.statements-test
    'com.yetanalytics.lrs.xapi.statements.timestamp-test
+   'com.yetanalytics.lrs.xapi.statements.html-test
    'com.yetanalytics.lrs.impl.memory-test
    'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
-   'com.yetanalytics.lrs.auth-test))
+   'com.yetanalytics.lrs.auth-test
+   'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
+   'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test))
 
 (defn ^:export -main []
   #?(:clj

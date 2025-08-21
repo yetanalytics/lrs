@@ -1,5 +1,5 @@
 (ns com.yetanalytics.lrs.pedestal.routes.statements.html
-  (:require #?@(:clj [[hiccup.core :as html]
+  (:require #?@(:clj [[hiccup2.core :as html]
                       [clojure.java.io :as io]]
                 :cljs [[hiccups.runtime :as hic]
                        [goog.string :refer [format]]
@@ -118,9 +118,10 @@
           (cs/join "\n"
                    (map
                     (fn [hvec]
-                      (#?(:clj html/html
-                          :cljs hic/render-html)
-                       hvec))
+                      (str
+                       (#?(:clj  html/html
+                           :cljs hic/render-html)
+                        hvec)))
                     hvecs))))
 
 (defn actor-pred
@@ -351,7 +352,7 @@
          :truncate-after-mod -9
          :url-params         params)]
     (if (unwrap? ctx)
-      #?(:clj (html/html statement-rendered)
+      #?(:clj  (str (html/html statement-rendered))
          :cljs (hic/render-html statement-rendered))
       (page head
             [:body
@@ -419,7 +420,7 @@
             (inject-ascending
              path-prefix params))]
     (if (unwrap? ctx)
-      #?(:clj (html/html statement-response-rendered)
+      #?(:clj  (str (html/html statement-response-rendered))
          :cljs (hic/render-html statement-response-rendered))
       (page
        head

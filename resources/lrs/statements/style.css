@@ -61,7 +61,7 @@ body > main {
 .json-map-entry {
   display:grid;
   grid-template-columns: minmax(max-content, 9em) 1fr;
-  align-items: baseline;
+  align-items: center;
   border-bottom: #EBEBEB solid 0.1em;
 }
 
