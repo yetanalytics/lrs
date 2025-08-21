@@ -44,7 +44,7 @@
                               :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
     com.yetanalytics/lrs-test-runner
     {:git/url "https://github.com/yetanalytics/lrs-test-runner.git"
-     :sha "0fcd42854f9c79a043c13d436d629826bfc5133d"}
+     :sha "9caedae0fe5d619651f8b54fa669cec363475fef"}
     babashka/babashka.curl {:mvn/version "0.1.2"}}}
   ;; bench utils for LRS implementations
   :bench
