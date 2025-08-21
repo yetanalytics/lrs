@@ -5,7 +5,7 @@
    [mem-lrs.server :as server]
    [io.pedestal.http :as http]))
 
-(use-fixtures :once #(runner/test-suite-fixture % :branch "LRS-2.0"))
+(use-fixtures :once #(runner/test-suite-fixture % :branch "master"))
 
 (deftest test-lrs-async
   (testing "clj/java async"
@@ -16,6 +16,6 @@
                "http://localhost:8080/xapi"
                "-b"
                "-z"
-               "-x" "1.0.3")]
+               "-x" "2.0.0")]
       (http/stop s)
       (is (true? ret)))))
