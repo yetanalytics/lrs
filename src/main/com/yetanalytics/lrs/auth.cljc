@@ -6,23 +6,23 @@
 ;; From https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#42-oauth-10-authorization-scope
 (s/def ::scope
   #{:scope/all
-    :scope.all/read
+    :scope/all.read
     :scope/profile
     :scope/define
     :scope/state
-    :scope.statements/read
-    :scope.statements.read/mine
-    :scope.statements/write})
+    :scope/statements.read
+    :scope/statements.read.mine
+    :scope/statements.write})
 
 (def scope-parents
   {:scope/all                  :scope/all
-   :scope.all/read             :scope/all
+   :scope/all.read             :scope/all
    :scope/profile              :scope/all
    :scope/define               :scope/all
    :scope/state                :scope/all
-   :scope.statements/read      :scope/all
-   :scope.statements.read/mine :scope.statements/read
-   :scope.statements/write     :scope/all})
+   :scope/statements.read      :scope/all
+   :scope/statements.read.mine :scope/statements.read
+   :scope/statements.write     :scope/all})
 
 (s/def ::scopes
   (s/coll-of ::scope :min-count 1 :kind set? :into #{}))
@@ -37,13 +37,13 @@
 (s/fdef scope-ancestors
   :args (s/cat :scope ::scope)
   :ret (s/cat :leaf-scopes
-              (s/* #{:scope.all/read
+              (s/* #{:scope/all.read
                      :scope/profile
                      :scope/define
                      :scope/state
-                     :scope.statements/read
-                     :scope.statements.read/mine
-                     :scope.statements/write})
+                     :scope/statements.read
+                     :scope/statements.read.mine
+                     :scope/statements.write})
               :root-scope #{:scope/all}))
 
 (defn resolve-scopes

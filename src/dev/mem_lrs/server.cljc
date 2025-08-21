@@ -9,7 +9,8 @@
    [com.yetanalytics.lrs.pedestal.interceptor :as i]
    [#?(:clj io.pedestal.log
        :cljs com.yetanalytics.lrs.util.log) :as log]
-   [clojure.spec.test.alpha :as stest :include-macros true]))
+   [clojure.spec.test.alpha :as stest :include-macros true]
+   #?(:cljs [cljs.nodejs :as node])))
 
 ;; We keep this because this is in a dev dir
 #?(:clj (set! *warn-on-reflection* true))
@@ -34,6 +35,18 @@
     (-> service/service ;; start with production configuration
         (merge {:env  :dev
                 ::lrs lrs
+                ::server/host (or #?(:clj (System/getenv "HTTP_HOST")
+                                     :cljs (aget
+                                            (.-env node/process)
+                                            "HTTP_HOST"))
+                                  "0.0.0.0")
+                ::server/port (or (some-> #?(:clj (System/getenv "HTTP_PORT")
+                                             :cljs (aget
+                                                    (.-env node/process)
+                                                    "HTTP_PORT"))
+                                          #?(:clj Long/parseLong
+                                             :cljs js/parseInt))
+                                  8080)
                 ;; do not block thread that starts web server
                 ::server/join? false
                 ;; Routes can be a function that resolve routes,

@@ -4,7 +4,7 @@
              [clojure.java.io :as io]
              [io.pedestal.log :as log]]
        :cljs [cljs.nodejs
-              [goog.string :as gstring]
+              [goog.string :refer [format]]
               goog.string.format
               [com.yetanalytics.lrs.util.log :as log]])
    [io.pedestal.interceptor.chain :as chain]
@@ -23,8 +23,6 @@
    [clojure.string :as cs])
   #?(:clj (:import [java.io InputStream OutputStream]
                    [com.fasterxml.jackson.core JsonParseException])))
-
-(def fmt #?(:clj format :cljs gstring/format))
 
 ;; The general flow for these is 1. parse 2. validate 3. place in context
 
@@ -124,7 +122,7 @@
                              (with-open [rdr (io/reader (-> parts-seq
                                                             first
                                                             :input-stream))]
-                               (json/parse-stream rdr))
+                               (doall (json/parse-stream rdr)))
                              :cljs
                              (-> (.parse js/JSON (-> parts-seq
                                                      first
@@ -147,13 +145,6 @@
                               :body
                               {:error
                                {:message "Invalid Multipart Body"}}})
-                      ::multipart/incomplete-multipart
-                      (assoc (chain/terminate ctx)
-                             :response
-                             {:status 400
-                              :body
-                              {:error
-                               {:message "Incomplete Multipart Request"}}})
                       ::multipart/too-much-content
                       (assoc (chain/terminate ctx)
                              :response
@@ -188,8 +179,8 @@
        (if-let [statement-data (get-in ctx [:request :json-params])]
          (try (condp s/valid? statement-data
                 ::xs/statement
-                (let [[_ valid-multiparts]
-                      (attachment/validate-statements-multiparts
+                (let [valid-multiparts
+                      (attachment/validate-multiparts
                        [statement-data]
                        multiparts)
                       attachment-data
@@ -201,8 +192,8 @@
                           ::xs/statement statement-data
                           :xapi.statements/attachments attachment-data))
                 ::xs/statements
-                (let [[_ valid-multiparts]
-                      (attachment/validate-statements-multiparts
+                (let [valid-multiparts
+                      (attachment/validate-multiparts
                        statement-data
                        multiparts)
                       attachment-data
@@ -245,6 +236,36 @@
                 {:status 400
                  :body {:error {:message "No Statement Data Provided"}}}))))})
 
+(defn scan-attachments
+  "Scan attachment files with a user-provided function."
+  [file-scanner]
+  {:name ::scan-attachments
+   :enter
+   (fn [ctx]
+     (let [attachments (get-in ctx [:xapi :xapi.statements/attachments])]
+       (if-let [attachment-errors
+                (some-> attachments
+                        (->>
+                         (keep (fn [{:keys [content]}]
+                                 (try
+                                   (file-scanner content)
+                                   (catch #?(:clj Exception :cljs js/Error) _
+                                     {:message "Scan Error"})))))
+                        not-empty)]
+         (do
+           ;; Delete (possibly) unsafe tempfiles
+           (attachment/delete-attachments! attachments)
+           (assoc (chain/terminate ctx)
+                  :response
+                  {:status 400
+                   :body {:error
+                          {:message
+                           (format "Attachment scan failed, Errors: %s"
+                                   (cs/join
+                                    ", "
+                                    (map :message attachment-errors)))}}}))
+         ctx)))})
+
 (def set-consistent-through
   {:name ::set-consistent-through
    :leave
@@ -258,30 +279,17 @@
                    [:response :headers "X-Experience-API-Consistent-Through"]
                    (a/<! (lrs/consistent-through-async lrs ctx auth-identity))))
        (lrsp/statements-resource? lrs)
-       (assoc-in ctx
-                 [:response :headers "X-Experience-API-Consistent-Through"]
-                 (lrs/consistent-through lrs ctx auth-identity))
+       (try (assoc-in ctx
+                      [:response :headers "X-Experience-API-Consistent-Through"]
+                      (lrs/consistent-through lrs ctx auth-identity))
+            (catch #?(:clj Exception :cljs js/Error) ex
+              (assoc ctx
+                     :io.pedestal.interceptor.chain/error
+                     ex)))
        :else
        (assoc-in ctx
                  [:response :headers "X-Experience-API-Consistent-Through"]
                  (ss/now-stamp))))})
-
-#?(:clj
-   (defn lazy-statement-result [{:keys [statements more]}
-                                ^OutputStream os]
-     (with-open [w (io/writer os)]
-       ;; Write everything up to the beginning of the statements
-       (.write w "{\"statements\": [")
-       (doseq [x (interpose :comma statements)]
-         (if (= :comma x)
-           (.write w ",")
-           (json/with-writer [w {}]
-             (json/write x))))
-       (let [^String terminal (if more
-                                (fmt "], \"more\": \"%s\"}" more)
-                                "]}")]
-         (.write w
-                 terminal)))))
 
 (defn json-string [x]
   #?(:clj (json/generate-string x)
@@ -295,13 +303,15 @@
              s-count 0]
         (if-let [x (a/<! statement-result-chan)]
           (case x
+            ;; terminate on error producing invalid JSON
+            ::lrsp/async-error nil
             :statements
             (do (a/>! body-chan "{\"statements\":[")
                 (recur :statements s-count))
             :more
             (do (a/>! body-chan
-                      (fmt "],\"more\":\"%s\"}"
-                           (a/<! statement-result-chan)))
+                      (format "],\"more\":\"%s\"}"
+                              (a/<! statement-result-chan)))
                 (recur :more s-count))
             ;; else
             (do

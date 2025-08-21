@@ -80,11 +80,11 @@
 
 (s/def :com.yetanalytics.lrs.xapi/document
   (s/with-gen
-    (s/keys :req-un [::content-length
-                     ::content-type
-                     ::contents]
+    (s/keys :req-un [::contents]
             :opt-un [::id
-                     ::updated])
+                     ::updated
+                     ::content-length
+                     ::content-type])
     (fn []
       (sgen/one-of [(document-gen-fn)
                     (json-document-gen-fn)]))))
@@ -187,14 +187,18 @@
             document)
           :updated
           (updated-stamp-now)))
-  ([old-doc new-doc]
+  ([{old-ctype :content-type
+     :as old-doc}
+    {new-ctype :content-type
+     :as new-doc}]
    (if old-doc
      (assoc
-      (cond
-        ;; both docs have the JSON content type
-        (every? #(.startsWith ^String % "application/json")
-                (map :content-type [old-doc
-                                    new-doc]))
+      (if ;; both docs have the JSON content type
+          (and old-ctype
+               new-ctype
+               (every? #(.startsWith ^String % "application/json")
+                       [old-ctype
+                        new-ctype]))
         (let [old-json (*read-json-contents*
                         (:contents old-doc))
               new-json (*read-json-contents*
@@ -206,10 +210,6 @@
                      :content-length (count merged-bytes)
                      :contents merged-bytes))
             new-doc))
-        ;; at least one doc doesn't have the JSON content type
-        (not (every? #(.startsWith ^String % "application/json")
-                     (map :content-type [old-doc
-                                         new-doc])))
         (throw (ex-info "Attempt to merge documents of different content types"
                         {:type    ::invalid-merge
                          :old-doc old-doc
