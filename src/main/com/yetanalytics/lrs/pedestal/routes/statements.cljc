@@ -33,6 +33,14 @@
               {:error
                (merge {:message (ex-message exi)}
                       (select-keys exd [:statement]))}})
+      ::invalid-statement-batch
+      (assoc ctx
+             :response
+             {:status 400
+              :body
+              {:error
+               (merge {:message (ex-message exi)}
+                      (select-keys exd [:statements]))}})
       ;; else - unexpected error
       (assoc ctx
              :io.pedestal.interceptor.chain/error
@@ -106,20 +114,26 @@
             ?statement  :xapi-schema.spec/statement
             attachments :xapi.statements/attachments} (:xapi ctx)
            statements (or ?statements [?statement])]
-       (if (p/statements-resource-async? lrs)
-         (a/go
-           (post-response ctx
-                          (a/<! (lrs/store-statements-async
-                                 lrs
-                                 auth-identity
-                                 statements
-                                 attachments))))
+       ;; TODO: permanent dignified handling of this
+       (if (false? (reduce distinct? (map #(get % "id") statements)))
          (post-response ctx
-                        (lrs/store-statements
-                         lrs
-                         auth-identity
-                         statements
-                         attachments)))))})
+                        {:error (ex-info "Non-unique statement ids provided."
+                                         {:type ::invalid-statement-batch
+                                          :statements statements})})
+         (if (p/statements-resource-async? lrs)
+           (a/go
+             (post-response ctx
+                            (a/<! (lrs/store-statements-async
+                                   lrs
+                                   auth-identity
+                                   statements
+                                   attachments))))
+           (post-response ctx
+                          (lrs/store-statements
+                           lrs
+                           auth-identity
+                           statements
+                           attachments))))))})
 
 ;; TODO: wrap attachment response
 ;; TODO: Last modfified https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#requirements-4
