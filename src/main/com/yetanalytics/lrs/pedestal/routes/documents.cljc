@@ -282,14 +282,22 @@
                   doc (->doc request)]
               (if-let [[_ params]
                        (find xapi :xapi.activities.state.PUT.request/params)]
-                ;; State document
-                (put-response ctx
-                              (a/<! (lrs/set-document-async
-                                     lrs
-                                     auth-identity
-                                     params
-                                     doc
-                                     false)))
+                (let [{hif-match      "if-match"
+                       hif-none-match "if-none-match"}
+                      headers]
+                  ;; State document
+                  (if (or hif-match hif-none-match)
+                    (put-response ctx
+                                  (a/<! (lrs/set-document-async
+                                         lrs
+                                         auth-identity
+                                         params
+                                         doc
+                                         false)))
+                    (let [err-res (a/<! (lrs/get-document-async
+                                         lrs
+                                         auth-identity params))]
+                      (put-err-response ctx err-res))))
                 ;; Activity/Agent profile document
                 (let [[_params-spec params]
                       (find-some xapi
