@@ -13,13 +13,18 @@
   [ctx {:keys [error activity] ?etag :etag :as _activity-response}]
   (if error
     (assoc ctx :io.pedestal.interceptor.chain/error error)
-    (assoc ctx
-           :response
-           (if activity
-             (cond-> {:status 200 :body activity}
+    (let [activity-id (-> ctx
+                          :xapi
+                          :xapi.activities.GET.request/params
+                          :activityId)]
+      (assoc ctx
+             :response
+             (cond-> {:status 200
+                      :body (or activity
+                                {"id" activity-id
+                                 "objectType" "Activity"})}
                ?etag (assoc :com.yetanalytics.lrs.pedestal.interceptor/etag
-                            ?etag))
-             {:status 404}))))
+                            ?etag))))))
 
 (def handle-get
   {:name ::handle-get
