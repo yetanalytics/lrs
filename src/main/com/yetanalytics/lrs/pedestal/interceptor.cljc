@@ -33,37 +33,40 @@
         ver-str  (str "^[1-2]\\.0" suffix "$")]
     (re-pattern ver-str)))
 
+(def extract-xapi-version-interceptor
+  (i/interceptor
+   {:name ::extract-xapi-version
+    :enter (fn [ctx]
+             (if-let [version (or (and (some-> ctx :request :params :method)
+                                       ;; TODO: coerce with csk or the like
+                                       (get-in
+                                        ctx
+                                        [:request :form-params :X-Experience-API-Version]
+                                        (get-in
+                                         ctx
+                                         [:request :form-params :x-experience-api-version])))
+                                  (get-in ctx [:request :headers "x-experience-api-version"]))]
+               (assoc ctx
+                      :com.yetanalytics.lrs/version
+                      version)
+               ;; allow without, it will be turned into an error down the line
+               ctx))}))
+
 (def require-xapi-version-interceptor
   (i/interceptor
    {:name  ::require-xapi-version
     :enter (fn [ctx]
-             ;; if this is an html request, don't require this
-             ;; browsers can't provide it
              (if (si/accept-html? ctx)
-               (assoc-in ctx
-                         [:request :headers "x-experience-api-version"]
-                         "2.0.0")
-               (if-let [version-header (get-in ctx [:request :headers "x-experience-api-version"])]
+               (assoc ctx :com.yetanalytics.lrs/version "2.0.0")
+               (if-let [version-header (:com.yetanalytics.lrs/version ctx)]
                  (if (re-matches xAPIVersionRegEx
                                  version-header)
                    (assoc ctx :com.yetanalytics.lrs/version version-header)
-                   (assoc (chain/terminate ctx)
-                          :response
-                          {:status  400
-                           :headers {#?(:cljs "Content-Type"
-                                        :clj "content-type")
-                                     "application/json"
-                                     "x-experience-api-version" "2.0.0"}
-                           :body
-                           {:error {:message "X-Experience-API-Version header invalid!"}}}))
-                 (assoc (chain/terminate ctx)
-                        :response
-                        {:status  400
-                         :headers {#?(:cljs "Content-Type"
-                                      :clj "content-type")    "application/json"
-                                   "x-experience-api-version" "2.0.0"}
-                         :body
-                         {:error {:message "X-Experience-API-Version header required!"}}}))))}))
+                   (xapi/error! ctx
+                                "X-Experience-API-Version header invalid!"))
+                 (xapi/error!
+                  ctx
+                  "X-Experience-API-Version header required!"))))}))
 
 (def x-forwarded-for-interceptor
   (i/interceptor
@@ -154,8 +157,8 @@
     :leave (fn [ctx]
              (assoc-in ctx
                        [:response :headers "x-experience-api-version"]
-                       ;; Should be latest patch version
-                       "2.0.0"))}))
+                       ;; Get version from context or latest patch
+                       (:com.yetanalytics.lrs/version ctx "2.0.0")))}))
 
 (defn calculate-etag [x]
   (sha-1 x))
@@ -412,16 +415,17 @@
     [x-forwarded-for-interceptor
      http/json-body
      body-params
-     ;; xapi/alternate-request-syntax-interceptor
      set-xapi-version-interceptor
      xapi-ltags-interceptor]))
 
 (def doc-interceptors-base
   [x-forwarded-for-interceptor
-   require-xapi-version-interceptor
-   xapi/alternate-request-syntax-interceptor
    set-xapi-version-interceptor
    xapi-ltags-interceptor])
 
 (def xapi-protected-interceptors
-  [require-xapi-version-interceptor])
+  [;; one of these two will set up a version value
+   extract-xapi-version-interceptor
+   xapi/alternate-request-syntax-interceptor
+   ;; for the check here
+   require-xapi-version-interceptor])

@@ -42,10 +42,20 @@
                       {:type ::cljs-lrs-start-error
                        :ret ret})))))
 
-(use-fixtures :once #(runner/test-suite-fixture % :branch "master"))
+(use-fixtures :once #(runner/test-suite-fixture % :branch "adding-back-compat"))
 
 (deftest test-cljs-lrs
-  (testing "cljs/javascript async"
+  (testing "cljs/javascript async 1.0.3"
+    (let [stop-fn (cljs-lrs)
+          ret     (runner/conformant?
+                   "-e"
+                   "http://localhost:8080/xapi"
+                   "-b"
+                   "-z"
+                   "-x" "1.0.3")]
+      (stop-fn)
+      (is (true? ret))))
+  (testing "cljs/javascript async 2.0.0"
     (let [stop-fn (cljs-lrs)
           ret     (runner/conformant?
                    "-e"
