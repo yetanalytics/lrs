@@ -332,18 +332,27 @@
                              doc
                              false))
               ;; if neither header is present
-              (let [doc-res (a/<! (lrs/get-document-async
-                                   lrs
-                                   auth-identity params))]
-                (if (and (not (:error doc-res))
+              (let [doc-res (lrs/get-document
+                             lrs
+                             auth-identity params)]
+                (if (and (or
+                          ;; In 2.0, no headers ok for no doc
+                          (= "2.0.0"
+                             (:com.yetanalytics.lrs/version ctx))
+                          ;; prior tests seem to want this for everything but
+                          ;; profiles
+                          (not (#{:xapi.activities.profile.PUT.request/params
+                                  :xapi.agents.profile.PUT.request/params}
+                                params-type)))
+                         (not (:error doc-res))
                          (nil? (:document doc-res)))
                   (put-response ctx
-                                (a/<! (lrs/set-document-async
-                                       lrs
-                                       auth-identity
-                                       params
-                                       doc
-                                       false)))
+                                (lrs/set-document
+                                 lrs
+                                 auth-identity
+                                 params
+                                 doc
+                                 false))
                   (put-err-response ctx doc-res))))
             (catch #?(:clj Exception :cljs js/Error) ex
               (assoc ctx :io.pedestal.interceptor.chain/error ex)))))))})
