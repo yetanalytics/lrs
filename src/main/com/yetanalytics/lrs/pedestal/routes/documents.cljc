@@ -283,7 +283,6 @@
             {hif-match      "if-match"
              hif-none-match "if-none-match"} headers
             doc (->doc request)]
-        (println "PUT doc:" params " hif-match:" hif-match " hif-none-match:" hif-none-match)
         (if (p/document-resource-async? lrs)
           ;; Async
           (a/go
