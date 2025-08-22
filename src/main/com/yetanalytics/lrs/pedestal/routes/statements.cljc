@@ -113,9 +113,11 @@
      (let [{?statements :xapi-schema.spec/statements
             ?statement  :xapi-schema.spec/statement
             attachments :xapi.statements/attachments} (:xapi ctx)
-           statements (or ?statements [?statement])]
+           statements (or ?statements [?statement])
+           s-ids (keep #(get % "id") statements)]
        ;; TODO: permanent dignified handling of this
-       (if (false? (reduce distinct? (map #(get % "id") statements)))
+       (if (and (not-empty s-ids)
+                (false? (reduce distinct? s-ids)))
          (post-response ctx
                         {:error (ex-info "Non-unique statement ids provided."
                                          {:type ::invalid-statement-batch
