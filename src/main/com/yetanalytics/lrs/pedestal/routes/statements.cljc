@@ -172,9 +172,16 @@
           ctx
           :response
           (if (or statement statement-result)
-            (if (get-in xapi [:xapi.statements.GET.request/params :attachments])
+            (let [?last-mod
+                  (or (get statement "stored")
+                      (some-> statement-result
+                              :statements
+                              first
+                              (get "stored")))]
+             (if (get-in xapi [:xapi.statements.GET.request/params :attachments])
               {:status  200
-               :headers (cond-> {"Content-Type" att-resp/content-type}
+               :headers (cond-> (cond-> {"Content-Type" att-resp/content-type}
+                                  ?last-mod (assoc "last-modified" ?last-mod))
                           etag (assoc "etag" etag))
                ;; shim, the protocol will be expected to return this
                :body    (att-resp/build-multipart-async
@@ -202,7 +209,8 @@
                 (if statement-result
                   ;; Multiple statements
                   {:status  200
-                   :headers {"Content-Type" "application/json"}
+                   :headers (cond-> {"Content-Type" "application/json"}
+                              ?last-mod (assoc "last-modified" ?last-mod))
                    :body    (si/lazy-statement-result-async
                              (a/to-chan!
                               (concat (cons :statements
@@ -213,7 +221,9 @@
                   ;; TODO: if content-type headers get set here the body
                   ;; is not coerced
                   {:status 200
-                   :body   statement})))
+                   :headers (cond-> {}
+                              ?last-mod (assoc "last-modified" ?last-mod))
+                   :body   statement}))))
             ;; Not found
             {:status 404 :body ""}))
          (catch #?(:clj Exception
