@@ -274,7 +274,7 @@
                request
                com.yetanalytics/lrs]
         :as ctx}]
-      (let [[_ params]
+      (let [[params-type params]
             (or (find xapi :xapi.activities.state.PUT.request/params)
                 (find-some xapi
                            :xapi.activities.profile.PUT.request/params
@@ -283,6 +283,7 @@
             {hif-match      "if-match"
              hif-none-match "if-none-match"} headers
             doc (->doc request)]
+        (println "PUT doc:" params " hif-match:" hif-match " hif-none-match:" hif-none-match)
         (if (p/document-resource-async? lrs)
           ;; Async
           (a/go
@@ -300,7 +301,16 @@
                 (let [doc-res (a/<! (lrs/get-document-async
                                      lrs
                                      auth-identity params))]
-                  (if (and (not (:error doc-res))
+                  (if (and (or
+                            ;; In 2.0, no headers ok for no doc
+                            (= "2.0.0"
+                               (:com.yetanalytics.lrs/version ctx))
+                            ;; prior tests seem to want this for everything but
+                            ;; profiles
+                            (not (#{:xapi.activities.profile.PUT.request/params
+                                    :xapi.agents.profile.PUT.request/params}
+                                  params-type)))
+                           (not (:error doc-res))
                            (nil? (:document doc-res)))
                     (put-response ctx
                                   (a/<! (lrs/set-document-async
