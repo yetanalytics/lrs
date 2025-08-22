@@ -321,37 +321,45 @@
             (catch #?(:clj Exception :cljs js/Error) ex
               (assoc ctx :io.pedestal.interceptor.chain/error ex))))
         ;; Sync
-        (try (let [{:keys [headers]} request
-                   doc (->doc request)]
-               (if-let [[_ params]
-                        (find xapi
-                              :xapi.activities.state.PUT.request/params)]
-                 ;; State document
-                 (put-response ctx
-                               (lrs/set-document
-                                lrs
-                                auth-identity
-                                params
-                                doc
-                                false))
-                 ;; Activity/Agent profile document
-                 (let [[_params-spec params]
-                       (find-some xapi
-                                  :xapi.activities.profile.PUT.request/params
-                                  :xapi.agents.profile.PUT.request/params)
-                       {hif-match      "if-match"
-                        hif-none-match "if-none-match"} headers]
-                   (if (or hif-match hif-none-match)
-                     (put-response ctx
-                                   (lrs/set-document
-                                    lrs
-                                    auth-identity
-                                    params
-                                    doc
-                                    false))
-                       ;; if neither header is present
-                     (let [err-res (lrs/get-document lrs auth-identity params)]
-                       (put-err-response ctx err-res))))))
+        (try
+          (let [{:keys [headers]} request
+                doc (->doc request)]
+            (if-let [[_ params]
+                     (find xapi
+                           :xapi.activities.state.PUT.request/params)]
+              (let [{hif-match      "if-match"
+                     hif-none-match "if-none-match"}
+                    headers]
+                (if (or hif-match hif-none-match)
+                  ;; State document
+                  (put-response ctx
+                                (lrs/set-document
+                                 lrs
+                                 auth-identity
+                                 params
+                                 doc
+                                 false))
+                  ;; if neither header is present
+                  (let [err-res (lrs/get-document lrs auth-identity params)]
+                    (put-err-response ctx err-res))))
+              ;; Activity/Agent profile document
+              (let [[_params-spec params]
+                    (find-some xapi
+                               :xapi.activities.profile.PUT.request/params
+                               :xapi.agents.profile.PUT.request/params)
+                    {hif-match      "if-match"
+                     hif-none-match "if-none-match"} headers]
+                (if (or hif-match hif-none-match)
+                  (put-response ctx
+                                (lrs/set-document
+                                 lrs
+                                 auth-identity
+                                 params
+                                 doc
+                                 false))
+                  ;; if neither header is present
+                  (let [err-res (lrs/get-document lrs auth-identity params)]
+                    (put-err-response ctx err-res))))))
              (catch #?(:clj Exception :cljs js/Error) ex
                (assoc ctx :io.pedestal.interceptor.chain/error ex))))))})
 
