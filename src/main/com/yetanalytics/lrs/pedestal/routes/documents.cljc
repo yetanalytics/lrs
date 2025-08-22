@@ -274,15 +274,21 @@
                request
                com.yetanalytics/lrs]
         :as ctx}]
-      (if (p/document-resource-async? lrs)
-        ;; Async
-        (a/go
-          (try
-            (let [{:keys [headers]} request
-                  doc (->doc request)]
-              (if-let [[_ params]
-                       (find xapi :xapi.activities.state.PUT.request/params)]
-                ;; State document
+      (let [[_ params]
+            (or (find xapi :xapi.activities.state.PUT.request/params)
+                (find-some xapi
+                           :xapi.activities.profile.PUT.request/params
+                           :xapi.agents.profile.PUT.request/params))
+            {:keys [headers]} request
+            {hif-match      "if-match"
+             hif-none-match "if-none-match"} headers
+            doc (->doc request)]
+        (if (p/document-resource-async? lrs)
+          ;; Async
+          (a/go
+            (try
+              (if (or hif-match hif-none-match)
+                ;; has been checked by preproc, OK to proceed
                 (put-response ctx
                               (a/<! (lrs/set-document-async
                                      lrs
@@ -290,62 +296,48 @@
                                      params
                                      doc
                                      false)))
-                ;; Activity/Agent profile document
-                (let [[_params-spec params]
-                      (find-some xapi
-                                 :xapi.activities.profile.PUT.request/params
-                                 :xapi.agents.profile.PUT.request/params)
-                      {hif-match      "if-match"
-                       hif-none-match "if-none-match"}
-                      headers]
-                  (if (or hif-match hif-none-match)
-                    (put-response ctx (a/<! (lrs/set-document-async
-                                             lrs
-                                             auth-identity
-                                             params
-                                             doc
-                                             false)))
-                    ;; if neither header is present
-                    (let [err-res (a/<! (lrs/get-document-async
+                ;; no headers, so we check to see if a doc exists
+                (let [doc-res (a/<! (lrs/get-document-async
+                                     lrs
+                                     auth-identity params))]
+                  (if (and (not (:error doc-res))
+                           (nil? (:document doc-res)))
+                    (put-response ctx
+                                  (a/<! (lrs/set-document-async
                                          lrs
-                                         auth-identity params))]
-                      (put-err-response ctx err-res))))))
+                                         auth-identity
+                                         params
+                                         doc
+                                         false)))
+                    (put-err-response ctx doc-res))))
+              (catch #?(:clj Exception :cljs js/Error) ex
+                (assoc ctx :io.pedestal.interceptor.chain/error ex))))
+          ;; Sync
+          (try
+            (if (or hif-match hif-none-match)
+              (put-response ctx
+                            (lrs/set-document
+                             lrs
+                             auth-identity
+                             params
+                             doc
+                             false))
+              ;; if neither header is present
+              (let [doc-res (a/<! (lrs/get-document-async
+                                   lrs
+                                   auth-identity params))]
+                (if (and (not (:error doc-res))
+                         (nil? (:document doc-res)))
+                  (put-response ctx
+                                (a/<! (lrs/set-document-async
+                                       lrs
+                                       auth-identity
+                                       params
+                                       doc
+                                       false)))
+                  (put-err-response ctx doc-res))))
             (catch #?(:clj Exception :cljs js/Error) ex
-              (assoc ctx :io.pedestal.interceptor.chain/error ex))))
-        ;; Sync
-        (try (let [{:keys [headers]} request
-                   doc (->doc request)]
-               (if-let [[_ params]
-                        (find xapi
-                              :xapi.activities.state.PUT.request/params)]
-                 ;; State document
-                 (put-response ctx
-                               (lrs/set-document
-                                lrs
-                                auth-identity
-                                params
-                                doc
-                                false))
-                 ;; Activity/Agent profile document
-                 (let [[_params-spec params]
-                       (find-some xapi
-                                  :xapi.activities.profile.PUT.request/params
-                                  :xapi.agents.profile.PUT.request/params)
-                       {hif-match      "if-match"
-                        hif-none-match "if-none-match"} headers]
-                   (if (or hif-match hif-none-match)
-                     (put-response ctx
-                                   (lrs/set-document
-                                    lrs
-                                    auth-identity
-                                    params
-                                    doc
-                                    false))
-                       ;; if neither header is present
-                     (let [err-res (lrs/get-document lrs auth-identity params)]
-                       (put-err-response ctx err-res))))))
-             (catch #?(:clj Exception :cljs js/Error) ex
-               (assoc ctx :io.pedestal.interceptor.chain/error ex))))))})
+              (assoc ctx :io.pedestal.interceptor.chain/error ex)))))))})
 
 (s/fdef post-response
   :args (s/cat :ctx map?

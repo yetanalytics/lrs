@@ -8,6 +8,7 @@
    [com.yetanalytics.lrs.xapi.statements.timestamp :as timestamp]
    [com.yetanalytics.lrs.xapi.agents :as ag]
    [com.yetanalytics.lrs.xapi.activities :as ac]
+   [com.yetanalytics.lrs.xapi.statements.duration :as dur]
    [xapi-schema.spec :as xs]
    [#?(:clj clojure.data.priority-map
        :cljs tailrecursion.priority-map) :as pm]
@@ -499,6 +500,19 @@
         (s/conformer (partial w/postwalk (fn [x] (if (set? x) (vec x) x))))
         ::xs/statement))
 
+(defn normalize-result-duration
+  "If a Statement has a result duration, normalize it to the xAPI
+   `xs/duration` format."
+  [{:strs [result] :as s}]
+  (if-let [duration (get-in result ["duration"])]
+    (let [norm-duration (dur/normalize-duration duration)]
+      (assoc s "result" (assoc result "duration" norm-duration)))
+    s))
+
+(s/fdef normalize-result-duration
+  :args (s/cat :statement ::xs/statement)
+  :ret ::xs/statement)
+
 ;; TODO: A bunch of other functions have args in the style of `& ss`.
 ;; Check whether they work for zero args.
 (defn statements-immut-equal?
@@ -506,7 +520,8 @@
    Immutability properties (except case insensitivity)."
   [& ss]
   (if (not-empty ss)
-    (apply = (map dissoc-statement-properties ss))
+    (apply = (map (comp normalize-result-duration
+                        dissoc-statement-properties) ss))
     ;; Vacuously true
     true))
 
