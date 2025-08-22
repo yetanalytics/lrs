@@ -1,10 +1,10 @@
 {:paths ["src/main" "resources"]
  :deps
- {org.clojure/clojure {:mvn/version "1.10.1"}
-  org.clojure/clojurescript {:mvn/version "1.10.741"}
+ {org.clojure/clojure {:mvn/version "1.11.4"}
+  org.clojure/clojurescript {:mvn/version "1.11.132"}
   org.clojure/core.async {:mvn/version "1.5.648"}
   com.yetanalytics/xapi-schema {:git/url "https://github.com/yetanalytics/xapi-schema.git"
-                                :sha "92876f9e7c9d0df69db27c7e268d9517a880591b"
+                                :sha "6e06f8591a330d981d5532224c8055b623d89eae"
                                 :exclusions [org.clojure/clojurescript]}
   com.yetanalytics/gen-openapi {:mvn/version "0.0.5"}
   cheshire/cheshire {:mvn/version "5.10.1"}
