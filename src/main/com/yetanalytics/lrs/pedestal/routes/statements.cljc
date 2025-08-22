@@ -240,30 +240,37 @@
                 ;; Statement found
                 (if (:attachments params)
                   {:status  200
-                   :headers {"Content-Type" att-resp/content-type}
+                   :headers {"Content-Type" att-resp/content-type
+                             "last-modified" (get ?statement "stored")}
                    :body    (att-resp/build-multipart-async
                              (aconcat [:statement ?statement] r-chan))}
                   (if (si/accept-html? ctx)
                     (html/statement-response ctx ?statement)
                     {:status 200
+                     :headers {"last-modified" (get ?statement "stored")}
                      :body   ?statement}))
                 ;; No statement found
                 {:status 404 :body ""}))
 
             :statements
-            (if (:attachments params)
-              {:status  200
-               :headers {"Content-Type" att-resp/content-type}
-               :body    (att-resp/build-multipart-async
-                         (aconcat [:statements] r-chan))}
-              (if (si/accept-html? ctx)
-                (html/statements-response
-                 ctx
-                 (a/<! (si/collect-result (aconcat [:statements] r-chan))))
+            (let [?first-statement (a/<! r-chan)]
+              (if (:attachments params)
                 {:status  200
-                 :headers {"Content-Type" "application/json"}
-                 :body    (si/lazy-statement-result-async
-                           (aconcat [:statements] r-chan))})))})))))
+                 :headers (cond-> {"Content-Type" att-resp/content-type}
+                            (map? ?first-statement)
+                            (assoc "last-modified" (get ?first-statement "stored")))
+                 :body    (att-resp/build-multipart-async
+                           (aconcat [:statements ?first-statement] r-chan))}
+                (if (si/accept-html? ctx)
+                  (html/statements-response
+                   ctx
+                   (a/<! (si/collect-result (aconcat [:statements] r-chan))))
+                  {:status  200
+                   :headers (cond-> {"Content-Type" "application/json"}
+                              (map? ?first-statement)
+                              (assoc "last-modified" (get ?first-statement "stored")))
+                   :body    (si/lazy-statement-result-async
+                             (aconcat [:statements ?first-statement] r-chan))}))))})))))
 
 (def handle-get
   {:name ::handle-get
