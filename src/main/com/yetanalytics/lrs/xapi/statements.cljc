@@ -365,6 +365,13 @@
            (ag/actor-seq team))
          (when instructor
            (ag/actor-seq instructor))))
+      ;; Context Agents and Groups
+      (when-let [{:strs [contextAgents]} context]
+        (map #(get % "agent")
+             contextAgents))
+      (when-let [{:strs [contextGroups]} context]
+        (map #(get % "group")
+             contextGroups))
       (lazy-seq
        (when (= "SubStatement" object-type)
          (concat
@@ -402,6 +409,13 @@
                        (ag/actor-seq team))
                      (when instructor
                        (ag/actor-seq instructor))))
+                  ;; Context Agents and Groups
+                  (when-let [{:strs [contextAgents]} context]
+                    (map #(get % "agent")
+                         contextAgents))
+                  (when-let [{:strs [contextGroups]} context]
+                    (map #(get % "group")
+                         contextGroups))
                   (lazy-seq
                    (when (= "SubStatement" object-type)
                      (statement-agents
