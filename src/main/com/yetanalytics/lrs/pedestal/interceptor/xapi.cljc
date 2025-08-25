@@ -3,12 +3,11 @@
             [clojure.string :as cstr]
             [io.pedestal.interceptor.chain :as chain]
             [io.pedestal.http.body-params :as body-params]
+            [xapi-schema.spec :as xs :include-macros true]
             #?@(:clj [[cheshire.core :as json]
                       [xapi-schema.spec.resources :as xsr]]
                 :cljs [[goog.string :refer [format]]
-
-                       [goog.string.format]
-                       [com.yetanalytics.lrs.util.log :as log]]))
+                       [goog.string.format]]))
   #?(:clj (:import [java.io InputStream ByteArrayInputStream])))
 
 (defn error!
@@ -19,6 +18,7 @@
          {:status 400
           :headers {#?(:cljs "Content-Type"
                        :clj "content-type") "application/json"
+                    ;; TODO: dispatch on type in ctx
                     "x-experience-api-version" "2.0.0"}
           :body
           {:error {:message message}}}))
@@ -186,7 +186,18 @@
    (fn params-interceptor-fn
      [{:keys [request] :as ctx}]
      (let [raw-params (or (:params request) {})
-           params     (conform-cheshire spec-kw raw-params)
+           params
+           #?(:clj (conform-cheshire spec-kw raw-params)
+              ;; Force binding of spec version in cljs
+              :cljs
+              (let [v (:com.yetanalytics.lrs/version ctx)]
+                (binding [xs/*xapi-version*
+                          (cond
+                            (cstr/starts-with? v "1")
+                            "1.0.3"
+                            (cstr/starts-with? v "2")
+                            "2.0.0")]
+                  (conform-cheshire spec-kw raw-params))))
            {:keys [path-info
                    request-method]} request]
        (if-not (or (= ::s/invalid params)

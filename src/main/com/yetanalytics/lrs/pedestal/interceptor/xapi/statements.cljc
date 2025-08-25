@@ -169,72 +169,84 @@
          ;; No multiparts - continue
          ctx)))})
 
+(defn- validate-request-statements* [ctx]
+  (let [multiparts (get-in ctx [:request :multiparts] [])]
+    (if-let [statement-data (get-in ctx [:request :json-params])]
+      (try (condp s/valid? statement-data
+             ::xs/statement
+             (let [valid-multiparts
+                   (attachment/validate-multiparts
+                    [statement-data]
+                    multiparts)
+                   attachment-data
+                   (attachment/save-attachments
+                    valid-multiparts)]
+               (update ctx
+                       :xapi
+                       assoc
+                       ::xs/statement statement-data
+                       :xapi.statements/attachments attachment-data))
+             ::xs/statements
+             (let [valid-multiparts
+                   (attachment/validate-multiparts
+                    statement-data
+                    multiparts)
+                   attachment-data
+                   (attachment/save-attachments
+                    valid-multiparts)]
+               (update ctx
+                       :xapi
+                       assoc
+                       ::xs/statements statement-data
+                       :xapi.statements/attachments attachment-data))
+             ;; else - oh no
+             (assoc (chain/terminate ctx)
+                    :response
+                    {:status 400
+                     :body
+                     {:error
+                      {:message        "Invalid Statement Data"
+                       :statement-data statement-data
+                       :spec-error     (s/explain-str
+                                        single-or-multiple-statement-spec
+                                        statement-data)}}}))
+           (catch #?(:clj clojure.lang.ExceptionInfo
+                     :cljs ExceptionInfo) exi
+             (assoc (chain/terminate ctx)
+                    :response
+                    (let [exd (ex-data exi)]
+                      (log/debug :msg "Statement Validation Exception"
+                                 :exd exd)
+                      {:status
+                       (if (= ::attachment/attachment-save-failure
+                              (:type exd))
+                         500
+                         400)
+                       :body
+                       {:error {:message #?(:clj (.getMessage exi)
+                                            :cljs (.-message exi))}}})))
+           (finally (attachment/close-multiparts! multiparts)))
+      (assoc (chain/terminate ctx)
+             :response
+             {:status 400
+              :body {:error {:message "No Statement Data Provided"}}}))))
+
 (def validate-request-statements
   "Validate statement JSON structure and return a 400 if it is missing or
   not valid. Puts statement data under the spec it satisfies in context :xapi"
   {:name ::validate-request-statements
    :enter
    (fn validate-request-statements [ctx]
-     (let [multiparts (get-in ctx [:request :multiparts] [])]
-       (if-let [statement-data (get-in ctx [:request :json-params])]
-         (try (condp s/valid? statement-data
-                ::xs/statement
-                (let [valid-multiparts
-                      (attachment/validate-multiparts
-                       [statement-data]
-                       multiparts)
-                      attachment-data
-                      (attachment/save-attachments
-                       valid-multiparts)]
-                  (update ctx
-                          :xapi
-                          assoc
-                          ::xs/statement statement-data
-                          :xapi.statements/attachments attachment-data))
-                ::xs/statements
-                (let [valid-multiparts
-                      (attachment/validate-multiparts
-                       statement-data
-                       multiparts)
-                      attachment-data
-                      (attachment/save-attachments
-                       valid-multiparts)]
-                  (update ctx
-                          :xapi
-                          assoc
-                          ::xs/statements statement-data
-                          :xapi.statements/attachments attachment-data))
-                ;; else - oh no
-                (assoc (chain/terminate ctx)
-                       :response
-                       {:status 400
-                        :body
-                        {:error
-                         {:message        "Invalid Statement Data"
-                          :statement-data statement-data
-                          :spec-error     (s/explain-str
-                                           single-or-multiple-statement-spec
-                                           statement-data)}}}))
-              (catch #?(:clj clojure.lang.ExceptionInfo
-                        :cljs ExceptionInfo) exi
-                (assoc (chain/terminate ctx)
-                       :response
-                       (let [exd (ex-data exi)]
-                         (log/debug :msg "Statement Validation Exception"
-                                    :exd exd)
-                         {:status
-                          (if (= ::attachment/attachment-save-failure
-                                 (:type exd))
-                            500
-                            400)
-                          :body
-                          {:error {:message #?(:clj (.getMessage exi)
-                                               :cljs (.-message exi))}}})))
-              (finally (attachment/close-multiparts! multiparts)))
-         (assoc (chain/terminate ctx)
-                :response
-                {:status 400
-                 :body {:error {:message "No Statement Data Provided"}}}))))})
+     #?(:clj (validate-request-statements* ctx)
+        ;; Force binding of spec version in cljs
+        :cljs
+        (let [version (:com.yetanalytics.lrs/version ctx)]
+          (binding [xs/*xapi-version* (cond
+                                        (cs/starts-with? version "1")
+                                        "1.0.3"
+                                        (cs/starts-with? version "2")
+                                        "2.0.0")]
+            (validate-request-statements* ctx)))))})
 
 (defn scan-attachments
   "Scan attachment files with a user-provided function."
