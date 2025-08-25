@@ -115,7 +115,6 @@
             attachments :xapi.statements/attachments} (:xapi ctx)
            statements (or ?statements [?statement])
            s-ids (keep #(get % "id") statements)]
-       ;; TODO: permanent dignified handling of this
        (if (and (not-empty s-ids)
                 (false? (reduce distinct? s-ids)))
          (post-response ctx
