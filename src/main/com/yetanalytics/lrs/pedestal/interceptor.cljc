@@ -74,14 +74,16 @@
    {:name  ::set-version-bindings
     :enter (fn [ctx]
              (if-let [version (:com.yetanalytics.lrs/version ctx)]
-               (update
-                ctx
-                :bindings
-                assoc
-                #'xapi-schema.spec/*xapi-version*
-                (cond
-                  (cstr/starts-with? version "1") "1.0.3"
-                  (cstr/starts-with? version "2") "2.0.0"))
+               (let [spec-version (cond
+                                    (cstr/starts-with? version "1") "1.0.3"
+                                    (cstr/starts-with? version "2") "2.0.0")]
+                 (-> ctx
+                     (assoc :com.yetanalytics.lrs/spec-version spec-version)
+                     (update
+                      :bindings
+                      assoc
+                      #'xapi-schema.spec/*xapi-version*
+                      spec-version)))
                ctx))
     :leave (fn [ctx]
              (update ctx :bindings dissoc #'xapi-schema.spec/*xapi-version*))}))
@@ -176,7 +178,7 @@
              (assoc-in ctx
                        [:response :headers "x-experience-api-version"]
                        ;; Get version from context or latest patch
-                       (:com.yetanalytics.lrs/version ctx "2.0.0")))}))
+                       (:com.yetanalytics.lrs/spec-version ctx "2.0.0")))}))
 
 (defn calculate-etag [x]
   (sha-1 x))

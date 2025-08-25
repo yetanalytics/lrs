@@ -240,13 +240,8 @@
      #?(:clj (validate-request-statements* ctx)
         ;; Force binding of spec version in cljs
         :cljs
-        (let [version (:com.yetanalytics.lrs/version ctx)]
-          (binding [xs/*xapi-version* (cond
-                                        (cs/starts-with? version "1")
-                                        "1.0.3"
-                                        (cs/starts-with? version "2")
-                                        "2.0.0")]
-            (validate-request-statements* ctx)))))})
+        (binding [xs/*xapi-version* (:com.yetanalytics.lrs/spec-version ctx "2.0.0")]
+          (validate-request-statements* ctx))))})
 
 (defn scan-attachments
   "Scan attachment files with a user-provided function."

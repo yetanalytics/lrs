@@ -52,7 +52,7 @@
               (let [version (:com.yetanalytics.lrs/version ctx)]
                 ;; Version 2.0.0 and up do not allow this so we error
                 (if (or (nil? version)
-                        (not (.startsWith ^String version "1.0")))
+                        (not (.startsWith ^String version "1")))
                     (error!
                      ctx
                      "xAPI alternate request syntax not supported!")
@@ -190,13 +190,8 @@
            #?(:clj (conform-cheshire spec-kw raw-params)
               ;; Force binding of spec version in cljs
               :cljs
-              (let [v (:com.yetanalytics.lrs/version ctx)]
-                (binding [xs/*xapi-version*
-                          (cond
-                            (cstr/starts-with? v "1")
-                            "1.0.3"
-                            (cstr/starts-with? v "2")
-                            "2.0.0")]
+              (let [v (:com.yetanalytics.lrs/spec-version ctx)]
+                (binding [xs/*xapi-version* (or v "2.0.0")]
                   (conform-cheshire spec-kw raw-params))))
            {:keys [path-info
                    request-method]} request]
