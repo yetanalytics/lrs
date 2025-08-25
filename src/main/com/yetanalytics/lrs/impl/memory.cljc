@@ -976,12 +976,14 @@
                      init-state             (empty-state)
                      mode                   :both}}]
   (let [valid-state? (fn [s]
-                       (if (s/valid? ::state s)
-                         true
-                         (do
-                           (println "\n Invalid Memory LRS State\n\n")
-                           (s/explain ::state s)
-                           false)))
+                       ;; Use more permissive 2.0.0 spec
+                       (binding [xs/*xapi-version* "2.0.0"]
+                         (if (s/valid? ::state s)
+                           true
+                           (do
+                             (println "\n Invalid Memory LRS State\n\n")
+                             (s/explain ::state s)
+                             false))))
         state        (atom init-state
                            :validator
                            valid-state?)]

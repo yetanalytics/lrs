@@ -12,6 +12,7 @@
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
+            [xapi-schema.spec :as xs :include-macros true]
             #?@(:cljs [[cljs.nodejs] ; special require for cljs compliation
                        [clojure.core.async :as a :include-macros true]
                        [cljs.pprint :refer [pprint]]
@@ -67,6 +68,23 @@
                  (xapi/error!
                   ctx
                   "X-Experience-API-Version header required!"))))}))
+
+(def set-version-bindings-interceptor
+  (i/interceptor
+   {:name  ::set-version-bindings
+    :enter (fn [ctx]
+             (if-let [version (:com.yetanalytics.lrs/version ctx)]
+               (update
+                ctx
+                :bindings
+                assoc
+                #'xapi-schema.spec/*xapi-version*
+                (cond
+                  (cstr/starts-with? version "1") "1.0.3"
+                  (cstr/starts-with? version "2") "2.0.0"))
+               ctx))
+    :leave (fn [ctx]
+             (update ctx :bindings dissoc #'xapi-schema.spec/*xapi-version*))}))
 
 (def x-forwarded-for-interceptor
   (i/interceptor
@@ -428,4 +446,5 @@
    extract-xapi-version-interceptor
    xapi/alternate-request-syntax-interceptor
    ;; for the check here
-   require-xapi-version-interceptor])
+   require-xapi-version-interceptor
+   set-version-bindings-interceptor])
