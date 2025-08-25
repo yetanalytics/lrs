@@ -19,7 +19,10 @@
           :headers {#?(:cljs "Content-Type"
                        :clj "content-type") "application/json"
                     ;; TODO: dispatch on type in ctx
-                    "x-experience-api-version" "2.0.0"}
+                    "x-experience-api-version"
+                    (:com.yetanalytics.lrs/spec-version
+                     ctx
+                     "2.0.0")}
           :body
           {:error {:message message}}}))
 

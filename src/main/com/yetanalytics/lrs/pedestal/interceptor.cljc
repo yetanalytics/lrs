@@ -207,14 +207,6 @@
         (update-in [:response :headers] dissoc "etag" "ETag" "Etag")
         (update-in [:response :headers] merge {"ETag" (quote-etag etag)}))))
 
-;; Combo
-#_(def require-and-set-xapi-version-interceptor
-  (i/interceptor
-   (merge
-    require-xapi-version-interceptor
-    set-xapi-version-interceptor
-    {:name ::require-and-set-xapi-version})))
-
 ;; TODO: Port the rest of the interceptors
 
 (def xapi-method-param
