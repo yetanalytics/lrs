@@ -66,8 +66,8 @@
                  :get    :xapi.agents.profile.GET.request/params
                  :head   :xapi.agents.profile.GET.request/params
                  :delete :xapi.agents.profile.DELETE.request/params))
-             doc-params-interceptor 
-             (xapi-i/params-interceptor spec-kw)             
+             doc-params-interceptor
+             (xapi-i/params-interceptor spec-kw)
              params-interceptors
              (cond-> [doc-params-interceptor]
                ;; Scan files if scanner is present on PUT/POST
@@ -119,22 +119,20 @@
         global-interceptors-no-auth (into wrap-interceptors
                                           (conj i/common-interceptors
                                                 lrs-i))
-        global-interceptors         (into wrap-interceptors
-                                          (conj i/common-interceptors
-                                                lrs-i
-                                                auth-i/lrs-authenticate
-                                                auth-i/lrs-authorize))
         protected-interceptors      (into wrap-interceptors
                                           (concat
-                                           global-interceptors
-                                           i/xapi-protected-interceptors))
+                                           i/common-interceptors
+                                           i/xapi-protected-interceptors
+                                           [lrs-i
+                                            auth-i/lrs-authenticate
+                                            auth-i/lrs-authorize]))
         document-interceptors       (into wrap-interceptors
                                           (concat
+                                           i/xapi-protected-interceptors
                                            (conj i/doc-interceptors-base
                                                  lrs-i
                                                  auth-i/lrs-authenticate
-                                                 auth-i/lrs-authorize)
-                                           i/xapi-protected-interceptors))]
+                                                 auth-i/lrs-authorize)))]
     (into #{;; health check
             (gc/annotate
              ["/health"

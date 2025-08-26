@@ -436,7 +436,7 @@
    xapi-ltags-interceptor])
 
 (def xapi-protected-interceptors
-  [;; one of these two will set up a version value
+  [;; set up a version value
    extract-xapi-version-interceptor
    xapi/alternate-request-syntax-interceptor
    ;; for the check here
