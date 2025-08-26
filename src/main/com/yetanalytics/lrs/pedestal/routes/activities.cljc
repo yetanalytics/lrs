@@ -16,15 +16,25 @@
     (let [activity-id (-> ctx
                           :xapi
                           :xapi.activities.GET.request/params
-                          :activityId)]
+                          :activityId)
+          version     (:com.yetanalytics.lrs/spec-version ctx)]
       (assoc ctx
              :response
-             (cond-> {:status 200
-                      :body (or activity
-                                {"id" activity-id
-                                 "objectType" "Activity"})}
-               ?etag (assoc :com.yetanalytics.lrs.pedestal.interceptor/etag
-                            ?etag))))))
+             (case version
+               "1.0.3"
+               (if activity
+                 (cond-> {:status 200
+                          :body activity}
+                   ?etag (assoc :com.yetanalytics.lrs.pedestal.interceptor/etag
+                                ?etag))
+                 {:status 404})
+               "2.0.0"
+               (cond-> {:status 200
+                        :body (or activity
+                                  {"id" activity-id
+                                   "objectType" "Activity"})}
+                 ?etag (assoc :com.yetanalytics.lrs.pedestal.interceptor/etag
+                              ?etag)))))))
 
 (def handle-get
   {:name ::handle-get
