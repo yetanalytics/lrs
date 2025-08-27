@@ -28,12 +28,6 @@
     :enter (fn [ctx]
              (assoc ctx :com.yetanalytics/lrs lrs))}))
 
-(def xAPIVersionRegEx
-  (let [suf-part "[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*"
-        suffix   (str "(\\.[0-9]+(?:-" suf-part ")?(?:\\+" suf-part ")?)?")
-        ver-str  (str "^[1-2]\\.0" suffix "$")]
-    (re-pattern ver-str)))
-
 (def extract-xapi-version-interceptor
   (i/interceptor
    {:name ::extract-xapi-version
@@ -49,19 +43,21 @@
                                   (get-in ctx [:request :headers "x-experience-api-version"]))]
                (assoc ctx
                       :com.yetanalytics.lrs/version
-                      version)
+                      ;; the spec requires this shorthand
+                      (if (= "2.0" version) "2.0.0" version))
                ;; allow without, it will be turned into an error down the line
                ctx))}))
 
-(def require-xapi-version-interceptor
+(defn require-xapi-version-interceptor
+  [supported-versions]
   (i/interceptor
    {:name  ::require-xapi-version
     :enter (fn [ctx]
              (if (si/accept-html? ctx)
                (assoc ctx :com.yetanalytics.lrs/version "2.0.0")
                (if-let [version-header (:com.yetanalytics.lrs/version ctx)]
-                 (if (re-matches xAPIVersionRegEx
-                                 version-header)
+                 (if (contains? supported-versions
+                                version-header)
                    (assoc ctx :com.yetanalytics.lrs/version version-header)
                    (xapi/error! ctx
                                 "X-Experience-API-Version header invalid!"))
@@ -435,10 +431,11 @@
    set-xapi-version-interceptor
    xapi-ltags-interceptor])
 
-(def xapi-protected-interceptors
+(defn xapi-protected-interceptors
+  [supported-versions]
   [;; set up a version value
    extract-xapi-version-interceptor
    xapi/alternate-request-syntax-interceptor
    ;; for the check here
-   require-xapi-version-interceptor
+   (require-xapi-version-interceptor supported-versions)
    set-version-bindings-interceptor])
