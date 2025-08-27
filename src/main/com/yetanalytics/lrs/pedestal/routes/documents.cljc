@@ -303,7 +303,7 @@
                   (if (and (or
                             ;; In 2.0, no headers ok for no doc
                             (= "2.0.0"
-                               (:com.yetanalytics.lrs/spec-version ctx))
+                               (:com.yetanalytics.lrs/version ctx))
                             ;; prior tests seem to want this for everything but
                             ;; profiles
                             (not (#{:xapi.activities.profile.PUT.request/params
@@ -338,7 +338,7 @@
                 (if (and (or
                           ;; In 2.0, no headers ok for no doc
                           (= "2.0.0"
-                             (:com.yetanalytics.lrs/spec-version ctx))
+                             (:com.yetanalytics.lrs/version ctx))
                           ;; prior tests seem to want this for everything but
                           ;; profiles
                           (not (#{:xapi.activities.profile.PUT.request/params

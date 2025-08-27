@@ -17,7 +17,7 @@
                           :xapi
                           :xapi.activities.GET.request/params
                           :activityId)
-          version     (:com.yetanalytics.lrs/spec-version ctx)]
+          version     (:com.yetanalytics.lrs/version ctx)]
       (assoc ctx
              :response
              (case version

@@ -20,7 +20,7 @@
                        :clj "content-type") "application/json"
                     ;; TODO: dispatch on type in ctx
                     "x-experience-api-version"
-                    (:com.yetanalytics.lrs/spec-version
+                    (:com.yetanalytics.lrs/version
                      ctx
                      "2.0.0")}
           :body
@@ -193,7 +193,7 @@
            #?(:clj (conform-cheshire spec-kw raw-params)
               ;; Force binding of spec version in cljs
               :cljs
-              (let [v (:com.yetanalytics.lrs/spec-version ctx)]
+              (let [v (:com.yetanalytics.lrs/version ctx)]
                 (binding [xs/*xapi-version* (or v "2.0.0")]
                   (conform-cheshire spec-kw raw-params))))
            {:keys [path-info
