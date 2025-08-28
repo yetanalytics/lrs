@@ -19,36 +19,39 @@
 
 (defn get-about
   "Get information about this LRS"
-  [lrs auth-identity]
+  [lrs ctx auth-identity]
   (p/try-sync
-   (p/-get-about lrs auth-identity)))
+   (p/-get-about lrs ctx auth-identity)))
 
 (s/fdef get-about
   :args (s/cat :lrs           (with-lrs-gen ::p/about-resource-instance)
+               :ctx           map?
                :auth-identity (s/nilable ::auth/identity))
   :ret ::p/get-about-ret)
 
 (defn get-about-async
   "Get information about this LRS. Returns a promise channel."
-  [lrs auth-identity]
-  (p/-get-about-async lrs auth-identity))
+  [lrs ctx auth-identity]
+  (p/-get-about-async lrs ctx auth-identity))
 
 (s/fdef get-about-async
   :args (s/cat :lrs           (with-lrs-gen ::p/about-resource-async-instance)
+               :ctx           map?
                :auth-identity (s/nilable ::auth/identity))
-  :ret ::p/get-about-asyc-ret)
+  :ret ::p/get-about-async-ret)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Documents
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn set-document
-  [lrs auth-identity params document merge?]
+  [lrs ctx auth-identity params document merge?]
   (p/try-sync
-   (p/-set-document lrs auth-identity params document merge?)))
+   (p/-set-document lrs ctx auth-identity params document merge?)))
 
 (s/fdef set-document
   :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/set-document-params
                :document      :com.yetanalytics.lrs.xapi/document
@@ -56,12 +59,13 @@
   :ret ::p/set-document-ret)
 
 (defn set-document-async
-  [lrs auth-identity params document merge?]
-  (p/-set-document-async lrs auth-identity params document merge?))
+  [lrs ctx auth-identity params document merge?]
+  (p/-set-document-async lrs ctx auth-identity params document merge?))
 
 (s/fdef set-document-async
   :args (s/cat :lrs           (with-lrs-gen
                                 ::p/document-resource-async-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/set-document-params
                :document      :com.yetanalytics.lrs.xapi/document
@@ -69,87 +73,95 @@
   :ret ::p/set-document-async-ret)
 
 (defn get-document
-  [lrs auth-identity params]
+  [lrs ctx auth-identity params]
   (p/try-sync
-   (p/-get-document lrs auth-identity params)))
+   (p/-get-document lrs ctx auth-identity params)))
 
 (s/fdef get-document
   :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-document-params)
   :ret ::p/get-document-ret)
 
 (defn get-document-async
-  [lrs auth-identity params]
-  (p/-get-document-async lrs auth-identity params))
+  [lrs ctx auth-identity params]
+  (p/-get-document-async lrs ctx auth-identity params))
 
 (s/fdef get-document-async
   :args (s/cat :lrs           (with-lrs-gen
                                 ::p/document-resource-async-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-document-params)
   :ret ::p/get-document-async-ret)
 
 (defn get-document-ids
-  [lrs auth-identity params]
+  [lrs ctx auth-identity params]
   (p/try-sync
-   (p/-get-document-ids lrs auth-identity params)))
+   (p/-get-document-ids lrs ctx auth-identity params)))
 
 (s/fdef get-document-ids
   :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-document-ids-params)
   :ret ::p/get-document-ids-ret)
 
 (defn get-document-ids-async
-  [lrs auth-identity params]
-  (p/-get-document-ids-async lrs auth-identity params))
+  [lrs ctx auth-identity params]
+  (p/-get-document-ids-async lrs ctx auth-identity params))
 
 (s/fdef get-document-ids-async
   :args (s/cat :lrs           (with-lrs-gen
                                 ::p/document-resource-async-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-document-ids-params)
   :ret ::p/get-document-ids-async-ret)
 
 (defn delete-document
-  [lrs auth-identity params]
+  [lrs ctx auth-identity params]
   (p/try-sync
-   (p/-delete-document lrs auth-identity params)))
+   (p/-delete-document lrs ctx auth-identity params)))
 
 (s/fdef delete-document
  :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
+              :ctx           map?
               :auth-identity ::auth/identity
               :params        ::p/delete-document-params)
  :ret ::p/delete-document-ret)
 
 (defn delete-document-async
-  [lrs auth-identity params]
-  (p/-delete-document-async lrs auth-identity params))
+  [lrs ctx auth-identity params]
+  (p/-delete-document-async lrs ctx auth-identity params))
 
 (s/fdef delete-document-async
  :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-async-instance)
+              :ctx           map?
               :auth-identity ::auth/identity
               :params        ::p/delete-document-params)
  :ret ::p/delete-document-async-ret)
 
 (defn delete-documents
-  [lrs auth-identity params]
+  [lrs ctx auth-identity params]
   (p/try-sync
-   (p/-delete-documents lrs auth-identity params)))
+   (p/-delete-documents lrs ctx auth-identity params)))
 
 (s/fdef delete-documents
  :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-instance)
+              :ctx           map?
               :auth-identity ::auth/identity
               :params        ::p/delete-documents-params)
  :ret ::p/delete-documents-ret)
 
 (defn delete-documents-async
-  [lrs auth-identity params]
-  (p/-delete-documents-async lrs auth-identity params))
+  [lrs ctx auth-identity params]
+  (p/-delete-documents-async lrs ctx auth-identity params))
 
 (s/fdef delete-documents-async
  :args (s/cat :lrs           (with-lrs-gen ::p/document-resource-async-instance)
+              :ctx           map?
               :auth-identity ::auth/identity
               :params        ::p/delete-documents-params)
  :ret ::p/delete-documents-async-ret)
@@ -161,24 +173,26 @@
 
 (defn get-activity
   "Get the canonical representation of an activity"
-  [lrs auth-identity params]
+  [lrs ctx auth-identity params]
   (p/try-sync
-   (p/-get-activity lrs auth-identity params)))
+   (p/-get-activity lrs ctx auth-identity params)))
 
 (s/fdef get-activity
   :args (s/cat :lrs           (with-lrs-gen ::p/activity-info-resource-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        :xapi.activities.GET.request/params)
   :ret ::p/get-activity-ret)
 
 (defn get-activity-async
   "Get the canonical representation of an activity"
-  [lrs auth-identity params]
-  (p/-get-activity-async lrs auth-identity params))
+  [lrs ctx auth-identity params]
+  (p/-get-activity-async lrs ctx auth-identity params))
 
 (s/fdef get-activity-async
   :args (s/cat :lrs           (with-lrs-gen
                                 ::p/activity-info-resource-async-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        :xapi.activities.GET.request/params)
   :ret ::p/get-activity-async-ret)
@@ -190,24 +204,26 @@
 
 (defn get-person
   "Get an object representing an actor"
-  [lrs auth-identity params]
+  [lrs ctx auth-identity params]
   (p/try-sync
-   (p/-get-person lrs auth-identity params)))
+   (p/-get-person lrs ctx auth-identity params)))
 
 (s/fdef get-person
   :args (s/cat :lrs           (with-lrs-gen ::p/agent-info-resource-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-person-params)
   :ret ::p/get-person-ret)
 
 (defn get-person-async
   "Get an object representing an actor"
-  [lrs auth-identity params]
-  (p/-get-person-async lrs auth-identity params))
+  [lrs ctx auth-identity params]
+  (p/-get-person-async lrs ctx auth-identity params))
 
 (s/fdef get-person-async
   :args (s/cat :lrs           (with-lrs-gen
                                 ::p/agent-info-resource-async-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-person-params)
   :ret ::p/get-person-async-ret)
@@ -221,12 +237,13 @@
 
 (defn store-statements
   "Store statements and attachments in the LRS"
-  [lrs auth-identity statements attachments]
+  [lrs ctx auth-identity statements attachments]
   (p/try-sync
-   (p/-store-statements lrs auth-identity statements attachments)))
+   (p/-store-statements lrs ctx auth-identity statements attachments)))
 
 (s/fdef store-statements
   :args (s/cat :lrs           (with-lrs-gen ::p/statements-resource-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :statements    ::xs/statements
                :attachments   ::ss/attachments)
@@ -234,12 +251,13 @@
 
 (defn store-statements-async
   "Store statements and attachments in the LRS"
-  [lrs auth-identity statements attachments]
-  (p/-store-statements-async lrs auth-identity statements attachments))
+  [lrs ctx auth-identity statements attachments]
+  (p/-store-statements-async lrs ctx auth-identity statements attachments))
 
 (s/fdef store-statements-async
   :args (s/cat :lrs           (with-lrs-gen
                                 ::p/statements-resource-async-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :statements    ::xs/statements
                :attachments   ::ss/attachments)
@@ -247,12 +265,13 @@
 
 (defn get-statements
   "Get statements from the LRS"
-  [lrs auth-identity params ltags]
+  [lrs ctx auth-identity params ltags]
   (p/try-sync
-   (p/-get-statements lrs auth-identity params ltags)))
+   (p/-get-statements lrs ctx auth-identity params ltags)))
 
 (s/fdef get-statements
   :args (s/cat :lrs           (with-lrs-gen ::p/statements-resource-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-statements-params
                :ltags         (s/coll-of ::xs/language-tag))
@@ -260,12 +279,13 @@
 
 (defn get-statements-async
   "Get statements from the LRS"
-  [lrs auth-identity params ltags]
-  (p/-get-statements-async lrs auth-identity params ltags))
+  [lrs ctx auth-identity params ltags]
+  (p/-get-statements-async lrs ctx auth-identity params ltags))
 
 (s/fdef get-statements-async
   :args (s/cat :lrs           (with-lrs-gen
                                 ::p/statements-resource-async-instance)
+               :ctx           map?
                :auth-identity ::auth/identity
                :params        ::p/get-statements-params
                :ltags         (s/coll-of ::xs/language-tag))

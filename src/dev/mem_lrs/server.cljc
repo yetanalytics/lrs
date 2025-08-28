@@ -155,4 +155,4 @@
   (def s nil)
   (-main)
 
-  (com.yetanalytics.lrs/get-statements lrs {} {:limit 1} #{}))
+  (com.yetanalytics.lrs/get-statements lrs {} {} {:limit 1} #{}))

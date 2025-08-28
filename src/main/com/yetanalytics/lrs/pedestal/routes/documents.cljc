@@ -82,21 +82,25 @@
              :id    (get-single-response ctx
                                          (a/<! (lrs/get-document-async
                                                 lrs
+                                                ctx
                                                 auth-identity
                                                 params)))
              :query (get-multiple-response ctx
                                            (a/<! (lrs/get-document-ids-async
                                                   lrs
+                                                  ctx
                                                   auth-identity
                                                   params)))
              (assoc ctx :response {:status 400})))
          (case params-type
            :id    (get-single-response ctx
                                        (lrs/get-document lrs
+                                                         ctx
                                                          auth-identity
                                                          params))
            :query (get-multiple-response ctx
                                          (lrs/get-document-ids lrs
+                                                               ctx
                                                                auth-identity
                                                                params))
            (assoc ctx :response {:status 400})))))
@@ -292,6 +296,7 @@
                 (put-response ctx
                               (a/<! (lrs/set-document-async
                                      lrs
+                                     ctx
                                      auth-identity
                                      params
                                      doc
@@ -299,6 +304,7 @@
                 ;; no headers, so we check to see if a doc exists
                 (let [doc-res (a/<! (lrs/get-document-async
                                      lrs
+                                     ctx
                                      auth-identity params))]
                   (if (and (or
                             ;; In 2.0, no headers ok for no doc
@@ -314,6 +320,7 @@
                     (put-response ctx
                                   (a/<! (lrs/set-document-async
                                          lrs
+                                         ctx
                                          auth-identity
                                          params
                                          doc
@@ -327,6 +334,7 @@
               (put-response ctx
                             (lrs/set-document
                              lrs
+                             ctx
                              auth-identity
                              params
                              doc
@@ -334,6 +342,7 @@
               ;; if neither header is present
               (let [doc-res (lrs/get-document
                              lrs
+                             ctx
                              auth-identity params)]
                 (if (and (or
                           ;; In 2.0, no headers ok for no doc
@@ -349,6 +358,7 @@
                   (put-response ctx
                                 (lrs/set-document
                                  lrs
+                                 ctx
                                  auth-identity
                                  params
                                  doc
@@ -393,6 +403,7 @@
           (a/go
             (post-response ctx (a/<! (lrs/set-document-async
                                       lrs
+                                      ctx
                                       auth-identity
                                       params
                                       doc
@@ -400,6 +411,7 @@
           ;; Sync
           (post-response ctx (lrs/set-document
                               lrs
+                              ctx
                               auth-identity
                               params
                               doc
@@ -436,17 +448,19 @@
                                :xapi.activities.profile.DELETE.request/params
                                :xapi.agents.profile.DELETE.request/params)]
              ;; Activity/Agent profile document
-             (a/<! (lrs/delete-document-async lrs auth-identity params))
+             (a/<! (lrs/delete-document-async lrs ctx auth-identity params))
              ;; State document
              (let [[params-type params]
                    (:xapi.activities.state.DELETE.request/params xapi)]
                (case params-type
                  :id      (a/<! (lrs/delete-document-async
                                  lrs
+                                 ctx
                                  auth-identity
                                  params))
                  :context (a/<! (lrs/delete-documents-async
                                  lrs
+                                 ctx
                                  auth-identity
                                  params)))))))
         ;; Sync
@@ -457,10 +471,10 @@
                              :xapi.activities.profile.DELETE.request/params
                              :xapi.agents.profile.DELETE.request/params)]
            ;; Activity/Agent profile document
-           (lrs/delete-document lrs auth-identity params)
+           (lrs/delete-document lrs ctx auth-identity params)
            ;; State document
            (let [[params-type params]
                  (:xapi.activities.state.DELETE.request/params xapi)]
              (case params-type
-               :id      (lrs/delete-document lrs auth-identity params)
-               :context (lrs/delete-documents lrs auth-identity params))))))))})
+               :id      (lrs/delete-document lrs ctx auth-identity params)
+               :context (lrs/delete-documents lrs ctx auth-identity params))))))))})

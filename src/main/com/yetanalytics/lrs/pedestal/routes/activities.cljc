@@ -47,6 +47,7 @@
          (a/go
            (get-response ctx (a/<!
                               (lrs/get-activity-async lrs
+                                                      ctx
                                                       auth-identity
                                                       params))))
-         (get-response ctx (lrs/get-activity lrs auth-identity params)))))})
+         (get-response ctx (lrs/get-activity lrs ctx auth-identity params)))))})

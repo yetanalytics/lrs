@@ -62,8 +62,9 @@
 
 (deftest empty-store-test
   (let [lrs            (doto (mem/new-lrs {:statements-result-max 100})
-                         (lrs/store-statements auth-id [] []))
+                         (lrs/store-statements {} auth-id [] []))
         ret-statements (get-in (lrs/get-statements lrs
+                                                   {}
                                                    auth-id
                                                    {:limit 100}
                                                    #{"en-US"})
@@ -79,12 +80,12 @@
         ;; no normalization going on
         s-count        100
         lrs            (doto (mem/new-lrs {:statements-result-max s-count})
-                         (lrs/store-statements auth-id
+                         (lrs/store-statements {} auth-id
                                                (into [] (take s-count)
                                                      test-statements)
                                                []))
         get-ss         #(into []
-                              (get-in (lrs/get-statements lrs auth-id % #{"en-US"})
+                              (get-in (lrs/get-statements lrs {} auth-id % #{"en-US"})
                                       [:statement-result :statements]))
         ret-statements (get-ss {:limit 100})]
     (testing (format "%s valid return statements?" (count ret-statements))
@@ -179,6 +180,7 @@
         (is
          (:statement
           (lrs/get-statements lrs
+                              {}
                               auth-id
                               {:statementId (cs/upper-case id)}
                               #{"en-US"})))))
@@ -191,6 +193,7 @@
         (is
          (not-empty
           (get-in  (lrs/get-statements lrs
+                                       {}
                                        auth-id
                                        {:registration (cs/upper-case reg)}
                                        #{"en-US"})
@@ -201,6 +204,7 @@
             id  (get s "id")
             lrs (doto (mem/new-lrs {:statements-result-max s-count})
                   (lrs/store-statements
+                   {}
                    auth-id
                    [(-> s
                         (update "id" cs/upper-case)
@@ -208,6 +212,7 @@
                    []))]
         (is (:statement (lrs/get-statements
                          lrs
+                         {}
                          auth-id
                          {:statementId id}
                          #{"en-US"})))
@@ -215,6 +220,7 @@
         ;; don't screw up the rel index
         (is (not-empty (get-in (lrs/get-statements
                                 lrs
+                                {}
                                 auth-id
                                 {:verb (get-in s ["verb" "id"])}
                                 #{"en-US"})
@@ -223,6 +229,7 @@
         (testing "reg index"
           (is (not-empty (get-in (lrs/get-statements
                                   lrs
+                                  {}
                                   auth-id
                                   {:registration (get-in s ["context"
                                                             "registration"])}
@@ -232,6 +239,7 @@
         (testing "original case is preserved"
           (is (= (cs/upper-case id)
                  (get-in (lrs/get-statements lrs
+                                             {}
                                              auth-id
                                              {:statementId id}
                                              #{"en-US"})

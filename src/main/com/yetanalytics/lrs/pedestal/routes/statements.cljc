@@ -82,6 +82,7 @@
          (a/go (if valid-statement-id?
                  (put-response ctx (a/<! (lrs/store-statements-async
                                           lrs
+                                          ctx
                                           auth-identity
                                           [(assoc statement "id" s-id)]
                                           attachments)))
@@ -89,6 +90,7 @@
          (if valid-statement-id?
            (put-response ctx (lrs/store-statements
                               lrs
+                              ctx
                               auth-identity
                               [(assoc statement "id" s-id)]
                               attachments))
@@ -126,12 +128,14 @@
              (post-response ctx
                             (a/<! (lrs/store-statements-async
                                    lrs
+                                   ctx
                                    auth-identity
                                    statements
                                    attachments))))
            (post-response ctx
                           (lrs/store-statements
                            lrs
+                           ctx
                            auth-identity
                            statements
                            attachments))))))})
@@ -295,12 +299,14 @@
          (get-response-async ctx
                              (lrs/get-statements-async
                               lrs
+                              ctx
                               auth-identity
                               params
                               ltags))
          (get-response-sync ctx
                             (lrs/get-statements
                              lrs
+                             ctx
                              auth-identity
                              params
                              ltags)))))})

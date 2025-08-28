@@ -60,7 +60,7 @@
 
 (defprotocol AboutResource
   "Protocol for retrieving LRS info"
-  (-get-about [this auth-identity]
+  (-get-about [this ctx auth-identity]
     "Return information about the LRS"))
 
 (def about-resource?
@@ -77,8 +77,8 @@
 
 (defprotocol AboutResourceAsync
   "AsyncProtocol for retrieving LRS info."
-  (-get-about-async [this auth-identity]
-    "Return information about the LRS. Returns response in a promise channel."))
+  (-get-about-async [this ctx auth-identity]
+                    "Return information about the LRS. Returns response in a promise channel."))
 
 (def about-resource-async?
   (make-proto-pred AboutResourceAsync))
@@ -86,7 +86,7 @@
 (s/def ::about-resource-async-instance
   about-resource-async?)
 
-(s/def ::get-about-asyc-ret
+(s/def ::get-about-async-ret
   (sc/from-port
    ::get-about-ret))
 
@@ -97,15 +97,15 @@
 (defprotocol DocumentResource
   "Protocol for storing/retrieving documents.
    See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#23-state-resource"
-  (-set-document [this auth-identity params document merge?]
-    "Store a document, merges.")
-  (-get-document [this auth-identity params]
+  (-set-document [this ctx auth-identity params document merge?]
+                 "Store a document, merges.")
+  (-get-document [this ctx auth-identity params]
     "Get a single document.")
-  (-get-document-ids [this auth-identity params]
+  (-get-document-ids [this ctx auth-identity params]
     "Get multiple document ids.")
-  (-delete-document [this auth-identity params]
+  (-delete-document [this ctx auth-identity params]
     "Delete a single document.")
-  (-delete-documents [this auth-identity params]
+  (-delete-documents [this ctx auth-identity params]
     "Delete multiple documents."))
 
 (def document-resource?
@@ -190,16 +190,16 @@
 (defprotocol DocumentResourceAsync
   "Async protocol for storing/retrieving documents.
    See https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#23-state-resource"
-  (-set-document-async [this auth-identity params document merge?]
-    "Store a document, merges. Returns a promise channel")
-  (-get-document-async [this auth-identity params]
+  (-set-document-async [this ctx auth-identity params document merge?]
+                       "Store a document, merges. Returns a promise channel")
+  (-get-document-async [this ctx auth-identity params]
     "Get a single document. Returns a promise channel")
-  (-get-document-ids-async [this auth-identity params]
+  (-get-document-ids-async [this ctx auth-identity params]
     "Get multiple document ids.
      Returns a channel which will receive document ids and close.")
-  (-delete-document-async [this auth-identity params]
+  (-delete-document-async [this ctx auth-identity params]
     "Delete a single document. Returns a promise channel.")
-  (-delete-documents-async [this auth-identity params]
+  (-delete-documents-async [this ctx auth-identity params]
     "Delete multiple documents. Returns a promise channel."))
 
 (def document-resource-async?
@@ -235,7 +235,7 @@
 
 (defprotocol ActivityInfoResource
   "Protocol for retrieving activity info."
-  (-get-activity [this auth-identity params]
+  (-get-activity [this ctx auth-identity params]
     "Get an xapi activity object."))
 
 (def activity-info-resource?
@@ -257,7 +257,7 @@
 
 (defprotocol ActivityInfoResourceAsync
   "Async protocol for retrieving activity info."
-  (-get-activity-async [this auth-identity params]
+  (-get-activity-async [this ctx auth-identity params]
     "Get an xapi activity object. Returns a promise channel."))
 
 (def activity-info-resource-async?
@@ -277,7 +277,7 @@
 
 (defprotocol AgentInfoResource
   "Protocol for retrieving information on agents."
-  (-get-person [this auth-identity params]
+  (-get-person [this ctx auth-identity params]
     "Get an xapi person object. Throws only on invalid params."))
 
 (def agent-info-resource?
@@ -297,7 +297,7 @@
 
 (defprotocol AgentInfoResourceAsync
   "Async protocol for retrieving information on agents."
-  (-get-person-async [this auth-identity params]
+  (-get-person-async [this ctx auth-identity params]
     "Get an xapi person object. Throws only on invalid params."))
 
 (def agent-info-resource-async?
@@ -320,11 +320,11 @@
 
 (defprotocol StatementsResource
   "Protocol for storing/retrieving statements, activities, agents."
-  (-store-statements [this auth-identity statements attachments]
+  (-store-statements [this ctx auth-identity statements attachments] 
     "Store and persist validated statements and possibly attachments in the LRS,
      throwing if there's a conflict, and returning a vector of IDs.
      It is expected that the ID param will be included in statements that are PUT.")
-  (-get-statements [this auth-identity params ltags]
+  (-get-statements [this ctx auth-identity params ltags]
     "Retrieve statement or statements from the LRS given params and optionally ltags.
      Returns a statement result object or a single statement.")
   (-consistent-through [this ctx auth-identity]
@@ -379,12 +379,12 @@
 
 (defprotocol StatementsResourceAsync
   "Async Protocol for storing/retrieving statements, activities, agents."
-  (-store-statements-async [this auth-identity statements attachments]
+  (-store-statements-async [this ctx auth-identity statements attachments]
     "Store and persist validated statements and possibly attachments in the LRS,
      throwing if there's a conflict, and returning a channel of ids.
      It is expected that the ID param will be included in statements that are
      PUT.")
-  (-get-statements-async [this auth-identity params ltags]
+  (-get-statements-async [this ctx auth-identity params ltags]
     "Retrieve statement or statements from the LRS given params and optionally
      ltags.
      For singular params, returns a promise channel with a single statement.
