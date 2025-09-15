@@ -5,7 +5,7 @@
    [mem-lrs.server :as server]
    [io.pedestal.http :as http]))
 
-(use-fixtures :once #(runner/test-suite-fixture % :branch "adding-back-compat"))
+(use-fixtures :once runner/test-suite-fixture)
 
 (deftest test-lrs-async
   (testing "clj/java async 1.0.3"

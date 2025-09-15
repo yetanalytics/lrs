@@ -42,7 +42,7 @@
                       {:type ::cljs-lrs-start-error
                        :ret ret})))))
 
-(use-fixtures :once #(runner/test-suite-fixture % :branch "adding-back-compat"))
+(use-fixtures :once runner/test-suite-fixture)
 
 (deftest test-cljs-lrs
   (testing "cljs/javascript async 1.0.3"
