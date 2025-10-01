@@ -104,8 +104,7 @@
            lrs/authorize-async
 
            ;; response handling
-           ;; TODO: fix this instrumentation for xapi version
-           #_com.yetanalytics.lrs.pedestal.routes.about/get-response
+           com.yetanalytics.lrs.pedestal.routes.about/get-response
            com.yetanalytics.lrs.pedestal.routes.activities/get-response
            com.yetanalytics.lrs.pedestal.routes.agents/get-response
            com.yetanalytics.lrs.pedestal.routes.documents/put-response
