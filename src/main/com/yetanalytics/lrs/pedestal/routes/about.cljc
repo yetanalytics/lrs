@@ -27,5 +27,5 @@
        :keys [com.yetanalytics/lrs] :as ctx}]
      (if (p/about-resource-async? lrs)
        (a/go (get-response ctx
-                           (a/<! (lrs/get-about-async lrs auth-identity))))
-       (get-response ctx (lrs/get-about lrs auth-identity))))})
+                           (a/<! (lrs/get-about-async lrs ctx auth-identity))))
+       (get-response ctx (lrs/get-about lrs ctx auth-identity))))})

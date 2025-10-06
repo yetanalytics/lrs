@@ -24,3 +24,4 @@ package.json
 .clj-kondo/*
 !.clj-kondo/config.edn
 .lsp/
+.vscode/

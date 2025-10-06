@@ -14,7 +14,7 @@
   []
   (try
     (= (slurp "http://localhost:8080/xapi/about")
-       "{\"version\":[\"1.0.0\",\"1.0.1\",\"1.0.2\",\"1.0.3\"]}")
+       "{\"version\":[\"1.0.0\",\"1.0.1\",\"1.0.2\",\"1.0.3\",\"2.0.0\"]}")
     (catch java.net.ConnectException _
       false)))
 
@@ -45,7 +45,7 @@
 (use-fixtures :once runner/test-suite-fixture)
 
 (deftest test-cljs-lrs
-  (testing "cljs/javascript async"
+  (testing "cljs/javascript async 1.0.3"
     (let [stop-fn (cljs-lrs)
           ret     (runner/conformant?
                    "-e"
@@ -53,5 +53,15 @@
                    "-b"
                    "-z"
                    "-x" "1.0.3")]
+      (stop-fn)
+      (is (true? ret))))
+  (testing "cljs/javascript async 2.0.0"
+    (let [stop-fn (cljs-lrs)
+          ret     (runner/conformant?
+                   "-e"
+                   "http://localhost:8080/xapi"
+                   "-b"
+                   "-z"
+                   "-x" "2.0.0")]
       (stop-fn)
       (is (true? ret)))))

@@ -10,6 +10,7 @@
    [#?(:clj io.pedestal.log
        :cljs com.yetanalytics.lrs.util.log) :as log]
    [clojure.spec.test.alpha :as stest :include-macros true]
+   [xapi-schema.spec :as xs :include-macros true]
    #?(:cljs [cljs.nodejs :as node])))
 
 ;; We keep this because this is in a dev dir
@@ -71,48 +72,51 @@
 (defn ^:export -main
   "The entry-point for 'lein run'"
   [& [?mode]]
-  (log/info :msg "Instrumenting com.yetanalytics.lrs fns"
-            :fns (stest/instrument
-                  `[lrs/get-about
-                    lrs/get-about-async
-                    lrs/set-document
-                    lrs/set-document-async
-                    lrs/get-document
-                    lrs/get-document-async
-                    lrs/get-document-ids
-                    lrs/get-document-ids-async
-                    lrs/delete-document
-                    lrs/delete-document-async
-                    lrs/delete-documents
-                    lrs/delete-documents-async
-                    lrs/get-activity
-                    lrs/get-activity-async
-                    lrs/get-person
-                    lrs/get-person-async
-                    lrs/store-statements
-                    lrs/store-statements-async
-                    lrs/get-statements
-                    lrs/get-statements-async
-                    lrs/consistent-through
-                    lrs/consistent-through-async
-                    lrs/authenticate
-                    lrs/authenticate-async
-                    lrs/authorize
-                    lrs/authorize-async
+  (log/info
+   :msg "Instrumenting com.yetanalytics.lrs fns"
+   :fns (stest/instrument
+         `[lrs/get-about
+           lrs/get-about-async
+           lrs/set-document
+           lrs/set-document-async
+           lrs/get-document
+           lrs/get-document-async
+           lrs/get-document-ids
+           lrs/get-document-ids-async
+           lrs/delete-document
+           lrs/delete-document-async
+           lrs/delete-documents
+           lrs/delete-documents-async
+           lrs/get-activity
+           lrs/get-activity-async
+           lrs/get-person
+           lrs/get-person-async
+           lrs/store-statements
+           ;; TODO: fix this instrumentation for xapi version in cljs only
+           #?@(:clj [lrs/store-statements-async])
+           lrs/get-statements
+           lrs/get-statements-async
+           lrs/consistent-through
+           lrs/consistent-through-async
+           lrs/authenticate
+           lrs/authenticate-async
+           lrs/authorize
+           lrs/authorize-async
 
-                    ;; response handling
-                    com.yetanalytics.lrs.pedestal.routes.about/get-response
-                    com.yetanalytics.lrs.pedestal.routes.activities/get-response
-                    com.yetanalytics.lrs.pedestal.routes.agents/get-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/put-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/post-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
-                    com.yetanalytics.lrs.pedestal.routes.documents/delete-response
-                    com.yetanalytics.lrs.pedestal.routes.statements/put-response
-                    com.yetanalytics.lrs.pedestal.routes.statements/post-response
-                    com.yetanalytics.lrs.pedestal.routes.statements/get-response
-                    ]))
+           ;; response handling
+           ;; TODO: fix this instrumentation for xapi version in cljs only
+           #?@(:clj [com.yetanalytics.lrs.pedestal.routes.about/get-response])
+           com.yetanalytics.lrs.pedestal.routes.activities/get-response
+           com.yetanalytics.lrs.pedestal.routes.agents/get-response
+           com.yetanalytics.lrs.pedestal.routes.documents/put-response
+           com.yetanalytics.lrs.pedestal.routes.documents/post-response
+           com.yetanalytics.lrs.pedestal.routes.documents/get-single-response
+           com.yetanalytics.lrs.pedestal.routes.documents/get-multiple-response
+           com.yetanalytics.lrs.pedestal.routes.documents/delete-response
+           com.yetanalytics.lrs.pedestal.routes.statements/put-response
+           com.yetanalytics.lrs.pedestal.routes.statements/post-response
+           com.yetanalytics.lrs.pedestal.routes.statements/get-response
+           ]))
   (run-dev :reload-routes? false
            :mode (or
                   (some-> ?mode keyword)
@@ -151,4 +155,4 @@
   (def s nil)
   (-main)
 
-  (com.yetanalytics.lrs/get-statements lrs {} {:limit 1} #{}))
+  (com.yetanalytics.lrs/get-statements lrs {} {} {:limit 1} #{}))

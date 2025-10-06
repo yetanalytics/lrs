@@ -8,7 +8,7 @@
 (use-fixtures :once runner/test-suite-fixture)
 
 (deftest test-lrs-async
-  (testing "clj/java async"
+  (testing "clj/java async 1.0.3"
     (let [s   (server/run-dev :reload-routes? false
                               :mode :async)
           ret (runner/conformant?
@@ -17,5 +17,16 @@
                "-b"
                "-z"
                "-x" "1.0.3")]
+      (http/stop s)
+      (is (true? ret))))
+  (testing "clj/java async 2.0.0"
+    (let [s   (server/run-dev :reload-routes? false
+                              :mode :async)
+          ret (runner/conformant?
+               "-e"
+               "http://localhost:8080/xapi"
+               "-b"
+               "-z"
+               "-x" "2.0.0")]
       (http/stop s)
       (is (true? ret)))))

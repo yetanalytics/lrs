@@ -66,8 +66,8 @@
                  :get    :xapi.agents.profile.GET.request/params
                  :head   :xapi.agents.profile.GET.request/params
                  :delete :xapi.agents.profile.DELETE.request/params))
-             doc-params-interceptor 
-             (xapi-i/params-interceptor spec-kw)             
+             doc-params-interceptor
+             (xapi-i/params-interceptor spec-kw)
              params-interceptors
              (cond-> [doc-params-interceptor]
                ;; Scan files if scanner is present on PUT/POST
@@ -108,33 +108,37 @@
       if this setting is provided.
     :file-scanner - a function that takes the content of any arbitrary
       user-submitted file and returns nil if it is safe, or a map with :message
-      describing why it is unsafe. If unsafe the request will fail with a 400."
+      describing why it is unsafe. If unsafe the request will fail with a 400.
+    :supported-versions - Versions of xAPI that this LRS supports."
   [{:keys [lrs
            path-prefix
            wrap-interceptors
-           file-scanner]
+           file-scanner
+           supported-versions]
     :or {path-prefix "/xapi"
-         wrap-interceptors [i/error-interceptor]}}]
+         wrap-interceptors [i/error-interceptor]
+         supported-versions #{"1.0.3"
+                              "2.0.0"}}}]
   (let [lrs-i                       (i/lrs-interceptor lrs)
         global-interceptors-no-auth (into wrap-interceptors
                                           (conj i/common-interceptors
                                                 lrs-i))
-        global-interceptors         (into wrap-interceptors
-                                          (conj i/common-interceptors
-                                                lrs-i
-                                                auth-i/lrs-authenticate
-                                                auth-i/lrs-authorize))
         protected-interceptors      (into wrap-interceptors
                                           (concat
-                                           global-interceptors
-                                           i/xapi-protected-interceptors))
+                                           i/common-interceptors
+                                           (i/xapi-protected-interceptors
+                                            supported-versions)
+                                           [lrs-i
+                                            auth-i/lrs-authenticate
+                                            auth-i/lrs-authorize]))
         document-interceptors       (into wrap-interceptors
                                           (concat
+                                           (i/xapi-protected-interceptors
+                                            supported-versions)
                                            (conj i/doc-interceptors-base
                                                  lrs-i
                                                  auth-i/lrs-authenticate
-                                                 auth-i/lrs-authorize)
-                                           i/xapi-protected-interceptors))]
+                                                 auth-i/lrs-authorize)))]
     (into #{;; health check
             (gc/annotate
              ["/health"

@@ -82,21 +82,25 @@
              :id    (get-single-response ctx
                                          (a/<! (lrs/get-document-async
                                                 lrs
+                                                ctx
                                                 auth-identity
                                                 params)))
              :query (get-multiple-response ctx
                                            (a/<! (lrs/get-document-ids-async
                                                   lrs
+                                                  ctx
                                                   auth-identity
                                                   params)))
              (assoc ctx :response {:status 400})))
          (case params-type
            :id    (get-single-response ctx
                                        (lrs/get-document lrs
+                                                         ctx
                                                          auth-identity
                                                          params))
            :query (get-multiple-response ctx
                                          (lrs/get-document-ids lrs
+                                                               ctx
                                                                auth-identity
                                                                params))
            (assoc ctx :response {:status 400})))))
@@ -274,78 +278,94 @@
                request
                com.yetanalytics/lrs]
         :as ctx}]
-      (if (p/document-resource-async? lrs)
-        ;; Async
-        (a/go
-          (try
-            (let [{:keys [headers]} request
-                  doc (->doc request)]
-              (if-let [[_ params]
-                       (find xapi :xapi.activities.state.PUT.request/params)]
-                ;; State document
+      (let [[params-type params]
+            (or (find xapi :xapi.activities.state.PUT.request/params)
+                (find-some xapi
+                           :xapi.activities.profile.PUT.request/params
+                           :xapi.agents.profile.PUT.request/params))
+            {:keys [headers]} request
+            {hif-match      "if-match"
+             hif-none-match "if-none-match"} headers
+            doc (->doc request)]
+        (if (p/document-resource-async? lrs)
+          ;; Async
+          (a/go
+            (try
+              (if (or hif-match hif-none-match)
+                ;; has been checked by preproc, OK to proceed
                 (put-response ctx
                               (a/<! (lrs/set-document-async
                                      lrs
+                                     ctx
                                      auth-identity
                                      params
                                      doc
                                      false)))
-                ;; Activity/Agent profile document
-                (let [[_params-spec params]
-                      (find-some xapi
-                                 :xapi.activities.profile.PUT.request/params
-                                 :xapi.agents.profile.PUT.request/params)
-                      {hif-match      "if-match"
-                       hif-none-match "if-none-match"}
-                      headers]
-                  (if (or hif-match hif-none-match)
-                    (put-response ctx (a/<! (lrs/set-document-async
-                                             lrs
-                                             auth-identity
-                                             params
-                                             doc
-                                             false)))
-                    ;; if neither header is present
-                    (let [err-res (a/<! (lrs/get-document-async
+                ;; no headers, so we check to see if a doc exists
+                (let [doc-res (a/<! (lrs/get-document-async
+                                     lrs
+                                     ctx
+                                     auth-identity params))]
+                  (if (and (or
+                            ;; In 2.0, no headers ok for no doc
+                            (= "2.0.0"
+                               (:com.yetanalytics.lrs/version ctx))
+                            ;; prior tests seem to want this for everything but
+                            ;; profiles
+                            (not (#{:xapi.activities.profile.PUT.request/params
+                                    :xapi.agents.profile.PUT.request/params}
+                                  params-type)))
+                           (not (:error doc-res))
+                           (nil? (:document doc-res)))
+                    (put-response ctx
+                                  (a/<! (lrs/set-document-async
                                          lrs
-                                         auth-identity params))]
-                      (put-err-response ctx err-res))))))
+                                         ctx
+                                         auth-identity
+                                         params
+                                         doc
+                                         false)))
+                    (put-err-response ctx doc-res))))
+              (catch #?(:clj Exception :cljs js/Error) ex
+                (assoc ctx :io.pedestal.interceptor.chain/error ex))))
+          ;; Sync
+          (try
+            (if (or hif-match hif-none-match)
+              (put-response ctx
+                            (lrs/set-document
+                             lrs
+                             ctx
+                             auth-identity
+                             params
+                             doc
+                             false))
+              ;; if neither header is present
+              (let [doc-res (lrs/get-document
+                             lrs
+                             ctx
+                             auth-identity params)]
+                (if (and (or
+                          ;; In 2.0, no headers ok for no doc
+                          (= "2.0.0"
+                             (:com.yetanalytics.lrs/version ctx))
+                          ;; prior tests seem to want this for everything but
+                          ;; profiles
+                          (not (#{:xapi.activities.profile.PUT.request/params
+                                  :xapi.agents.profile.PUT.request/params}
+                                params-type)))
+                         (not (:error doc-res))
+                         (nil? (:document doc-res)))
+                  (put-response ctx
+                                (lrs/set-document
+                                 lrs
+                                 ctx
+                                 auth-identity
+                                 params
+                                 doc
+                                 false))
+                  (put-err-response ctx doc-res))))
             (catch #?(:clj Exception :cljs js/Error) ex
-              (assoc ctx :io.pedestal.interceptor.chain/error ex))))
-        ;; Sync
-        (try (let [{:keys [headers]} request
-                   doc (->doc request)]
-               (if-let [[_ params]
-                        (find xapi
-                              :xapi.activities.state.PUT.request/params)]
-                 ;; State document
-                 (put-response ctx
-                               (lrs/set-document
-                                lrs
-                                auth-identity
-                                params
-                                doc
-                                false))
-                 ;; Activity/Agent profile document
-                 (let [[_params-spec params]
-                       (find-some xapi
-                                  :xapi.activities.profile.PUT.request/params
-                                  :xapi.agents.profile.PUT.request/params)
-                       {hif-match      "if-match"
-                        hif-none-match "if-none-match"} headers]
-                   (if (or hif-match hif-none-match)
-                     (put-response ctx
-                                   (lrs/set-document
-                                    lrs
-                                    auth-identity
-                                    params
-                                    doc
-                                    false))
-                       ;; if neither header is present
-                     (let [err-res (lrs/get-document lrs auth-identity params)]
-                       (put-err-response ctx err-res))))))
-             (catch #?(:clj Exception :cljs js/Error) ex
-               (assoc ctx :io.pedestal.interceptor.chain/error ex))))))})
+              (assoc ctx :io.pedestal.interceptor.chain/error ex)))))))})
 
 (s/fdef post-response
   :args (s/cat :ctx map?
@@ -383,6 +403,7 @@
           (a/go
             (post-response ctx (a/<! (lrs/set-document-async
                                       lrs
+                                      ctx
                                       auth-identity
                                       params
                                       doc
@@ -390,6 +411,7 @@
           ;; Sync
           (post-response ctx (lrs/set-document
                               lrs
+                              ctx
                               auth-identity
                               params
                               doc
@@ -426,17 +448,19 @@
                                :xapi.activities.profile.DELETE.request/params
                                :xapi.agents.profile.DELETE.request/params)]
              ;; Activity/Agent profile document
-             (a/<! (lrs/delete-document-async lrs auth-identity params))
+             (a/<! (lrs/delete-document-async lrs ctx auth-identity params))
              ;; State document
              (let [[params-type params]
                    (:xapi.activities.state.DELETE.request/params xapi)]
                (case params-type
                  :id      (a/<! (lrs/delete-document-async
                                  lrs
+                                 ctx
                                  auth-identity
                                  params))
                  :context (a/<! (lrs/delete-documents-async
                                  lrs
+                                 ctx
                                  auth-identity
                                  params)))))))
         ;; Sync
@@ -447,10 +471,10 @@
                              :xapi.activities.profile.DELETE.request/params
                              :xapi.agents.profile.DELETE.request/params)]
            ;; Activity/Agent profile document
-           (lrs/delete-document lrs auth-identity params)
+           (lrs/delete-document lrs ctx auth-identity params)
            ;; State document
            (let [[params-type params]
                  (:xapi.activities.state.DELETE.request/params xapi)]
              (case params-type
-               :id      (lrs/delete-document lrs auth-identity params)
-               :context (lrs/delete-documents lrs auth-identity params))))))))})
+               :id      (lrs/delete-document lrs ctx auth-identity params)
+               :context (lrs/delete-documents lrs ctx auth-identity params))))))))})

@@ -8,6 +8,7 @@
    [com.yetanalytics.lrs.xapi.statements.timestamp :as timestamp]
    [com.yetanalytics.lrs.xapi.agents :as ag]
    [com.yetanalytics.lrs.xapi.activities :as ac]
+   [com.yetanalytics.lrs.xapi.statements.duration :as dur]
    [xapi-schema.spec :as xs]
    [#?(:clj clojure.data.priority-map
        :cljs tailrecursion.priority-map) :as pm]
@@ -151,7 +152,7 @@
 
 (defn prepare-statement
   "Assign an ID, stored, timestamp, etc prior to storage"
-  [{:strs [id stored timestamp _version] :as statement}]
+  [{:strs [id stored timestamp version] :as statement}]
   (let [id        (or id (str #?(:clj (java.util.UUID/randomUUID)
                                  :cljs (random-uuid))))
         stored    (or stored (now-stamp))
@@ -166,7 +167,7 @@
                "stored"    stored
                "timestamp" timestamp
                "authority" authority
-               "version"   "1.0.3"))))
+               "version" (or version "2.0.0")))))
 
 (s/fdef prepare-statement
         :args (s/cat :statement ::xs/statement)
@@ -364,6 +365,13 @@
            (ag/actor-seq team))
          (when instructor
            (ag/actor-seq instructor))))
+      ;; Context Agents and Groups
+      (when-let [{:strs [contextAgents]} context]
+        (map #(get % "agent")
+             contextAgents))
+      (when-let [{:strs [contextGroups]} context]
+        (map #(get % "group")
+             contextGroups))
       (lazy-seq
        (when (= "SubStatement" object-type)
          (concat
@@ -401,6 +409,13 @@
                        (ag/actor-seq team))
                      (when instructor
                        (ag/actor-seq instructor))))
+                  ;; Context Agents and Groups
+                  (when-let [{:strs [contextAgents]} context]
+                    (map #(get % "agent")
+                         contextAgents))
+                  (when-let [{:strs [contextGroups]} context]
+                    (map #(get % "group")
+                         contextGroups))
                   (lazy-seq
                    (when (= "SubStatement" object-type)
                      (statement-agents
@@ -499,6 +514,19 @@
         (s/conformer (partial w/postwalk (fn [x] (if (set? x) (vec x) x))))
         ::xs/statement))
 
+(defn normalize-result-duration
+  "If a Statement has a result duration, normalize it to the xAPI
+   `xs/duration` format."
+  [{:strs [result] :as s}]
+  (if-let [duration (get-in result ["duration"])]
+    (let [norm-duration (dur/normalize-duration duration)]
+      (assoc s "result" (assoc result "duration" norm-duration)))
+    s))
+
+(s/fdef normalize-result-duration
+  :args (s/cat :statement ::xs/statement)
+  :ret ::xs/statement)
+
 ;; TODO: A bunch of other functions have args in the style of `& ss`.
 ;; Check whether they work for zero args.
 (defn statements-immut-equal?
@@ -506,7 +534,8 @@
    Immutability properties (except case insensitivity)."
   [& ss]
   (if (not-empty ss)
-    (apply = (map dissoc-statement-properties ss))
+    (apply = (map (comp normalize-result-duration
+                        dissoc-statement-properties) ss))
     ;; Vacuously true
     true))
 

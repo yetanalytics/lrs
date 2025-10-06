@@ -13,13 +13,28 @@
   [ctx {:keys [error activity] ?etag :etag :as _activity-response}]
   (if error
     (assoc ctx :io.pedestal.interceptor.chain/error error)
-    (assoc ctx
-           :response
-           (if activity
-             (cond-> {:status 200 :body activity}
-               ?etag (assoc :com.yetanalytics.lrs.pedestal.interceptor/etag
-                            ?etag))
-             {:status 404}))))
+    (let [activity-id (-> ctx
+                          :xapi
+                          :xapi.activities.GET.request/params
+                          :activityId)
+          version     (:com.yetanalytics.lrs/version ctx)]
+      (assoc ctx
+             :response
+             (case version
+               "1.0.3"
+               (if activity
+                 (cond-> {:status 200
+                          :body activity}
+                   ?etag (assoc :com.yetanalytics.lrs.pedestal.interceptor/etag
+                                ?etag))
+                 {:status 404})
+               "2.0.0"
+               (cond-> {:status 200
+                        :body (or activity
+                                  {"id" activity-id
+                                   "objectType" "Activity"})}
+                 ?etag (assoc :com.yetanalytics.lrs.pedestal.interceptor/etag
+                              ?etag)))))))
 
 (def handle-get
   {:name ::handle-get
@@ -32,6 +47,7 @@
          (a/go
            (get-response ctx (a/<!
                               (lrs/get-activity-async lrs
+                                                      ctx
                                                       auth-identity
                                                       params))))
-         (get-response ctx (lrs/get-activity lrs auth-identity params)))))})
+         (get-response ctx (lrs/get-activity lrs ctx auth-identity params)))))})

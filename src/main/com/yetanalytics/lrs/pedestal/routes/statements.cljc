@@ -33,6 +33,14 @@
               {:error
                (merge {:message (ex-message exi)}
                       (select-keys exd [:statement]))}})
+      ::invalid-statement-batch
+      (assoc ctx
+             :response
+             {:status 400
+              :body
+              {:error
+               (merge {:message (ex-message exi)}
+                      (select-keys exd [:statements]))}})
       ;; else - unexpected error
       (assoc ctx
              :io.pedestal.interceptor.chain/error
@@ -74,6 +82,7 @@
          (a/go (if valid-statement-id?
                  (put-response ctx (a/<! (lrs/store-statements-async
                                           lrs
+                                          ctx
                                           auth-identity
                                           [(assoc statement "id" s-id)]
                                           attachments)))
@@ -81,6 +90,7 @@
          (if valid-statement-id?
            (put-response ctx (lrs/store-statements
                               lrs
+                              ctx
                               auth-identity
                               [(assoc statement "id" s-id)]
                               attachments))
@@ -105,21 +115,30 @@
      (let [{?statements :xapi-schema.spec/statements
             ?statement  :xapi-schema.spec/statement
             attachments :xapi.statements/attachments} (:xapi ctx)
-           statements (or ?statements [?statement])]
-       (if (p/statements-resource-async? lrs)
-         (a/go
-           (post-response ctx
-                          (a/<! (lrs/store-statements-async
-                                 lrs
-                                 auth-identity
-                                 statements
-                                 attachments))))
+           statements (or ?statements [?statement])
+           s-ids (keep #(get % "id") statements)]
+       (if (and (not-empty s-ids)
+                (false? (reduce distinct? s-ids)))
          (post-response ctx
-                        (lrs/store-statements
-                         lrs
-                         auth-identity
-                         statements
-                         attachments)))))})
+                        {:error (ex-info "Non-unique statement ids provided."
+                                         {:type ::invalid-statement-batch
+                                          :statements statements})})
+         (if (p/statements-resource-async? lrs)
+           (a/go
+             (post-response ctx
+                            (a/<! (lrs/store-statements-async
+                                   lrs
+                                   ctx
+                                   auth-identity
+                                   statements
+                                   attachments))))
+           (post-response ctx
+                          (lrs/store-statements
+                           lrs
+                           ctx
+                           auth-identity
+                           statements
+                           attachments))))))})
 
 ;; TODO: wrap attachment response
 ;; TODO: Last modfified https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Communication.md#requirements-4
@@ -158,9 +177,16 @@
           ctx
           :response
           (if (or statement statement-result)
-            (if (get-in xapi [:xapi.statements.GET.request/params :attachments])
+            (let [?last-mod
+                  (or (get statement "stored")
+                      (some-> statement-result
+                              :statements
+                              first
+                              (get "stored")))]
+             (if (get-in xapi [:xapi.statements.GET.request/params :attachments])
               {:status  200
-               :headers (cond-> {"Content-Type" att-resp/content-type}
+               :headers (cond-> (cond-> {"Content-Type" att-resp/content-type}
+                                  ?last-mod (assoc "last-modified" ?last-mod))
                           etag (assoc "etag" etag))
                ;; shim, the protocol will be expected to return this
                :body    (att-resp/build-multipart-async
@@ -188,7 +214,8 @@
                 (if statement-result
                   ;; Multiple statements
                   {:status  200
-                   :headers {"Content-Type" "application/json"}
+                   :headers (cond-> {"Content-Type" "application/json"}
+                              ?last-mod (assoc "last-modified" ?last-mod))
                    :body    (si/lazy-statement-result-async
                              (a/to-chan!
                               (concat (cons :statements
@@ -199,7 +226,9 @@
                   ;; TODO: if content-type headers get set here the body
                   ;; is not coerced
                   {:status 200
-                   :body   statement})))
+                   :headers (cond-> {}
+                              ?last-mod (assoc "last-modified" ?last-mod))
+                   :body   statement}))))
             ;; Not found
             {:status 404 :body ""}))
          (catch #?(:clj Exception
@@ -226,30 +255,37 @@
                 ;; Statement found
                 (if (:attachments params)
                   {:status  200
-                   :headers {"Content-Type" att-resp/content-type}
+                   :headers {"Content-Type" att-resp/content-type
+                             "last-modified" (get ?statement "stored")}
                    :body    (att-resp/build-multipart-async
                              (aconcat [:statement ?statement] r-chan))}
                   (if (si/accept-html? ctx)
                     (html/statement-response ctx ?statement)
                     {:status 200
+                     :headers {"last-modified" (get ?statement "stored")}
                      :body   ?statement}))
                 ;; No statement found
                 {:status 404 :body ""}))
 
             :statements
-            (if (:attachments params)
-              {:status  200
-               :headers {"Content-Type" att-resp/content-type}
-               :body    (att-resp/build-multipart-async
-                         (aconcat [:statements] r-chan))}
-              (if (si/accept-html? ctx)
-                (html/statements-response
-                 ctx
-                 (a/<! (si/collect-result (aconcat [:statements] r-chan))))
+            (let [?first-statement (a/<! r-chan)]
+              (if (:attachments params)
                 {:status  200
-                 :headers {"Content-Type" "application/json"}
-                 :body    (si/lazy-statement-result-async
-                           (aconcat [:statements] r-chan))})))})))))
+                 :headers (cond-> {"Content-Type" att-resp/content-type}
+                            (map? ?first-statement)
+                            (assoc "last-modified" (get ?first-statement "stored")))
+                 :body    (att-resp/build-multipart-async
+                           (aconcat [:statements ?first-statement] r-chan))}
+                (if (si/accept-html? ctx)
+                  (html/statements-response
+                   ctx
+                   (a/<! (si/collect-result (aconcat [:statements] r-chan))))
+                  {:status  200
+                   :headers (cond-> {"Content-Type" "application/json"}
+                              (map? ?first-statement)
+                              (assoc "last-modified" (get ?first-statement "stored")))
+                   :body    (si/lazy-statement-result-async
+                             (aconcat [:statements ?first-statement] r-chan))}))))})))))
 
 (def handle-get
   {:name ::handle-get
@@ -263,12 +299,14 @@
          (get-response-async ctx
                              (lrs/get-statements-async
                               lrs
+                              ctx
                               auth-identity
                               params
                               ltags))
          (get-response-sync ctx
                             (lrs/get-statements
                              lrs
+                             ctx
                              auth-identity
                              params
                              ltags)))))})

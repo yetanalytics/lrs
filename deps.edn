@@ -1,9 +1,9 @@
 {:paths ["src/main" "resources"]
  :deps
- {org.clojure/clojure {:mvn/version "1.10.1"}
-  org.clojure/clojurescript {:mvn/version "1.10.741"}
+ {org.clojure/clojure {:mvn/version "1.11.4"}
+  org.clojure/clojurescript {:mvn/version "1.12.42"}
   org.clojure/core.async {:mvn/version "1.5.648"}
-  com.yetanalytics/xapi-schema {:mvn/version "1.4.0"
+  com.yetanalytics/xapi-schema {:mvn/version "1.4.1"
                                 :exclusions [org.clojure/clojurescript]}
   com.yetanalytics/gen-openapi {:mvn/version "0.0.5"}
   cheshire/cheshire {:mvn/version "5.10.1"}
@@ -43,7 +43,7 @@
                               :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
     com.yetanalytics/lrs-test-runner
     {:git/url "https://github.com/yetanalytics/lrs-test-runner.git"
-     :sha "0fcd42854f9c79a043c13d436d629826bfc5133d"}
+     :sha "9caedae0fe5d619651f8b54fa669cec363475fef"}
     babashka/babashka.curl {:mvn/version "0.1.2"}}}
   ;; bench utils for LRS implementations
   :bench

@@ -29,5 +29,5 @@
        (if (p/agent-info-resource-async? lrs)
          (a/go
            (get-response ctx (a/<!
-                              (lrs/get-person-async lrs auth-identity params))))
-         (get-response ctx (lrs/get-person lrs auth-identity params)))))})
+                              (lrs/get-person-async lrs ctx auth-identity params))))
+         (get-response ctx (lrs/get-person lrs ctx auth-identity params)))))})

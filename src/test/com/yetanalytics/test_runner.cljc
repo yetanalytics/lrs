@@ -17,7 +17,8 @@
    com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
    com.yetanalytics.lrs.auth-test
    com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
-   com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test))
+   com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test
+   [xapi-schema.spec :as xs :include-macros true]))
 
 (defmethod test/report #?(:cljs [::test/default :begin-test-ns]
                           :clj :begin-test-ns)
@@ -44,20 +45,22 @@
 
 (defn- run-lrs-tests
   []
-  (run-tests
-   #?@(:clj ['com.yetanalytics.lrs-test
-             'com.yetanalytics.lrs.scan-test])
-   'com.yetanalytics.lrs.xapi.activities-test
-   'com.yetanalytics.lrs.xapi.agents-test
-   'com.yetanalytics.lrs.xapi.document-test
-   'com.yetanalytics.lrs.xapi.statements-test
-   'com.yetanalytics.lrs.xapi.statements.timestamp-test
-   'com.yetanalytics.lrs.xapi.statements.html-test
-   'com.yetanalytics.lrs.impl.memory-test
-   'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
-   'com.yetanalytics.lrs.auth-test
-   'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
-   'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test))
+  ;; Use more permissive 2.0.0 specs
+  (binding [xs/*xapi-version* "2.0.0"]
+    (run-tests
+     #?@(:clj ['com.yetanalytics.lrs-test
+               'com.yetanalytics.lrs.scan-test])
+     'com.yetanalytics.lrs.xapi.activities-test
+     'com.yetanalytics.lrs.xapi.agents-test
+     'com.yetanalytics.lrs.xapi.document-test
+     'com.yetanalytics.lrs.xapi.statements-test
+     'com.yetanalytics.lrs.xapi.statements.timestamp-test
+     'com.yetanalytics.lrs.xapi.statements.html-test
+     'com.yetanalytics.lrs.impl.memory-test
+     'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
+     'com.yetanalytics.lrs.auth-test
+     'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
+     'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test)))
 
 (defn ^:export -main []
   #?(:clj
