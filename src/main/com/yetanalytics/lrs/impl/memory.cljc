@@ -443,7 +443,9 @@
 #_{:clj-kondo/ignore [:unused-private-var]}
 (defn- store-statements-sync
   [ctx state statements attachments]
-  (try (let [{version :com.yetanalytics.lrs/version} ctx
+  (try (let [{version :com.yetanalytics.lrs/version
+              :or     {version "1.0.3"}}
+             ctx
              prepared-statements
              (map
               (fn [s stamp]
