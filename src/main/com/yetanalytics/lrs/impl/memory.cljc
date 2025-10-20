@@ -450,9 +450,10 @@
                 (ss/prepare-statement
                  (assoc s
                         "stored" stamp
-                        "version" (case version
-                                    "1.0.3" "1.0.0"
-                                    "2.0.0" "2.0.0"))))
+                        "version" (or (get s "version")
+                                      (case version
+                                        "1.0.3" "1.0.0"
+                                        "2.0.0" "2.0.0")))))
               statements
               (timestamp/stamp-seq))]
          (swap! state
