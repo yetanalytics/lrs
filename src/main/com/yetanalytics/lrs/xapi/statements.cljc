@@ -167,7 +167,7 @@
                "stored"    stored
                "timestamp" timestamp
                "authority" authority
-               "version" (or version "2.0.0")))))
+               "version" (or version "1.0.0")))))
 
 (s/fdef prepare-statement
         :args (s/cat :statement ::xs/statement)
