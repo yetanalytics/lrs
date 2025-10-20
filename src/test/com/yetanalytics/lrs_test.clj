@@ -79,13 +79,14 @@
         ;; max precision of 1 ms. That's timestamps though, looks like we have
         ;; no normalization going on
         s-count        100
+        ctx-103        {:com.yetanalytics.lrs/version "1.0.3"}
         lrs            (doto (mem/new-lrs {:statements-result-max s-count})
-                         (lrs/store-statements {} auth-id
+                         (lrs/store-statements ctx-103 auth-id
                                                (into [] (take s-count)
                                                      test-statements)
                                                []))
         get-ss         #(into []
-                              (get-in (lrs/get-statements lrs {} auth-id % #{"en-US"})
+                              (get-in (lrs/get-statements lrs ctx-103 auth-id % #{"en-US"})
                                       [:statement-result :statements]))
         ret-statements (get-ss {:limit 100})]
     (testing (format "%s valid return statements?" (count ret-statements))
@@ -180,7 +181,7 @@
         (is
          (:statement
           (lrs/get-statements lrs
-                              {}
+                              ctx-103
                               auth-id
                               {:statementId (cs/upper-case id)}
                               #{"en-US"})))))
@@ -193,7 +194,7 @@
         (is
          (not-empty
           (get-in  (lrs/get-statements lrs
-                                       {}
+                                       ctx-103
                                        auth-id
                                        {:registration (cs/upper-case reg)}
                                        #{"en-US"})
@@ -204,7 +205,7 @@
             id  (get s "id")
             lrs (doto (mem/new-lrs {:statements-result-max s-count})
                   (lrs/store-statements
-                   {}
+                   ctx-103
                    auth-id
                    [(-> s
                         (update "id" cs/upper-case)
@@ -212,7 +213,7 @@
                    []))]
         (is (:statement (lrs/get-statements
                          lrs
-                         {}
+                         ctx-103
                          auth-id
                          {:statementId id}
                          #{"en-US"})))
@@ -220,7 +221,7 @@
         ;; don't screw up the rel index
         (is (not-empty (get-in (lrs/get-statements
                                 lrs
-                                {}
+                                ctx-103
                                 auth-id
                                 {:verb (get-in s ["verb" "id"])}
                                 #{"en-US"})
@@ -229,7 +230,7 @@
         (testing "reg index"
           (is (not-empty (get-in (lrs/get-statements
                                   lrs
-                                  {}
+                                  ctx-103
                                   auth-id
                                   {:registration (get-in s ["context"
                                                             "registration"])}
@@ -239,7 +240,7 @@
         (testing "original case is preserved"
           (is (= (cs/upper-case id)
                  (get-in (lrs/get-statements lrs
-                                             {}
+                                             ctx-103
                                              auth-id
                                              {:statementId id}
                                              #{"en-US"})
@@ -247,9 +248,10 @@
         ;; impl test
         (testing "version is 1.0.0"
           (is (= "1.0.0"
-                 (get-in (lrs/get-statements lrs
-                                             {}
-                                             auth-id
-                                             {:statementId id}
-                                             #{"en-US"})
+                 (get-in (lrs/get-statements
+                          lrs
+                          ctx-103
+                          auth-id
+                          {:statementId id}
+                          #{"en-US"})
                          [:statement "version"]))))))))
