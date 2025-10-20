@@ -442,12 +442,17 @@
 
 #_{:clj-kondo/ignore [:unused-private-var]}
 (defn- store-statements-sync
-  [state statements attachments]
-  (try (let [prepared-statements
+  [ctx state statements attachments]
+  (try (let [{version :com.yetanalytics.lrs/version} ctx
+             prepared-statements
              (map
               (fn [s stamp]
                 (ss/prepare-statement
-                 (assoc s "stored" stamp)))
+                 (assoc s
+                        "stored" stamp
+                        "version" (case version
+                                    "1.0.3" "1.0.0"
+                                    "2.0.0" "2.0.0"))))
               statements
               (timestamp/stamp-seq))]
          (swap! state
@@ -885,8 +890,8 @@
        (-get-about [_ _ _]
          (get-about state))
        `~p/StatementsResource
-       (-store-statements [_ _ _ statements attachments]
-         (store-statements-sync state statements attachments))
+       (-store-statements [_ ctx _ statements attachments]
+         (store-statements-sync ctx state statements attachments))
        (-get-statements [_ _ _ params ltags]
          (get-statements-sync state xapi-path-prefix params ltags))
        (-consistent-through [_ _ _]
@@ -920,8 +925,8 @@
        (-get-about-async [lrs _ auth-identity]
          (a/go (get-about state)))
        `~p/StatementsResourceAsync
-       (-store-statements-async [lrs _ auth-identity stmts attachments]
-         (a/go (store-statements-sync state stmts attachments)))
+       (-store-statements-async [lrs ctx auth-identity stmts attachments]
+         (a/go (store-statements-sync ctx state stmts attachments)))
        (-get-statements-async [_ _ _ params ltags]
          (get-statements-async state xapi-path-prefix params ltags))
        (-consistent-through-async [_ _ _]
