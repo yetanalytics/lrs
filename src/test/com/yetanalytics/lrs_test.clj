@@ -243,4 +243,13 @@
                                              auth-id
                                              {:statementId id}
                                              #{"en-US"})
-                         [:statement "id"]))))))))
+                         [:statement "id"]))))
+        ;; impl test
+        (testing "version is 1.0.0"
+          (is (= "1.0.0"
+                 (get-in (lrs/get-statements lrs
+                                             {}
+                                             auth-id
+                                             {:statementId id}
+                                             #{"en-US"})
+                         [:statement "version"]))))))))
