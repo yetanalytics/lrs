@@ -92,7 +92,7 @@
                                       .-fromCharCode
                                       (.apply nil (clj->js c)))))))
 
-(defn- coerce-state
+(defn coerce-state
   [state]
   (-> state
       (update :state/statements
