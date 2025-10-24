@@ -17,7 +17,8 @@
                        [fs]
                        [tmp]
                        [cljs.reader :refer [read-string]]]))
-  #?(:clj (:import [java.io ByteArrayOutputStream]))
+  #?(:clj (:import [java.io ByteArrayOutputStream]
+                   [java.nio.file Files Paths]))
   #?(:cljs (:require-macros [com.yetanalytics.lrs.impl.memory
                              :refer [reify-sync-lrs
                                      reify-async-lrs
@@ -86,15 +87,14 @@
 (defn- document->byte-arr
   [doc]
   #?(:clj (update doc :contents byte-array)
-     :cljs (assoc doc :contents (let [c (:content doc)]
+     :cljs (assoc doc :contents (let [c (:contents doc)]
                                   (-> js/String
                                       .-fromCharCode
                                       (.apply nil (clj->js c)))))))
 
-(defn fixture-state*
-  "Get the state of a post-conformance test lrs from file."
-  []
-  (-> (load-fixture "lrs/state.edn")
+(defn- coerce-state
+  [state]
+  (-> state
       (update :state/statements
               (partial conj (ss/statements-priority-map)))
       (update :state/attachments
@@ -113,11 +113,49 @@
                           (for [[doc-id doc] docs-map]
                             [doc-id (document->byte-arr doc)]))]))))))
 
+(defn load-state [resource-path]
+  (-> (load-fixture resource-path)
+      coerce-state))
+
+(defn fixture-state*
+  "Get the state of a post-conformance test lrs from file."
+  []
+  (load-state "lrs/state.edn"))
+
 (def fixture-state (memoize fixture-state*))
 
 (s/fdef fixture-state
   :args (s/cat)
   :ret ::state)
+
+#?(:clj (defn- file->byte-vec
+          [^java.io.File f]
+          (let [ba (Files/readAllBytes (.toPath f))]
+            (vec (map #(bit-and % 0xFF) ^bytes ba))))
+   :cljs (defn file->byte-vec
+           [fd]
+           (let [buf (.readFileSync fs fd)]
+             (vec (js/Uint8Array. buf)))))
+
+(defn safe-state
+  "Convert byte arrays and files to vectors for storage."
+  [state]
+  (-> state
+      (update :state/attachments
+              #(reduce-kv
+                (fn [m sha2 att]
+                  (assoc m sha2 (update att :content file->byte-vec)))
+                {}
+                %))
+      (update :state/documents
+              (fn [docs]
+                (into {}
+                      (for [[ctx-key docs-map] docs]
+                        [ctx-key
+                         (into
+                          {}
+                          (for [[doc-id doc] docs-map]
+                            [doc-id (update doc :contents vec)]))]))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Activities
