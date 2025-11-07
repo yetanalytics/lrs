@@ -43,8 +43,15 @@
                                   (get-in ctx [:request :headers "x-experience-api-version"]))]
                (assoc ctx
                       :com.yetanalytics.lrs/version
-                      ;; the spec requires this shorthand
-                      (if (= "2.0" version) "2.0.0" version))
+                      (cond
+                        ;; the spec requires this shorthand
+                        (= "2.0" version) "2.0.0"
+                        ;; We explicitly allow versions 1.0.0-1.0.2, but treat
+                        ;; treat them as 1.0.3
+                        (contains? #{"1.0.0"
+                                     "1.0.1"
+                                     "1.0.2"} version) "1.0.3"
+                        :else version))
                ;; allow without, it will be turned into an error down the line
                ctx))}))
 
