@@ -1,5 +1,5 @@
 (ns com.yetanalytics.lrs-test
-  (:require [clojure.test :refer [deftest testing is]]
+  (:require [clojure.test :refer [deftest testing is are]]
             [com.yetanalytics.test-support :as support :refer [deftest-check-ns]]
             [com.yetanalytics.lrs.impl.memory :as mem]
             [com.yetanalytics.lrs :as lrs]
@@ -9,7 +9,10 @@
             [clojure.spec.alpha :as s]
             [xapi-schema.spec :as xs]
             [com.yetanalytics.lrs.xapi.statements.timestamp :as t]
-            [clojure.spec.test.alpha :as stest]))
+            [clojure.spec.test.alpha :as stest]
+            [io.pedestal.http :as http]
+            [babashka.curl :as curl]
+            [cheshire.core :as json]))
 
 (alias 'stc 'clojure.spec.test.check)
 
@@ -255,3 +258,29 @@
                           {:statementId id}
                           #{"en-US"})
                          [:statement "version"]))))))))
+
+(deftest accept-version-test
+  (let [lrs            (support/test-server)]
+    (testing "Accepts versions 1.0.0-1.0.3"
+      (try
+        (http/start lrs)
+        (are [version-header
+              result-status]
+            (= result-status
+               (:status
+                (curl/post
+                 "http://localhost:8080/xapi/statements"
+                 {:basic-auth ["username" "password"]
+                  :headers {"X-Experience-API-Version" version-header
+                            "Content-Type" "application/json;"}
+                  :body (json/generate-string test-statements)
+                  :throw false})))
+          "0.9.5" 400
+          "1.0.0" 200
+          "1.0.1" 200
+          "1.0.2" 200
+          "1.0.3" 200
+          "1.0.4" 400
+          "2.0.0" 200)
+        (finally
+          (http/stop lrs))))))

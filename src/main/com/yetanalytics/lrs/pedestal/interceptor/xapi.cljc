@@ -18,7 +18,6 @@
          {:status 400
           :headers {#?(:cljs "Content-Type"
                        :clj "content-type") "application/json"
-                    ;; TODO: dispatch on type in ctx
                     "x-experience-api-version"
                     (:com.yetanalytics.lrs/version
                      ctx
