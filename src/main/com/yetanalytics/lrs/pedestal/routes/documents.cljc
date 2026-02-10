@@ -306,17 +306,18 @@
                                      lrs
                                      ctx
                                      auth-identity params))]
-                  (if (and (or
-                            ;; In 2.0, no headers ok for no doc
-                            (= "2.0.0"
-                               (:com.yetanalytics.lrs/version ctx))
-                            ;; prior tests seem to want this for everything but
-                            ;; profiles
-                            (not (#{:xapi.activities.profile.PUT.request/params
-                                    :xapi.agents.profile.PUT.request/params}
-                                  params-type)))
-                           (not (:error doc-res))
-                           (nil? (:document doc-res)))
+                  (if (and (not (:error doc-res))
+                           (or
+                            ;; State resources are exempt from concurrency
+                            ;; header requirements in all xAPI versions
+                            (= :xapi.activities.state.PUT.request/params
+                               params-type)
+                            (and (nil? (:document doc-res))
+                                 (or (= "2.0.0"
+                                        (:com.yetanalytics.lrs/version ctx))
+                                     (not (#{:xapi.activities.profile.PUT.request/params
+                                             :xapi.agents.profile.PUT.request/params}
+                                           params-type))))))
                     (put-response ctx
                                   (a/<! (lrs/set-document-async
                                          lrs
@@ -344,17 +345,18 @@
                              lrs
                              ctx
                              auth-identity params)]
-                (if (and (or
-                          ;; In 2.0, no headers ok for no doc
-                          (= "2.0.0"
-                             (:com.yetanalytics.lrs/version ctx))
-                          ;; prior tests seem to want this for everything but
-                          ;; profiles
-                          (not (#{:xapi.activities.profile.PUT.request/params
-                                  :xapi.agents.profile.PUT.request/params}
-                                params-type)))
-                         (not (:error doc-res))
-                         (nil? (:document doc-res)))
+                (if (and (not (:error doc-res))
+                         (or
+                          ;; State resources are exempt from concurrency
+                          ;; header requirements in all xAPI versions
+                          (= :xapi.activities.state.PUT.request/params
+                             params-type)
+                          (and (nil? (:document doc-res))
+                               (or (= "2.0.0"
+                                      (:com.yetanalytics.lrs/version ctx))
+                                   (not (#{:xapi.activities.profile.PUT.request/params
+                                           :xapi.agents.profile.PUT.request/params}
+                                         params-type))))))
                   (put-response ctx
                                 (lrs/set-document
                                  lrs
