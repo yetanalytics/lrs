@@ -237,7 +237,11 @@
 (defn put-response
   [ctx {:keys [error]}]
   (if error
-    (assoc ctx :io.pedestal.interceptor.chain/error error)
+    (let [exd (ex-data error)]
+      (if (#{:com.yetanalytics.lrs.xapi.document/precondition-failed}
+           (:type exd))
+        (assoc ctx :response {:status 412})
+        (assoc ctx :io.pedestal.interceptor.chain/error error)))
     (assoc ctx :response {:status 204})))
 
 
@@ -375,11 +379,18 @@
   [ctx {:keys [error] :as _lrs-response}]
   (if error
     (let [exd (ex-data error)]
-      (if (#{:com.yetanalytics.lrs.xapi.document/json-read-error
-             :com.yetanalytics.lrs.xapi.document/json-not-object-error
-             :com.yetanalytics.lrs.xapi.document/invalid-merge}
-           (:type exd))
+      (cond
+        (#{:com.yetanalytics.lrs.xapi.document/precondition-failed}
+         (:type exd))
+        (assoc ctx :response {:status 412})
+
+        (#{:com.yetanalytics.lrs.xapi.document/json-read-error
+           :com.yetanalytics.lrs.xapi.document/json-not-object-error
+           :com.yetanalytics.lrs.xapi.document/invalid-merge}
+         (:type exd))
         (assoc ctx :response {:status 400})
+
+        :else
         (assoc ctx :io.pedestal.interceptor.chain/error error)))
     (assoc ctx :response {:status 204})))
 
