@@ -1,7 +1,7 @@
 {:npm-deps {"@cljs-oss/module-deps" "1.0.0"
             "tmp"                   "0.2.4" ;; "0.0.33"
             "etag"                  "1.8.1"
-            "qs"                    "6.9.7" ;; "6.9.3"
+            "qs"                    "6.14.1" ;; "6.9.7"
             "concat-stream"         "2.0.0" ;; "1.6.2"
             "content-type"          "1.0.4"
             "cookies"               "0.8.0" ;; "0.7.1"
