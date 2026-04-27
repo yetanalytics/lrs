@@ -8,7 +8,7 @@
   com.yetanalytics/gen-openapi {:mvn/version "0.0.5"}
   cheshire/cheshire {:mvn/version "5.10.1"}
   io.pedestal/pedestal.service
-  {:mvn/version "0.5.10"
+  {:mvn/version "0.8.2-beta-4"
    ;; exclude msgpack (via tools.analyzer)
    ;; clears CVE-2022-41719
    :exclusions [org.msgpack/msgpack
@@ -32,13 +32,13 @@
    :extra-deps
    {;; cider/piggieback {:mvn/version "0.3.8"}
     org.clojure/test.check {:mvn/version "1.0.0"}
-    io.pedestal/pedestal.jetty {:mvn/version "0.5.9"}
+    io.pedestal/pedestal.jetty {:mvn/version "0.8.2-beta-4"}
     ch.qos.logback/logback-classic {:mvn/version "1.2.3"
                                     :exclusions [org.slf4j/slf4j-api]}
     org.slf4j/jul-to-slf4j {:mvn/version "1.7.25"}
     org.slf4j/jcl-over-slf4j {:mvn/version "1.7.25"}
     org.slf4j/log4j-over-slf4j {:mvn/version "1.7.25"}
-    io.pedestal/pedestal.service-tools {:mvn/version "0.5.9"}
+    io.pedestal/pedestal.service-tools {:mvn/version "0.7.0-rc-3"}
     com.yetanalytics/datasim {:git/url "https://github.com/yetanalytics/datasim.git"
                               :sha "423bd6c301ce8503f5c18b43df098bbe64f8f1ab"}
     com.yetanalytics/lrs-test-runner

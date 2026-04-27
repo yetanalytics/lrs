@@ -266,8 +266,8 @@
                             :else        {:type "unknown"}))}}))))}))
 
 ;; Time Requests
-
-(def request-timer
+;; Disabled, log/histogram is no more
+#_(def request-timer
   (i/interceptor
    {:name ::request-timer
     :enter (fn request-timer-enter-fn [ctx]
