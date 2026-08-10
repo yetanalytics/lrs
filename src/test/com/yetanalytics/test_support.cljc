@@ -75,7 +75,7 @@
       :or   {port       8080
              lrs-mode   :sync
              route-opts {}}}]
-  (let [lrs     (mem/new-lrs {})
+  (let [lrs     (mem/new-lrs {:mode lrs-mode})
         service {:env                     :dev
                  ::lrs                    lrs
                  ::http/routes            (r/build

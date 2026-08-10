@@ -157,36 +157,19 @@
 
 (defn etags-preproc
   "Process if-match rules and etags for the handler. Will call `handle-get`
-   to check doc state."
+   to check doc state, then pass normalized preconditions to the document
+   implementation."
   [enter-fn]
   (fn wrap-enter
     [{:keys [xapi
              request
              com.yetanalytics/lrs] :as ctx}]
-    (let [;; Destructuring
-          {:keys [headers]} request
-          ;; VSCode incorrectly marks `if-match` and `if-none-match` as
-          ;; if macros
-          {hif-match      "if-match"
-           hif-none-match "if-none-match"} headers
-          ;; Helper fns
-          hif-match-ok?
-          (fn [ctx hif-match]
-            (case hif-match
-              nil true
-              "*" (= 200 (get-in ctx [:response :status]))
-              ;; else
-              (contains? (i/etag-header->etag-set hif-match)
-                         (::i/etag ctx))))
-          hif-none-match-ok?
-          (fn [ctx hif-none-match]
-            (case hif-none-match
-              nil true
-              "*" (= 404 (get-in ctx [:response :status]))
-              ;; else
-              (not (contains? (i/etag-header->etag-set hif-none-match)
-                              (::i/etag ctx)))))]
-      (if (= nil hif-match hif-none-match)
+    (let [preconditions (doc/parse-etag-preconditions
+                         (get request :headers))
+          operation-ctx (cond-> ctx
+                          (seq preconditions)
+                          (assoc ::doc/preconditions preconditions))]
+      (if (empty? preconditions)
         ;; If no headers provided, go ahead
         (enter-fn ctx)
         (let [;; TODO: Params overhaul, very silly rn
@@ -203,10 +186,14 @@
                         get-params-enter
                         get-enter
                         a/<!
-                        get-leave)]
-                (if (and (hif-match-ok? get-ctx hif-match)
-                         (hif-none-match-ok? get-ctx hif-none-match))
-                  (a/<! (enter-fn ctx))
+                        get-leave)
+                    status (get-in get-ctx [:response :status])]
+                (if (and (contains? #{200 404} status)
+                         (doc/etag-preconditions-met?
+                          preconditions
+                          {:exists? (= 200 status)
+                           :etag    (::i/etag get-ctx)}))
+                  (a/<! (enter-fn operation-ctx))
                   (assoc ctx :response
                          (let [{{:keys [status] :as get-response} :response}
                                get-ctx]
@@ -220,10 +207,14 @@
                       (assoc-in [:request :request-method] :get)
                       get-params-enter
                       get-enter
-                      get-leave)]
-              (if (and (hif-match-ok? get-ctx hif-match)
-                       (hif-none-match-ok? get-ctx hif-none-match))
-                (enter-fn ctx)
+                      get-leave)
+                  status (get-in get-ctx [:response :status])]
+              (if (and (contains? #{200 404} status)
+                       (doc/etag-preconditions-met?
+                        preconditions
+                        {:exists? (= 200 status)
+                         :etag    (::i/etag get-ctx)}))
+                (enter-fn operation-ctx)
                 (assoc ctx :response
                        (let [{{:keys [status] :as get-response} :response}
                              get-ctx]

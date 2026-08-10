@@ -10,6 +10,7 @@
             [io.pedestal.http.body-params :as body-params]
             [io.pedestal.http.ring-middlewares :as middlewares]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xapi]
+            [com.yetanalytics.lrs.xapi.document :as doc]
             [com.yetanalytics.lrs.util.hash :refer [sha-1]]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi.statements :as si]
             [xapi-schema.spec :as xs :include-macros true]
@@ -182,13 +183,12 @@
 (defn calculate-etag [x]
   (sha-1 x))
 
-;; TODO: handle weak etags
 (def etag-string-pattern
-  #"\w+")
+  doc/etag-string-pattern)
 
 (defn etag-header->etag-set
   [etag-header]
-  (into #{} (re-seq etag-string-pattern etag-header)))
+  (doc/etag-header->etag-set etag-header))
 
 (defn- quote-etag [etag]
   (str "\"" etag "\""))
