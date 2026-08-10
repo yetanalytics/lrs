@@ -4,6 +4,7 @@
             [com.yetanalytics.lrs.protocol :as p]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xi]
+            [com.yetanalytics.lrs.xapi.document :as doc]
             [clojure.spec.alpha :as s :include-macros true]
             [clojure.core.async :as a :include-macros true]
             #?(:clj [cheshire.core :as json])))
@@ -237,11 +238,9 @@
 (defn put-response
   [ctx {:keys [error]}]
   (if error
-    (let [exd (ex-data error)]
-      (if (#{:com.yetanalytics.lrs.xapi.document/precondition-failed}
-           (:type exd))
-        (assoc ctx :response {:status 412})
-        (assoc ctx :io.pedestal.interceptor.chain/error error)))
+    (if (doc/precondition-failed? error)
+      (assoc ctx :response {:status 412})
+      (assoc ctx :io.pedestal.interceptor.chain/error error))
     (assoc ctx :response {:status 204})))
 
 
@@ -380,8 +379,7 @@
   (if error
     (let [exd (ex-data error)]
       (cond
-        (#{:com.yetanalytics.lrs.xapi.document/precondition-failed}
-         (:type exd))
+        (doc/precondition-failed? error)
         (assoc ctx :response {:status 412})
 
         (#{:com.yetanalytics.lrs.xapi.document/json-read-error
@@ -439,7 +437,9 @@
 (defn delete-response
   [ctx {:keys [error]}]
   (if error
-    (assoc ctx :io.pedestal.interceptor.chain/error error)
+    (if (doc/precondition-failed? error)
+      (assoc ctx :response {:status 412})
+      (assoc ctx :io.pedestal.interceptor.chain/error error))
     (assoc ctx :response {:status 204})))
 
 (def handle-delete

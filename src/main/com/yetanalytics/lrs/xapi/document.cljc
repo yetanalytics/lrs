@@ -89,6 +89,20 @@
       (sgen/one-of [(document-gen-fn)
                     (json-document-gen-fn)]))))
 
+(defn precondition-failed-error
+  "Return a document operation error indicating that an ETag precondition
+   failed. Optional `data` is included in the exception data."
+  ([]
+   (precondition-failed-error {}))
+  ([data]
+   {:error (ex-info "Document precondition failed"
+                    (assoc data :type ::precondition-failed))}))
+
+(defn precondition-failed?
+  "Return true when `error` represents a document precondition failure."
+  [error]
+  (= ::precondition-failed (:type (ex-data error))))
+
 (defn updated-stamp
   [document]
   (or
