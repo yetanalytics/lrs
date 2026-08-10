@@ -284,3 +284,43 @@
           "2.0.0" 200)
         (finally
           (http/stop lrs))))))
+
+(def agent-json
+  "{\"objectType\":\"Agent\",\"account\":{\"homePage\":\"http://www.example.com/agentId/1\",\"name\":\"Rick James\"}}")
+
+(defn- put-document
+  "PUT a document to the given url with query-params, version header, and body."
+  [url query-params version body]
+  (curl/put
+   url
+   {:basic-auth    ["username" "password"]
+    :headers       {"X-Experience-API-Version" version
+                    "Content-Type"             "application/octet-stream"}
+    :query-params  query-params
+    :body          body
+    :throw         false}))
+
+(deftest document-concurrency-test
+  (testing "Document PUT concurrency without If-Match/If-None-Match headers"
+    (let [server (support/test-server :port 8081)]
+      (try
+        (http/start server)
+        ;; https://github.com/adlnet/xAPI-Spec/blob/1.0.3/xAPI-Communication.md?plain=1#L1424
+        ;; State resources: xAPI 1.0.3 and 2.0 exempt state from concurrency
+        ;; header requirements, so PUTs without headers should always go through.
+        (testing "xAPI 2.0.0 - state: PUTs without concurrency headers go through"
+          (let [params {"activityId" "http://www.example.com/activity/1"
+                        "agent"      agent-json
+                        "stateId"    "concurrency-test-200-state"}
+                url    "http://localhost:8081/xapi/activities/state"]
+            (is (= 204 (:status (put-document url params "2.0.0" "first"))))
+            (is (= 204 (:status (put-document url params "2.0.0" "second"))))))
+        (testing "xAPI 1.0.3 - state: PUTs without concurrency headers go through"
+          (let [params {"activityId" "http://www.example.com/activity/2"
+                        "agent"      agent-json
+                        "stateId"    "concurrency-test-103-state"}
+                url    "http://localhost:8081/xapi/activities/state"]
+            (is (= 204 (:status (put-document url params "1.0.3" "first"))))
+            (is (= 204 (:status (put-document url params "1.0.3" "second"))))))
+        (finally
+          (http/stop server))))))
