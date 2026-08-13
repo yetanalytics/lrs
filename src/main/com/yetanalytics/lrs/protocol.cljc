@@ -114,6 +114,22 @@
 (s/def ::document-resource-instance
   document-resource?)
 
+(defprotocol AtomicDocumentPreconditions
+  "Optional capability for document implementations that atomically validate
+   ETag preconditions while applying mutations."
+  (-atomic-document-preconditions? [this]
+    "Return true when document mutation preconditions are validated atomically
+     by this implementation."))
+
+(defn atomic-document-preconditions?
+  "Return true when `lrs` opts into authoritative atomic document precondition
+   validation. Implementations that do not implement the optional capability
+   return false."
+  [lrs]
+  (boolean
+   (and (satisfies? AtomicDocumentPreconditions lrs)
+        (-atomic-document-preconditions? lrs))))
+
 (s/def ::set-document-params
   (s/or :state
         (sc/with-conform-gen :xapi.document.state/id-params)

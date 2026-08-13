@@ -156,9 +156,9 @@
       :xapi.agents.profile.GET.request/params))))
 
 (defn etags-preproc
-  "Process if-match rules and etags for the handler. Will call `handle-get`
-   to check doc state, then pass normalized preconditions to the document
-   implementation."
+  "Normalize ETag preconditions for document mutations. Implementations that
+   opt into atomic validation receive them directly; other implementations use
+   the preliminary `handle-get` check before receiving them."
   [enter-fn]
   (fn wrap-enter
     [{:keys [xapi
@@ -169,9 +169,11 @@
           operation-ctx (cond-> ctx
                           (seq preconditions)
                           (assoc ::doc/preconditions preconditions))]
-      (if (empty? preconditions)
-        ;; If no headers provided, go ahead
-        (enter-fn ctx)
+      (if (or (empty? preconditions)
+              (p/atomic-document-preconditions? lrs))
+        ;; No condition to validate, or the implementation validates it
+        ;; authoritatively while applying the mutation.
+        (enter-fn operation-ctx)
         (let [;; TODO: Params overhaul, very silly rn
               get-params-enter   (get-params-enter-fn xapi)
               {get-enter :enter

@@ -1,6 +1,8 @@
 (ns com.yetanalytics.lrs.pedestal.routes.documents-test
   (:require [clojure.test :refer [deftest is testing] :include-macros true]
+            [clojure.core.async :as a :include-macros true]
             [clojure.spec.alpha :as s :include-macros true]
+            [com.yetanalytics.test-support :as support]
             [com.yetanalytics.lrs.pedestal.routes.documents :as routes]
             [com.yetanalytics.lrs.protocol :as p]
             [com.yetanalytics.lrs.xapi.document :as doc]))
@@ -10,6 +12,72 @@
 
 (def unexpected-error
   (ex-info "Unexpected document error" {:type ::unexpected}))
+
+(defn- atomic-sync-lrs
+  [enabled?]
+  (reify
+    p/AtomicDocumentPreconditions
+    (-atomic-document-preconditions? [_]
+      enabled?)
+    p/DocumentResource
+    (-set-document [_ _ _ _ _ _] {})
+    (-get-document [_ _ _ _]
+      (throw (ex-info "Preliminary GET must be skipped" {})))
+    (-get-document-ids [_ _ _ _]
+      (throw (ex-info "Preliminary GET must be skipped" {})))
+    (-delete-document [_ _ _ _] {})
+    (-delete-documents [_ _ _ _] {})))
+
+(defn- atomic-async-lrs
+  [enabled?]
+  (reify
+    p/AtomicDocumentPreconditions
+    (-atomic-document-preconditions? [_]
+      enabled?)
+    p/DocumentResourceAsync
+    (-set-document-async [_ _ _ _ _ _] (a/go {}))
+    (-get-document-async [_ _ _ _]
+      (throw (ex-info "Preliminary GET must be skipped" {})))
+    (-get-document-ids-async [_ _ _ _]
+      (throw (ex-info "Preliminary GET must be skipped" {})))
+    (-delete-document-async [_ _ _ _] (a/go {}))
+    (-delete-documents-async [_ _ _ _] (a/go {}))))
+
+(deftest atomic-document-preconditions-capability-test
+  (testing "unimplemented and disabled capabilities are false"
+    (is (false? (p/atomic-document-preconditions? nil)))
+    (is (false? (p/atomic-document-preconditions?
+                 (atomic-sync-lrs false)))))
+  (testing "enabled synchronous and asynchronous capabilities are true"
+    (is (true? (p/atomic-document-preconditions?
+                (atomic-sync-lrs true))))
+    (is (true? (p/atomic-document-preconditions?
+                (atomic-async-lrs true))))))
+
+(deftest atomic-etag-precondition-handoff-test
+  (let [preconditions {:if-match #{"abc" "def"}
+                       :if-none-match :*}
+        request       {:headers {"if-match" "\"abc\", \"def\""
+                                 "if-none-match" "*"}}
+        enter-fn      (fn [ctx]
+                        (assoc ctx :response
+                               {:preconditions (::doc/preconditions ctx)}))]
+    (testing "synchronous implementation skips preliminary GET"
+      (let [result ((routes/etags-preproc enter-fn)
+                    {:request request
+                     :com.yetanalytics/lrs (atomic-sync-lrs true)})]
+        (is (= preconditions
+               (get-in result [:response :preconditions])))))
+    (testing "asynchronous implementation skips preliminary GET"
+      (support/test-async
+       (a/go
+         (let [result (a/<! ((routes/etags-preproc
+                              (fn [ctx] (a/go (enter-fn ctx))))
+                             {:request request
+                              :com.yetanalytics/lrs
+                              (atomic-async-lrs true)}))]
+           (is (= preconditions
+                  (get-in result [:response :preconditions])))))))))
 
 (deftest precondition-failed-error-test
   (let [{:keys [error] :as result}
