@@ -4,6 +4,7 @@
             [com.yetanalytics.lrs.protocol :as p]
             [com.yetanalytics.lrs.pedestal.interceptor :as i]
             [com.yetanalytics.lrs.pedestal.interceptor.xapi :as xi]
+            [com.yetanalytics.lrs.xapi.document :as doc]
             [clojure.spec.alpha :as s :include-macros true]
             [clojure.core.async :as a :include-macros true]
             #?(:clj [cheshire.core :as json])))
@@ -155,39 +156,24 @@
       :xapi.agents.profile.GET.request/params))))
 
 (defn etags-preproc
-  "Process if-match rules and etags for the handler. Will call `handle-get`
-   to check doc state."
+  "Normalize ETag preconditions for document mutations. Implementations that
+   opt into atomic validation receive them directly; other implementations use
+   the preliminary `handle-get` check before receiving them."
   [enter-fn]
   (fn wrap-enter
     [{:keys [xapi
              request
              com.yetanalytics/lrs] :as ctx}]
-    (let [;; Destructuring
-          {:keys [headers]} request
-          ;; VSCode incorrectly marks `if-match` and `if-none-match` as
-          ;; if macros
-          {hif-match      "if-match"
-           hif-none-match "if-none-match"} headers
-          ;; Helper fns
-          hif-match-ok?
-          (fn [ctx hif-match]
-            (case hif-match
-              nil true
-              "*" (= 200 (get-in ctx [:response :status]))
-              ;; else
-              (contains? (i/etag-header->etag-set hif-match)
-                         (::i/etag ctx))))
-          hif-none-match-ok?
-          (fn [ctx hif-none-match]
-            (case hif-none-match
-              nil true
-              "*" (= 404 (get-in ctx [:response :status]))
-              ;; else
-              (not (contains? (i/etag-header->etag-set hif-none-match)
-                              (::i/etag ctx)))))]
-      (if (= nil hif-match hif-none-match)
-        ;; If no headers provided, go ahead
-        (enter-fn ctx)
+    (let [preconditions (doc/parse-etag-preconditions
+                         (get request :headers))
+          operation-ctx (cond-> ctx
+                          (seq preconditions)
+                          (assoc ::doc/preconditions preconditions))]
+      (if (or (empty? preconditions)
+              (p/atomic-document-preconditions? lrs))
+        ;; No condition to validate, or the implementation validates it
+        ;; authoritatively while applying the mutation.
+        (enter-fn operation-ctx)
         (let [;; TODO: Params overhaul, very silly rn
               get-params-enter   (get-params-enter-fn xapi)
               {get-enter :enter
@@ -202,10 +188,14 @@
                         get-params-enter
                         get-enter
                         a/<!
-                        get-leave)]
-                (if (and (hif-match-ok? get-ctx hif-match)
-                         (hif-none-match-ok? get-ctx hif-none-match))
-                  (a/<! (enter-fn ctx))
+                        get-leave)
+                    status (get-in get-ctx [:response :status])]
+                (if (and (contains? #{200 404} status)
+                         (doc/etag-preconditions-met?
+                          preconditions
+                          {:exists? (= 200 status)
+                           :etag    (::i/etag get-ctx)}))
+                  (a/<! (enter-fn operation-ctx))
                   (assoc ctx :response
                          (let [{{:keys [status] :as get-response} :response}
                                get-ctx]
@@ -219,10 +209,14 @@
                       (assoc-in [:request :request-method] :get)
                       get-params-enter
                       get-enter
-                      get-leave)]
-              (if (and (hif-match-ok? get-ctx hif-match)
-                       (hif-none-match-ok? get-ctx hif-none-match))
-                (enter-fn ctx)
+                      get-leave)
+                  status (get-in get-ctx [:response :status])]
+              (if (and (contains? #{200 404} status)
+                       (doc/etag-preconditions-met?
+                        preconditions
+                        {:exists? (= 200 status)
+                         :etag    (::i/etag get-ctx)}))
+                (enter-fn operation-ctx)
                 (assoc ctx :response
                        (let [{{:keys [status] :as get-response} :response}
                              get-ctx]
@@ -237,11 +231,9 @@
 (defn put-response
   [ctx {:keys [error]}]
   (if error
-    (let [exd (ex-data error)]
-      (if (#{:com.yetanalytics.lrs.xapi.document/precondition-failed}
-           (:type exd))
-        (assoc ctx :response {:status 412})
-        (assoc ctx :io.pedestal.interceptor.chain/error error)))
+    (if (doc/precondition-failed? error)
+      (assoc ctx :response {:status 412})
+      (assoc ctx :io.pedestal.interceptor.chain/error error))
     (assoc ctx :response {:status 204})))
 
 
@@ -380,8 +372,7 @@
   (if error
     (let [exd (ex-data error)]
       (cond
-        (#{:com.yetanalytics.lrs.xapi.document/precondition-failed}
-         (:type exd))
+        (doc/precondition-failed? error)
         (assoc ctx :response {:status 412})
 
         (#{:com.yetanalytics.lrs.xapi.document/json-read-error
@@ -439,7 +430,9 @@
 (defn delete-response
   [ctx {:keys [error]}]
   (if error
-    (assoc ctx :io.pedestal.interceptor.chain/error error)
+    (if (doc/precondition-failed? error)
+      (assoc ctx :response {:status 412})
+      (assoc ctx :io.pedestal.interceptor.chain/error error))
     (assoc ctx :response {:status 204})))
 
 (def handle-delete

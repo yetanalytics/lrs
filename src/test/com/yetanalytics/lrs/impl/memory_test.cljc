@@ -2,7 +2,8 @@
   (:require [clojure.test :as test :refer [deftest is] :include-macros true]
             [clojure.spec.test.alpha :as stest :include-macros true]
             [com.yetanalytics.test-support :refer [failures stc-opts]]
-            [com.yetanalytics.lrs.impl.memory :as mem]))
+            [com.yetanalytics.lrs.impl.memory :as mem]
+            [com.yetanalytics.lrs.protocol :as p]))
 
 (deftest store-ref-test
   (is (empty?
@@ -95,4 +96,8 @@
   (is (empty?
        (failures
         (stest/check `mem/new-lrs
-                     {stc-opts {:num-tests 1}})))))
+                     {stc-opts {:num-tests 1}}))))
+  (doseq [mode [:sync :async :both]]
+    (is (false? (p/atomic-document-preconditions?
+                 (mem/new-lrs {:mode mode})))
+        (str "memory LRS mode " (name mode) " remains unopted"))))

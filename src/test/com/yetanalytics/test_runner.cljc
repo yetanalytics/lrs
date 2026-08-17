@@ -15,6 +15,7 @@
    com.yetanalytics.lrs.xapi.statements.html-test
    com.yetanalytics.lrs.impl.memory-test
    com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
+   com.yetanalytics.lrs.pedestal.routes.documents-test
    com.yetanalytics.lrs.auth-test
    com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
    com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test
@@ -58,6 +59,7 @@
      'com.yetanalytics.lrs.xapi.statements.html-test
      'com.yetanalytics.lrs.impl.memory-test
      'com.yetanalytics.lrs.pedestal.http.multipart-mixed-test
+     'com.yetanalytics.lrs.pedestal.routes.documents-test
      'com.yetanalytics.lrs.auth-test
      'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment-test
      'com.yetanalytics.lrs.pedestal.interceptor.xapi.statements.attachment.response-test)))

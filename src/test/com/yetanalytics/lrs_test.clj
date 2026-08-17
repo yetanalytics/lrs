@@ -3,6 +3,8 @@
             [com.yetanalytics.test-support :as support :refer [deftest-check-ns]]
             [com.yetanalytics.lrs.impl.memory :as mem]
             [com.yetanalytics.lrs :as lrs]
+            [com.yetanalytics.lrs.util.hash :as hash]
+            [com.yetanalytics.lrs.xapi.document :as doc]
             [clojure.string :as cs]
             [com.yetanalytics.datasim.input :as sim-input]
             [com.yetanalytics.datasim.sim :as sim]
@@ -284,3 +286,87 @@
           "2.0.0" 200)
         (finally
           (http/stop lrs))))))
+
+(deftest document-etag-precondition-handoff-test
+  (doseq [[lrs-mode port] [[:sync 8081]
+                           [:async 8082]]]
+    (testing (str "memory LRS mode " (name lrs-mode))
+      (let [server                 (support/test-server :port port
+                                                        :lrs-mode lrs-mode)
+            original-set-document lrs/set-document
+            original-set-document-async lrs/set-document-async
+            implementation-calls  (atom [])
+            initial-body           "{\"value\":1}"
+            updated-body           "{\"value\":2}"
+            initial-etag           (hash/sha-1 initial-body)
+            url                    (str "http://localhost:" port
+                                        "/xapi/activities/profile")
+            query-params           {"activityId" "http://example.com/activity"
+                                    "profileId"  "etag-handoff"}
+            request-opts           (fn [body headers]
+                                     {:basic-auth ["username" "password"]
+                                      :headers (merge
+                                                {"X-Experience-API-Version"
+                                                 "1.0.3"
+                                                 "Content-Type"
+                                                 "application/json"}
+                                                headers)
+                                      :query-params query-params
+                                      :body body
+                                      :throw false})
+            get-opts               {:basic-auth ["username" "password"]
+                                    :headers {"X-Experience-API-Version"
+                                              "1.0.3"}
+                                    :query-params query-params
+                                    :throw false}]
+        (with-redefs
+          [lrs/set-document
+           (fn [impl ctx auth-identity params document merge?]
+             (swap! implementation-calls conj (::doc/preconditions ctx))
+             (original-set-document impl
+                                    ctx
+                                    auth-identity
+                                    params
+                                    document
+                                    merge?))
+           lrs/set-document-async
+           (fn [impl ctx auth-identity params document merge?]
+             (swap! implementation-calls conj (::doc/preconditions ctx))
+             (original-set-document-async impl
+                                          ctx
+                                          auth-identity
+                                          params
+                                          document
+                                          merge?))]
+          (try
+            (http/start server)
+            (testing "passes normalized If-None-Match wildcard"
+              (is (= 204
+                     (:status
+                      (curl/put
+                       url
+                       (request-opts initial-body {"If-None-Match" "*"})))))
+              (is (= [{:if-none-match :*}]
+                     @implementation-calls)))
+            (testing "preliminary check still rejects stale If-Match"
+              (is (= 412
+                     (:status
+                      (curl/put
+                       url
+                       (request-opts updated-body
+                                     {"If-Match" "\"stale\""})))))
+              (is (= 1 (count @implementation-calls)))
+              (is (= initial-body (:body (curl/get url get-opts)))))
+            (testing "passes normalized matching If-Match ETag set"
+              (is (= 204
+                     (:status
+                      (curl/put
+                       url
+                       (request-opts updated-body
+                                     {"If-Match"
+                                      (str "\"" initial-etag "\"")})))))
+              (is (= {:if-match #{initial-etag}}
+                     (last @implementation-calls)))
+              (is (= updated-body (:body (curl/get url get-opts)))))
+            (finally
+              (http/stop server))))))))

@@ -89,6 +89,70 @@
       (sgen/one-of [(document-gen-fn)
                     (json-document-gen-fn)]))))
 
+;; TODO: Handle weak ETags.
+(def etag-string-pattern
+  #"\w+")
+
+(defn etag-header->etag-set
+  "Parse an ETag header value into a set of unquoted ETags."
+  [etag-header]
+  (into #{} (re-seq etag-string-pattern etag-header)))
+
+(s/def ::etag-condition
+  (s/or :wildcard #{:*}
+        :etags (s/coll-of string? :kind set?)))
+
+(s/def ::if-match ::etag-condition)
+(s/def ::if-none-match ::etag-condition)
+
+(s/def ::preconditions
+  (s/keys :opt-un [::if-match ::if-none-match]))
+
+(defn parse-etag-preconditions
+  "Parse If-Match and If-None-Match request headers into normalized
+   preconditions. Wildcards are represented by `:*`; other values are sets of
+   unquoted ETags."
+  [{if-match      "if-match"
+    if-none-match "if-none-match"}]
+  (cond-> {}
+    if-match
+    (assoc :if-match (if (= "*" if-match)
+                       :*
+                       (etag-header->etag-set if-match)))
+    if-none-match
+    (assoc :if-none-match (if (= "*" if-none-match)
+                            :*
+                            (etag-header->etag-set if-none-match)))))
+
+(defn etag-preconditions-met?
+  "Return true when normalized ETag `preconditions` are satisfied by the
+   current resource state. `exists?` indicates whether the resource exists;
+   `etag` is its unquoted ETag when available."
+  [{:keys [if-match if-none-match]}
+   {:keys [exists? etag]}]
+  (and (case if-match
+         nil true
+         :* exists?
+         (contains? if-match etag))
+       (case if-none-match
+         nil true
+         :* (not exists?)
+         (not (contains? if-none-match etag)))))
+
+(defn precondition-failed-error
+  "Return a document operation error indicating that an ETag precondition
+   failed. Optional `data` is included in the exception data."
+  ([]
+   (precondition-failed-error {}))
+  ([data]
+   {:error (ex-info "Document precondition failed"
+                    (assoc data :type ::precondition-failed))}))
+
+(defn precondition-failed?
+  "Return true when `error` represents a document precondition failure."
+  [error]
+  (= ::precondition-failed (:type (ex-data error))))
+
 (defn updated-stamp
   [document]
   (or
