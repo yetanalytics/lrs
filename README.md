@@ -27,6 +27,23 @@ To use the dev profile, which contains all dev/repl/test stuff, use the `:dev` a
 * `test-conformance` - Run all conformance tests.
 * `test-all` - Run all lib and conformance tests.
 
+## Dependency vulnerability tracking
+
+The `Deps` GitHub Actions workflow generates a Maven POM from `deps.edn` and
+submits the resolved Maven dependency tree to GitHub on pushes to `master`.
+It can also be run manually from the Actions tab. With dependency graph and
+Dependabot alerts enabled, GitHub can report known vulnerabilities in these
+dependencies. The committed `package-lock.json` supplies npm dependencies
+separately.
+
+Run `make pom.xml` to generate the same POM locally. The generated file is ignored
+by Git; `deps.edn` remains the dependency source.
+
+This submission covers the base library dependencies and their Maven transitives.
+It excludes dependencies added by the `:dev` and `:bench` aliases, including their
+Git dependencies. These aliases need separate dependency submission handling
+before development and benchmark coverage is complete.
+
 ## Implementation Notes
 
 ### Async `GET /statements` Error Handling
