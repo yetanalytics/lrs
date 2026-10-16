@@ -7,13 +7,21 @@
                                 :exclusions [org.clojure/clojurescript]}
   com.yetanalytics/gen-openapi {:mvn/version "0.0.5"}
   cheshire/cheshire {:mvn/version "5.10.1"}
+  ;; Keep Cheshire and Transit's Jackson modules on the same patched release.
+  com.fasterxml.jackson.core/jackson-core {:mvn/version "2.21.7"}
+  com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.21.7"}
+  com.fasterxml.jackson.core/jackson-annotations {:mvn/version "2.21"}
+  com.fasterxml.jackson.dataformat/jackson-dataformat-smile {:mvn/version "2.21.7"}
+  com.fasterxml.jackson.dataformat/jackson-dataformat-cbor {:mvn/version "2.21.7"}
+  io.opentelemetry/opentelemetry-api {:mvn/version "1.62.0"}
   io.pedestal/pedestal.service
   {:mvn/version "0.8.2-beta-4"
    ;; exclude msgpack (via tools.analyzer)
    ;; clears CVE-2022-41719
    :exclusions [org.msgpack/msgpack
                 commons-fileupload/commons-fileupload]}
-  commons-fileupload/commons-fileupload {:mvn/version "1.5"}
+  commons-fileupload/commons-fileupload {:mvn/version "1.6.0"}
+  commons-io/commons-io {:mvn/version "2.21.0"}
   macchiato/core {:mvn/version "0.2.17"
                   :exclusions [funcool/cuerdas]}
   funcool/cuerdas {:mvn/version "2020.03.26-2"}
