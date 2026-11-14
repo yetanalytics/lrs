@@ -135,3 +135,53 @@
     (let [bad-body (subs body 29)]
       (is (= ::multipart/invalid-multipart-body
              (parse-body bad-body))))))
+
+#?(:clj
+   (deftest binary-attachment-roundtrip-test
+     (testing "multipart parsing preserves non-UTF-8 binary payload bytes"
+       (let [payload (byte-array (map unchecked-byte
+                                      [255 254 0 128 137 80 78 71]))
+             stream  (java.io.ByteArrayOutputStream.)
+             header  (format "--%s\r\nContent-Type:application/octet-stream\r\n\r\n"
+                             boundary)
+             close   (format "\r\n--%s--\r\n" boundary)]
+         (.write stream (.getBytes header "US-ASCII"))
+         (.write stream payload)
+         (.write stream (.getBytes close "US-ASCII"))
+         (let [parts (multipart/parse-parts
+                      (io/input-stream (.toByteArray stream)) boundary)
+               part  (first parts)
+               bytes (.readAllBytes ^java.io.InputStream (:input-stream part))]
+           (is (= 1 (count parts)))
+           (is (= (alength payload) (:content-length part)))
+           (is (= (seq payload) (seq bytes)))
+           (is (= (seq (.digest (doto (java.security.MessageDigest/getInstance "SHA-256")
+                                  (.update payload))))
+                  (seq (.digest (doto (java.security.MessageDigest/getInstance "SHA-256")
+                                    (.update bytes))))))))))
+     (testing "header separators and false boundary candidates within payload are data"
+       (let [payload (byte-array
+                      (concat (map unchecked-byte [255 0 128 137])
+                              (seq (.getBytes (str "\r\n\r\nhello\r\n--"
+                                                   boundary "X\r\nworld")
+                                              "US-ASCII"))))
+             stream (java.io.ByteArrayOutputStream.)
+             open   (format "--%s\r\nContent-Type:application/octet-stream\r\n\r\n"
+                            boundary)
+             close  (format "\r\n--%s--" boundary)]
+         (.write stream (.getBytes open "US-ASCII"))
+         (.write stream payload)
+         (.write stream (.getBytes close "US-ASCII"))
+         (let [parts (multipart/parse-parts
+                      (io/input-stream (.toByteArray stream)) boundary)
+               part (first parts)]
+           (is (= 1 (count parts)))
+           (is (= (alength payload) (:content-length part)))
+           (is (= (seq payload)
+                  (seq (.readAllBytes ^java.io.InputStream
+                                      (:input-stream part))))))))
+     (testing "missing multipart body/header separator is rejected"
+       (let [invalid (format "--%s\r\nContent-Type:application/json"
+                             boundary)]
+         (is (= ::multipart/invalid-multipart-body
+                (parse-body invalid)))))))
