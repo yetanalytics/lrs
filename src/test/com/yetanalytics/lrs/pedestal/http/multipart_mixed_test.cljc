@@ -158,7 +158,7 @@
            (is (= (seq (.digest (doto (java.security.MessageDigest/getInstance "SHA-256")
                                   (.update payload))))
                   (seq (.digest (doto (java.security.MessageDigest/getInstance "SHA-256")
-                                    (.update bytes))))))))))
+                                    (.update bytes)))))))))
      (testing "header separators and false boundary candidates within payload are data"
        (let [payload (byte-array
                       (concat (map unchecked-byte [255 0 128 137])
@@ -179,9 +179,9 @@
            (is (= (alength payload) (:content-length part)))
            (is (= (seq payload)
                   (seq (.readAllBytes ^java.io.InputStream
-                                      (:input-stream part))))))))
+                                      (:input-stream part)))))))
      (testing "missing multipart body/header separator is rejected"
        (let [invalid (format "--%s\r\nContent-Type:application/json"
                              boundary)]
          (is (= ::multipart/invalid-multipart-body
-                (parse-body invalid))))))
+                (parse-body invalid))))))))
