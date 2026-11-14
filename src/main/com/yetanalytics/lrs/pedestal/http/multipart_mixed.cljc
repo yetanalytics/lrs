@@ -4,7 +4,7 @@
    #?@(:cljs [[com.yetanalytics.lrs.util :as u]
               [goog.string :refer [format]]
               [goog.string.format]]))
-  #?(:clj (:import [java.io ByteArrayInputStream ByteArrayOutputStream InputStream PushbackInputStream])))
+  #?(:clj (:import [java.io BufferedInputStream ByteArrayInputStream ByteArrayOutputStream InputStream PushbackInputStream])))
 
 ;; TODO: configurable temp dir
 
@@ -213,7 +213,7 @@
        (let [marker (.getBytes (str "\r\n--" boundary) "US-ASCII")
              opening (.getBytes (str "--" boundary "\r\n") "US-ASCII")]
          (with-open [^PushbackInputStream stream
-                     (PushbackInputStream. in (+ 2 (alength marker)))]
+                     (PushbackInputStream. (BufferedInputStream. in) (+ 2 (alength marker)))]
            ;; A leading CRLF is optional. A nonempty preamble is not.
            (let [first-byte (.read stream)]
              (if (= 13 first-byte)
