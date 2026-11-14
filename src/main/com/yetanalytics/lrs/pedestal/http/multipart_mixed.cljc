@@ -235,7 +235,7 @@
                    next-parts (conj parts parsed-part)]
                (if closed?
                  (do (check-multipart-end stream) next-parts)
-                 (recur next-parts)))))
+                 (recur next-parts))))))
        :cljs
        (into []
              (map #(parse-part % boundary)
